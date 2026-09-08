@@ -1,0 +1,107 @@
+/* Yalla design tokens — Tel Aviv Bauhaus: flat blocks, hard edges, cobalt / sun / terracotta on warm white. */
+:root {
+  /* Spacing (8-pt) */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+
+  /* Type scale */
+  --t-micro: 11px;
+  --t-small: 13px;
+  --t-body: 16px;
+  --t-lead: 20px;
+  --t-h: 28px;
+  --t-display: 44px;
+  --t-hero: clamp(72px, 18vw, 132px);
+
+  --font-ui: "Heebo", "Arial Hebrew", system-ui, -apple-system, sans-serif;
+  --font-heb: "Frank Ruhl Libre", "David", "Times New Roman", serif;
+
+  /* Color — light */
+  --ground: #f4f1e8;
+  --paper: #ffffff;
+  --stone: #e2ddcf;
+  --ink: #14161f;
+  --ink-2: #4c5061;
+  --ink-3: #868a99;
+  --cobalt: #1b3fd1;
+  --cobalt-ink: #ffffff;
+  --cobalt-soft: #dfe5fb;
+  --sun: #f5c518;
+  --sun-ink: #1f1800;
+  --terracotta: #d2542f;
+  --terracotta-ink: #ffffff;
+  --good: #127a4e;
+  --good-soft: #d9f0e4;
+  --bad: #c0392b;
+  --bad-soft: #f8dcd8;
+
+  /* Shape */
+  --r-sm: 6px;
+  --r: 12px;
+  --r-full: 999px;
+  --rule: 2px;
+  --lift: 4px 4px 0 var(--ink);
+  --lift-sm: 2px 2px 0 var(--ink);
+
+  /* Motion */
+  --dur-fast: 120ms;
+  --dur: 220ms;
+  --dur-slow: 420ms;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --nav-h: 64px;
+  color-scheme: light;
+}
+
+/* Dark: a designed theme, not a flip. Deep ground, luminous cobalt, sun kept fully saturated. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0e1014;
+    --paper: #171a21;
+    --stone: #2a2e3a;
+    --ink: #f3efe4;
+    --ink-2: #b9bcc8;
+    --ink-3: #7c8093;
+    --cobalt: #5b7dff;
+    --cobalt-ink: #06102e;
+    --cobalt-soft: #1c2650;
+    --sun: #f5c518;
+    --sun-ink: #1f1800;
+    --terracotta: #ef7a55;
+    --terracotta-ink: #2a0d03;
+    --good: #3fc082;
+    --good-soft: #163527;
+    --bad: #f07565;
+    --bad-soft: #43231f;
+    --lift: 4px 4px 0 var(--ink);
+    --lift-sm: 2px 2px 0 var(--ink);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ground: #0e1014;
+  --paper: #171a21;
+  --stone: #2a2e3a;
+  --ink: #f3efe4;
+  --ink-2: #b9bcc8;
+  --ink-3: #7c8093;
+  --cobalt: #5b7dff;
+  --cobalt-ink: #06102e;
+  --cobalt-soft: #1c2650;
+  --sun: #f5c518;
+  --sun-ink: #1f1800;
+  --terracotta: #ef7a55;
+  --terracotta-ink: #2a0d03;
+  --good: #3fc082;
+  --good-soft: #163527;
+  --bad: #f07565;
+  --bad-soft: #43231f;
+  color-scheme: dark;
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#1B3FD1"/>
+  <circle cx="392" cy="120" r="64" fill="#F5C518"/>
+  <text x="256" y="360" font-family="Frank Ruhl Libre, David, Times New Roman, serif" font-weight="900" font-size="300" fill="#F4F1E8" text-anchor="middle">י</text>
+  <rect x="96" y="400" width="320" height="24" fill="#F4F1E8"/>
+</svg>
