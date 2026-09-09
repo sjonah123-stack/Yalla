@@ -162,7 +162,11 @@ export function sessionGems(end: SessionEnd): { base: number; correct: number; p
   };
 }
 
-/** Chests earned but not yet paid: completed (not placed) units, and fully completed sections. */
+/**
+ * Chests earned but not yet paid: completed units and fully completed sections.
+ * Units skipped via the placement test never pay, and a section pays only once every one of its
+ * units was earned by playing — testing out of a section is its own reward.
+ */
 export function pendingChests(
   course: Course,
   p: Progress,
@@ -175,8 +179,8 @@ export function pendingChests(
   const sections: string[] = [];
   for (const s of course.sections) {
     if (p.sectionChests[s.id]) continue;
-    if (s.units.length > 0 && s.units.every((id) => !!p.units[id]?.completedAt))
-      sections.push(s.id);
+    const recs = s.units.map((id) => p.units[id]);
+    if (recs.length > 0 && recs.every((r) => !!r?.completedAt && !r.placed)) sections.push(s.id);
   }
   return { units, sections };
 }

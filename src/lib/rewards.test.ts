@@ -82,11 +82,18 @@ describe("pendingChests", () => {
     p.units["movement-1"] = { completedAt: now, chestAt: now };
     expect(pendingChests(course, p).units).toEqual(["speech-1"]);
   });
+  it("never pays a section chest for a section skipped via placement", () => {
+    const p = defaultProgress();
+    for (const id of SECTION_BY_ID.speech.units) p.units[id] = { completedAt: now, placed: true };
+    expect(pendingChests(course, p)).toEqual({ units: [], sections: [] });
+    p.units["speech-2"] = { completedAt: now };
+    expect(pendingChests(course, p).sections).toEqual([]);
+  });
   it("lists a section only when every unit is complete and it is unpaid", () => {
     const p = defaultProgress();
     p.units["speech-1"] = { completedAt: now };
     expect(pendingChests(course, p).sections).toEqual([]);
-    p.units["speech-2"] = { completedAt: now, placed: true };
+    p.units["speech-2"] = { completedAt: now };
     expect(pendingChests(course, p).sections).toEqual(["speech"]);
     p.sectionChests.speech = now;
     expect(pendingChests(course, p).sections).toEqual([]);
