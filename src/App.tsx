@@ -1,19 +1,9 @@
 import { useEffect, useState } from "react";
-import type React from "react";
 import { useUi, type View } from "./store/ui";
 import { useProgress } from "./store/progress";
 import { useSession } from "./store/session";
 import { initSpeech } from "./lib/speech";
 import { connectRemote } from "./lib/storage";
-import { level, levelCeil, levelFloor, streakAlive } from "./lib/srs";
-import {
-  IconBank,
-  IconGear,
-  IconHome,
-  IconPatterns,
-  IconPlay,
-  IconProgress,
-} from "./components/Icons";
 import Path from "./views/Path";
 import Play from "./views/Play";
 import Bank from "./views/Bank";
@@ -23,26 +13,25 @@ import Settings from "./views/Settings";
 import UnitSheet from "./views/Unit";
 import Flashcards from "./views/Flashcards";
 import Match from "./views/Match";
+import Welcome from "./views/Welcome";
 
-const NAV: { v: View; label: string; Icon: () => React.JSX.Element }[] = [
-  { v: "path", label: "Path", Icon: IconHome },
-  { v: "play", label: "Practice", Icon: IconPlay },
-  { v: "bank", label: "Roots", Icon: IconBank },
-  { v: "patterns", label: "Patterns", Icon: IconPatterns },
-  { v: "progress", label: "Progress", Icon: IconProgress },
+const NAV: { v: View; label: string; glyph: string }[] = [
+  { v: "path", label: "Path", glyph: "◉" },
+  { v: "bank", label: "Roots", glyph: "ש" },
+  { v: "patterns", label: "Patterns", glyph: "ב" },
+  { v: "progress", label: "Progress", glyph: "◈" },
 ];
 
 export default function App() {
   const view = useUi((s) => s.view);
   const setView = useUi((s) => s.setView);
-  const showToast = useUi((s) => s.showToast);
   const settingsOpen = useUi((s) => s.settingsOpen);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const unitSheet = useUi((s) => s.unitSheet);
   const toolUnit = useUi((s) => s.toolUnit);
   const theme = useProgress((s) => s.p.settings.theme);
+  const onboardedAt = useProgress((s) => s.p.onboardedAt);
   const session = useSession((s) => s.s);
-  const start = useSession((s) => s.start);
   const [, setAudioReady] = useState(false);
 
   useEffect(() => {
@@ -65,17 +54,8 @@ export default function App() {
     });
   }, []);
 
-  const go = (v: View) => {
-    if (v === "play") {
-      if (!session || session.done) {
-        if (!start({ kind: "practice" }))
-          return showToast("Nothing to practice yet — start the path.");
-      }
-    }
-    setView(v);
-  };
-
   if (view === "play" && session) return <Play />;
+  if (onboardedAt === null) return <Welcome />;
   if (view === "flashcards" && toolUnit) return <Flashcards unitId={toolUnit} />;
   if (view === "match" && toolUnit) return <Match unitId={toolUnit} />;
   // A tool/play view with nothing to show (e.g. after a reload) falls back to the path.
@@ -84,8 +64,7 @@ export default function App() {
   return (
     <>
       <div className="shell">
-        <TopBar onSettings={() => setSettingsOpen(true)} />
-        <main key={shown} className="view">
+        <main key={shown} className={"view" + (shown === "path" ? "" : " pad")}>
           {shown === "path" && <Path />}
           {shown === "bank" && <Bank />}
           {shown === "progress" && <Progress />}
@@ -94,14 +73,16 @@ export default function App() {
       </div>
       <nav className="nav" aria-label="Sections">
         <div className="nav-inner">
-          {NAV.map(({ v, label, Icon }) => (
+          {NAV.map(({ v, label, glyph }) => (
             <button
               key={v}
               type="button"
-              onClick={() => go(v)}
+              onClick={() => setView(v)}
               aria-current={shown === v ? "page" : undefined}
             >
-              <Icon />
+              <span className="ico" aria-hidden="true">
+                {glyph}
+              </span>
               {label}
             </button>
           ))}
@@ -110,52 +91,6 @@ export default function App() {
       <Toast />
       {unitSheet && <UnitSheet unitId={unitSheet} />}
       {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
-    </>
-  );
-}
-
-function TopBar({ onSettings }: { onSettings: () => void }) {
-  const xp = useProgress((s) => s.p.xp);
-  const streak = useProgress((s) => s.p.streak);
-  const lastPlay = useProgress((s) => s.p.lastPlay);
-  const l = level(xp);
-  const lo = levelFloor(l);
-  const hi = levelCeil(l);
-  const pct = Math.max(2, Math.round(((xp - lo) / (hi - lo)) * 100));
-  const alive = streakAlive(lastPlay);
-  return (
-    <>
-      <header className="topbar">
-        <div className="brand">
-          <span className="logo">
-            יאללה<span className="dot">.</span>
-          </span>
-          <span className="tag">Roots</span>
-        </div>
-        <div className="pills">
-          <span className={"pill" + (alive ? "" : " dim")} title="Day streak">
-            <i className="shape sun" />
-            <span className="tnum">{alive ? streak : 0}</span>
-          </span>
-          <span className="pill" title="Level">
-            <i className="shape disc" />
-            Lv <span className="tnum">{l}</span>
-          </span>
-          <button type="button" className="pill icon" aria-label="Settings" onClick={onSettings}>
-            <IconGear />
-          </button>
-        </div>
-      </header>
-      <div
-        className="xpbar"
-        role="progressbar"
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`${xp} XP`}
-      >
-        <i style={{ width: pct + "%" }} />
-      </div>
     </>
   );
 }

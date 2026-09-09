@@ -126,3 +126,111 @@ describe("pruneHistory", () => {
     expect(Object.keys(pruneHistory(p, 400).history)).toHaveLength(400);
   });
 });
+
+describe("normalize (rewards fields)", () => {
+  it("fills reward defaults for a legacy blob", () => {
+    const p = normalize({ v: 2, xp: 10, roots: {}, history: {}, settings: {}, updatedAt: 3 });
+    expect(p.gems).toBe(0);
+    expect(p.seals).toEqual({});
+    expect(p.bestCombo).toBe(0);
+    expect(p.perfectLessons).toBe(0);
+    expect(p.typedOk).toBe(0);
+    expect(p.sectionChests).toEqual({});
+  });
+  it("infers onboardedAt for legacy blobs: seen root → non-null, empty → null", () => {
+    const seen = normalize({
+      v: 2,
+      roots: { כתב: { ...newRootState(), ok: 1 } },
+      updatedAt: 77,
+    });
+    expect(seen.onboardedAt).toBe(77);
+    const seenNoStamp = normalize({ v: 2, roots: { כתב: { ...newRootState(), bad: 1 } } });
+    expect(seenNoStamp.onboardedAt).toBe(1);
+    expect(normalize({ v: 2, lastUnit: "speech-1", updatedAt: 9 }).onboardedAt).toBe(9);
+    expect(
+      normalize({ v: 3, placement: { at: 1, startUnit: "speech-2", score: 50 }, updatedAt: 4 })
+        .onboardedAt,
+    ).toBe(4);
+    expect(normalize({ v: 2, roots: { כתב: newRootState() } }).onboardedAt).toBeNull();
+    expect(normalize(defaultProgress()).onboardedAt).toBeNull();
+    expect(normalize({ ...defaultProgress(), onboardedAt: 123 }).onboardedAt).toBe(123);
+  });
+  it("drops unknown or non-numeric seals", () => {
+    const p = normalize({
+      ...defaultProgress(),
+      seals: { "xp-500": 5, ghost: 6, "combo-5": "soon", "streak-3": null },
+    });
+    expect(p.seals).toEqual({ "xp-500": 5 });
+  });
+  it("drops unknown sections in sectionChests", () => {
+    const p = normalize({
+      ...defaultProgress(),
+      sectionChests: { speech: 10, ghost: 11, movement: "x" },
+    });
+    expect(p.sectionChests).toEqual({ speech: 10 });
+  });
+  it("coerces negative, float and garbage counters", () => {
+    const p = normalize({
+      ...defaultProgress(),
+      gems: -5,
+      bestCombo: 3.7,
+      perfectLessons: "2",
+      typedOk: NaN,
+    });
+    expect(p.gems).toBe(0);
+    expect(p.bestCombo).toBe(3);
+    expect(p.perfectLessons).toBe(0);
+    expect(p.typedOk).toBe(0);
+    expect(normalize({ ...defaultProgress(), gems: 12.9 }).gems).toBe(12);
+  });
+  it("preserves chestAt on unit records", () => {
+    const p = normalize({
+      ...defaultProgress(),
+      units: { "speech-1": { completedAt: 1, chestAt: 2 } },
+    });
+    expect(p.units["speech-1"]).toEqual({ completedAt: 1, chestAt: 2 });
+  });
+});
+
+describe("mergeUnit chestAt", () => {
+  it("keeps the earliest chest payout", () => {
+    expect(mergeUnit({ chestAt: 30 }, { chestAt: 20 })).toEqual({ chestAt: 20 });
+    expect(mergeUnit({ chestAt: 30 }, {})).toEqual({ chestAt: 30 });
+    expect(mergeUnit({}, {})).toEqual({});
+  });
+});
+
+describe("mergeProgress (rewards fields)", () => {
+  it("takes max gems (not the sum) and max counters", () => {
+    const a = { ...defaultProgress(), gems: 120, bestCombo: 4, perfectLessons: 1, typedOk: 9 };
+    const b = { ...defaultProgress(), gems: 80, bestCombo: 7, perfectLessons: 3, typedOk: 2 };
+    const m = mergeProgress(a, b);
+    expect(m.gems).toBe(120);
+    expect(m.bestCombo).toBe(7);
+    expect(m.perfectLessons).toBe(3);
+    expect(m.typedOk).toBe(9);
+  });
+  it("unions seals and sectionChests keeping the earliest timestamp", () => {
+    const a = {
+      ...defaultProgress(),
+      seals: { "xp-500": 50, "first-root": 5 },
+      sectionChests: { speech: 100, movement: 300 },
+    };
+    const b = {
+      ...defaultProgress(),
+      seals: { "xp-500": 40, "combo-5": 60 },
+      sectionChests: { speech: 200, time: 150 },
+    };
+    const m = mergeProgress(a, b);
+    expect(m.seals).toEqual({ "xp-500": 40, "first-root": 5, "combo-5": 60 });
+    expect(m.sectionChests).toEqual({ speech: 100, movement: 300, time: 150 });
+  });
+  it("keeps the earliest onboardedAt; null only when both are null", () => {
+    const a = { ...defaultProgress(), onboardedAt: 20 };
+    const b = { ...defaultProgress(), onboardedAt: 10 };
+    expect(mergeProgress(a, b).onboardedAt).toBe(10);
+    expect(mergeProgress(a, defaultProgress()).onboardedAt).toBe(20);
+    expect(mergeProgress(defaultProgress(), b).onboardedAt).toBe(10);
+    expect(mergeProgress(defaultProgress(), defaultProgress()).onboardedAt).toBeNull();
+  });
+});

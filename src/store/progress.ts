@@ -5,6 +5,13 @@ import { applyAnswer, dayKey, touchStreak } from "../lib/srs";
 import { GOLD_SCORE, memorizedCount, newlyCompleted } from "../lib/course";
 import { applyPlacement, type PlacementAnswer } from "../lib/placement";
 import {
+  applySessionEnd,
+  GEM_PLACEMENT,
+  settle,
+  type Receipt,
+  type SessionEnd,
+} from "../lib/rewards";
+import {
   defaultProgress,
   loadLocal,
   pruneHistory,
@@ -29,7 +36,12 @@ interface ProgressStore {
   recordTest: (unit: UnitId, score: number) => boolean;
   /** Best Match time for a unit; returns true on a new record (XP awarded). */
   recordMatch: (unit: UnitId, ms: number) => boolean;
-  finishPlacement: (answers: readonly PlacementAnswer[]) => void;
+  /** Apply a finished placement; pays skipped-section chests and (first time) the placement bonus. */
+  finishPlacement: (answers: readonly PlacementAnswer[]) => Receipt;
+  /** Fold a finished or abandoned session into counters, gems and seals. */
+  recordSessionEnd: (end: SessionEnd) => Receipt;
+  /** Stamp onboardedAt once. */
+  markOnboarded: () => void;
   reset: () => void;
 }
 
@@ -130,8 +142,26 @@ export const useProgress = create<ProgressStore>((set, get) => ({
     return true;
   },
   finishPlacement: (answers) => {
+    const prev = get().p;
     const now = Date.now();
-    set({ p: persist(reconcile(applyPlacement(COURSE, get().p, answers, now), now), set) });
+    const placed = reconcile(applyPlacement(COURSE, prev, answers, now), now);
+    const { p, receipt } = settle(
+      COURSE,
+      placed,
+      now,
+      prev.placement === null ? { placement: GEM_PLACEMENT } : {},
+    );
+    set({ p: persist(p, set) });
+    return receipt;
+  },
+  recordSessionEnd: (end) => {
+    const { p, receipt } = applySessionEnd(COURSE, get().p, end, Date.now());
+    set({ p: persist(p, set) });
+    return receipt;
+  },
+  markOnboarded: () => {
+    const p = get().p;
+    if (p.onboardedAt === null) set({ p: persist({ ...p, onboardedAt: Date.now() }, set) });
   },
   reset: () => {
     set({ p: persist(defaultProgress(), set) });

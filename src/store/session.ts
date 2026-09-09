@@ -6,6 +6,7 @@ import { makeQuestion, modeFor, xpFor } from "../lib/quiz";
 import { buildLesson, buildTest, testScore } from "../lib/lesson";
 import { placementSample } from "../lib/placement";
 import { memorizedCount } from "../lib/course";
+import type { Receipt } from "../lib/rewards";
 import { speechAvailable } from "../lib/speech";
 import { useProgress } from "./progress";
 import { COURSE } from "./course";
@@ -62,6 +63,8 @@ export interface Session {
   ok: number;
   bad: number;
   xp: number;
+  /** Correct typeRoot answers this session. */
+  typedOk: number;
   retried: Set<number>;
   /** Roots whose SRS already advanced this session (further slots are drills). */
   advanced: Set<string>;
@@ -74,6 +77,10 @@ export interface Session {
   /** Set when the session finished: test score, or placement handled. */
   score?: number;
   wentGold?: boolean;
+  /** Gems, chests and seals paid out when the session finished. */
+  rewards?: Receipt;
+  /** The learner has opened the chest on the summary screen. */
+  chestClaimed: boolean;
 }
 
 interface SessionStore {
@@ -85,6 +92,7 @@ interface SessionStore {
   submitTyped: () => void;
   next: () => void;
   end: () => void;
+  claimChest: () => void;
   clear: () => void;
 }
 
@@ -127,16 +135,39 @@ function load(s: Session): Session {
   };
 }
 
-/** Close the session and apply end-of-session effects (test score, placement). */
-function finish(s: Session): Session {
+/**
+ * Close the session and apply end-of-session effects (test score, placement, rewards).
+ * `completed` is false when the learner quit early: counters and base gems still land,
+ * but the run can never count as perfect.
+ */
+function finish(s: Session, completed = true): Session {
+  if (s.done) return s;
   const prog = useProgress.getState();
   const out: Session = { ...s, done: true, q: null };
+  const ok = s.results.filter((r) => r.ok).length;
   if (s.plan.kind === "test") {
-    out.score = testScore(s.results.filter((r) => r.ok).length, s.slots.length);
+    out.score = testScore(ok, s.slots.length);
     out.wentGold = prog.recordTest(s.plan.unit, out.score);
+    out.rewards = prog.recordSessionEnd({
+      kind: "test",
+      ok,
+      bad: s.results.length - ok,
+      best: s.best,
+      typedOk: s.typedOk,
+      completed: true,
+    });
   } else if (s.plan.kind === "placement") {
-    prog.finishPlacement(s.results.map((r) => ({ root: s.slots[r.slot], ok: r.ok })));
-    out.score = testScore(s.results.filter((r) => r.ok).length, s.slots.length);
+    out.rewards = prog.finishPlacement(s.results.map((r) => ({ root: s.slots[r.slot], ok: r.ok })));
+    out.score = testScore(ok, s.slots.length);
+  } else {
+    out.rewards = prog.recordSessionEnd({
+      kind: s.plan.kind,
+      ok: s.ok,
+      bad: s.bad,
+      best: s.best,
+      typedOk: s.typedOk,
+      completed,
+    });
   }
   return out;
 }
@@ -193,6 +224,7 @@ export const useSession = create<SessionStore>((set, get) => ({
       ok: 0,
       bad: 0,
       xp: 0,
+      typedOk: 0,
       retried: new Set(),
       advanced: new Set(),
       learned: [],
@@ -200,6 +232,7 @@ export const useSession = create<SessionStore>((set, get) => ({
       results: [],
       memBefore: memorizedCount(ROOTS, prog.p),
       done: false,
+      chestClaimed: false,
     };
     set({ s: load(s) });
     return true;
@@ -232,7 +265,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
   next: () => {
     const s = get().s;
-    if (!s || !s.answered) return;
+    if (!s || !s.answered || s.done) return;
     set({ s: load({ ...s, i: s.i + 1 }) });
   },
   end: () => {
@@ -240,7 +273,11 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (!s || s.done) return;
     // Ending a test or placement early discards it rather than scoring a partial run.
     if (s.plan.kind === "test" || s.plan.kind === "placement") set({ s: null });
-    else set({ s: { ...s, done: true, q: null } });
+    else set({ s: finish(s, false) });
+  },
+  claimChest: () => {
+    const s = get().s;
+    if (s && s.done && !s.chestClaimed) set({ s: { ...s, chestClaimed: true } });
   },
   clear: () => set({ s: null }),
 }));
@@ -295,6 +332,7 @@ function answer(
       ok: s.ok + (correct ? 1 : 0),
       bad: s.bad + (correct ? 0 : 1),
       xp: s.xp + xp,
+      typedOk: s.typedOk + (correct && q.mode === "typeRoot" ? 1 : 0),
       ticks,
       queue,
       retried,

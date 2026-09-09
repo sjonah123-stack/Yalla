@@ -3,26 +3,19 @@ import { COURSE } from "../store/course";
 import { useProgress } from "../store/progress";
 import { useSession, type Plan } from "../store/session";
 import { useUi } from "../store/ui";
-import {
-  GOLD_SCORE,
-  sectionColor,
-  unitCracked,
-  unitMemorized,
-  unitStatus,
-  unitTitle,
-} from "../lib/course";
+import { GOLD_SCORE, unitCracked, unitMemorized, unitStatus, unitTitle } from "../lib/course";
 import { formatMs } from "../lib/match";
 import { rootDisplay } from "../lib/hebrew";
 import { mastery } from "../lib/srs";
-import { MasteryArc } from "../components/MasteryArc";
+import { MasteryDots } from "../components/MasteryDots";
 import type { UnitId } from "../types";
 
 const STATUS_TEXT = {
   locked: "Locked — finish the unit before it, or test out.",
-  available: "Not started.",
-  started: "In progress.",
+  available: "Not started. Sixteen questions, new roots introduced first.",
+  started: "In progress. Two right answers on separate days locks a root in.",
   learned: "Every root answered right once. Come back tomorrow to lock them in.",
-  complete: "Complete — every root memorized.",
+  complete: "Complete — every root memorized. Practice keeps them sharp.",
   gold: "Gold — passed the unit test.",
 } as const;
 
@@ -63,15 +56,11 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
       aria-modal="true"
       aria-label={unitTitle(u)}
     >
-      <div
-        className="panel usheet"
-        onClick={(e) => e.stopPropagation()}
-        style={{ "--c": sectionColor(u.section.id) } as React.CSSProperties}
-      >
-        <div className="row between">
+      <div className="panel usheet" onClick={(e) => e.stopPropagation()}>
+        <div className="row between" style={{ alignItems: "flex-start" }}>
           <div>
             <div className="eyebrow">
-              <i className="sq" /> {u.section.he} · {u.section.title}
+              <span className="heb">{u.section.he}</span> · {u.section.title}
             </div>
             <h2>{unitTitle(u)}</h2>
           </div>
@@ -79,12 +68,12 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
             {cracked ? "needs repair" : status}
           </span>
         </div>
-        <p className="small muted" style={{ marginTop: 4 }}>
+        <p className="status">
           {cracked
             ? "Some of these roots have slipped. A lesson will bring them back."
             : STATUS_TEXT[status]}
         </p>
-        <div className="row between" style={{ marginTop: 12 }}>
+        <div className="row between" style={{ marginTop: 10 }}>
           <span className="tnum">
             <b>{mem}</b> / {u.roots.length} memorized
           </span>
@@ -96,8 +85,7 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
         </div>
         <div className="uroots">
           {u.roots.map((r) => {
-            const st = p.roots[r.r];
-            const m = mastery(st);
+            const m = mastery(p.roots[r.r]);
             return (
               <button
                 type="button"
@@ -107,7 +95,7 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
               >
                 <span className="glyph">{rootDisplay(r)}</span>
                 <span className="s">{r.short}</span>
-                <MasteryArc level={m} size={22} />
+                <MasteryDots level={m} />
               </button>
             );
           })}
@@ -116,7 +104,7 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
           {locked ? (
             <button
               type="button"
-              className="btn primary block"
+              className="btn plum block big"
               onClick={() => go({ kind: "test", unit: u.id })}
             >
               Test out · score {GOLD_SCORE}%+ to unlock
@@ -125,38 +113,38 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
             <>
               <button
                 type="button"
-                className={"btn block " + (finished ? "" : "sun big")}
+                className={"btn block big " + (finished ? "plum" : "primary")}
                 onClick={() => go({ kind: "lesson", unit: u.id })}
               >
                 {status === "available"
                   ? "Start lesson"
                   : finished
-                    ? "Practice lesson"
+                    ? "Practice this unit"
                     : "Continue lesson"}
               </button>
-              <div className="btn-row" style={{ marginTop: 8 }}>
-                <button type="button" className="btn" onClick={() => openTool("flashcards", u.id)}>
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn quiet"
+                  onClick={() => openTool("flashcards", u.id)}
+                >
                   Flashcards
                 </button>
-                <button type="button" className="btn" onClick={() => openTool("match", u.id)}>
+                <button type="button" className="btn quiet" onClick={() => openTool("match", u.id)}>
                   Match{rec?.matchBestMs !== undefined ? ` · ${formatMs(rec.matchBestMs)}` : ""}
                 </button>
+                <button
+                  type="button"
+                  className={"btn " + (status === "gold" ? "quiet" : "gold")}
+                  onClick={() => go({ kind: "test", unit: u.id })}
+                >
+                  {status === "gold"
+                    ? `Test · ${rec?.testBest}%`
+                    : rec?.testBest !== undefined
+                      ? `Test · ${rec.testBest}%`
+                      : "Test"}
+                </button>
               </div>
-              <button
-                type="button"
-                className={
-                  "btn block " +
-                  (finished && status !== "gold" ? "sun big" : status === "gold" ? "" : "primary")
-                }
-                style={{ marginTop: 8 }}
-                onClick={() => go({ kind: "test", unit: u.id })}
-              >
-                {status === "gold"
-                  ? `Retake test · best ${rec?.testBest}%`
-                  : rec?.testBest !== undefined
-                    ? `Test · best ${rec.testBest}%`
-                    : "Unit test"}
-              </button>
             </>
           )}
         </div>

@@ -3,14 +3,14 @@ import type { Root, Word } from "../types";
 import { ROOTS } from "../data/roots";
 import { BINYAN_BY_ID, isBinyan } from "../data/binyanim";
 import { normLetters, rootDisplay, rootLetters, stripNikud } from "../lib/hebrew";
-import { DAY, isDue, mastery } from "../lib/srs";
+import { DAY, isDue, mastery, seen } from "../lib/srs";
 import { useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
-import { MasteryArc } from "../components/MasteryArc";
+import { MasteryDots } from "../components/MasteryDots";
 import { WordList } from "../components/WordList";
-
-import { catColor, unitTitle } from "../lib/course";
+import { unitTitle } from "../lib/course";
 import { COURSE } from "../store/course";
+import { SECTION_BY_CAT } from "../data/course";
 
 export default function Bank() {
   const filter = useUi((s) => s.bankFilter);
@@ -41,28 +41,31 @@ export default function Bank() {
     return [...g.entries()];
   }, [filter]);
   const dueCount = ROOTS.filter((r) => isDue(roots[r.r], now)).length;
-  const nWords = ROOTS.reduce((a, r) => a + r.words.length, 0);
+  const learned = ROOTS.filter((r) => seen(roots[r.r])).length;
 
   return (
     <>
-      <div className="bank-head">
-        <div className="row between" style={{ marginBottom: 10 }}>
-          <h2 style={{ fontSize: "var(--t-h)", fontWeight: 900 }}>Root bank</h2>
-          <span className="small muted tnum">
-            {ROOTS.length} roots · {nWords} words{" "}
-            {dueCount > 0 && <span className="due-badge">{dueCount} due</span>}
-          </span>
-        </div>
-        <input
-          className="search"
-          type="search"
-          placeholder="Search כתב, mishpat, justice…"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          autoComplete="off"
-          aria-label="Search roots"
-        />
+      <div className="view-h">
+        <h2>Roots</h2>
+        <span className="k tnum">
+          {learned} learned · {ROOTS.length}
+          {dueCount > 0 && (
+            <>
+              {" "}
+              <span className="due-badge">{dueCount} due</span>
+            </>
+          )}
+        </span>
       </div>
+      <input
+        className="search"
+        type="search"
+        placeholder="Search כתב, mishpat, justice…"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+        autoComplete="off"
+        aria-label="Search roots"
+      />
       {groups.length === 0 && (
         <p className="muted" style={{ marginTop: 16 }}>
           Nothing matches.
@@ -71,7 +74,7 @@ export default function Bank() {
       {groups.map(([cat, rs]) => (
         <div key={cat}>
           <div className="group-h">
-            <i className="sq" style={{ background: catColor(cat) }} />
+            <span className="he">{SECTION_BY_CAT[cat]?.he ?? ""}</span>
             <span className="eyebrow">
               {cat} <span className="tnum">· {rs.length}</span>
             </span>
@@ -104,23 +107,26 @@ const RootRow = memo(function RootRow({
   const st = useProgress((s) => s.p.roots[root.r]);
   const m = mastery(st);
   const now = Date.now();
-  const dueTxt =
-    st && st.reps
-      ? isDue(st, now)
+  const state = !seen(st)
+    ? "not met"
+    : m >= 3
+      ? "memorized"
+      : isDue(st, now)
         ? "due now"
-        : `due in ${Math.max(1, Math.ceil((st.due - now) / DAY))}d`
-      : "not started";
+        : `learning · ${Math.max(1, Math.ceil((st!.due - now) / DAY))}d`;
   return (
-    <div>
+    <div className="rcard">
       <button type="button" className="rrow" aria-expanded={open} onClick={onToggle}>
-        <span className="glyph">{rootDisplay(root)}</span>
+        <span className="tile">
+          <span className="glyph">{rootDisplay(root)}</span>
+        </span>
         <span>
           <div className="m">{root.m}</div>
           <div className="c">
-            {unitTitle(COURSE.byId[root.unit])} · {root.words.length} words · {dueTxt}
+            {unitTitle(COURSE.byId[root.unit])} · {root.words.length} words · {state}
           </div>
         </span>
-        <MasteryArc level={m} />
+        <MasteryDots level={m} />
       </button>
       {open && <RootDetail root={root} />}
     </div>
@@ -146,7 +152,7 @@ function RootDetail({ root }: { root: Root }) {
         </span>
         <button
           type="button"
-          className="btn quiet sm"
+          className="btn sm"
           onClick={() => {
             setView("path");
             openUnit(root.unit);

@@ -1,10 +1,10 @@
 import { useCountUp } from "./useCountUp";
 
 /** Daily-goal ring: XP earned today against the goal. */
-export function GoalRing({ xp, goal, size = 84 }: { xp: number; goal: number; size?: number }) {
+export function GoalRing({ xp, goal, size = 88 }: { xp: number; goal: number; size?: number }) {
   const pct = Math.min(1, xp / goal);
   const shown = useCountUp(Math.round(pct * 100), 900);
-  const r = 40;
+  const r = 41;
   const c = 2 * Math.PI * r;
   const done = xp >= goal;
   return (
@@ -22,7 +22,7 @@ export function GoalRing({ xp, goal, size = 84 }: { xp: number; goal: number; si
       </svg>
       <div className="txt">
         <b className="tnum">{Math.min(xp, goal)}</b>
-        <small className="tnum">/{goal}</small>
+        <small className="tnum">/ {goal} XP</small>
       </div>
     </div>
   );

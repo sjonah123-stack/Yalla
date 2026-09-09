@@ -1,3 +1,4 @@
+import type React from "react";
 import { ROOTS } from "../data/roots";
 import { dayKey, level, levelCeil, levelFloor } from "../lib/srs";
 import {
@@ -9,18 +10,19 @@ import {
   totals,
   upcomingReviews,
 } from "../lib/stats";
+import { SEALS } from "../lib/rewards";
 import { useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
 import { COURSE } from "../store/course";
-import { memorizedCount, sectionColor, unitStatus } from "../lib/course";
+import { memorizedCount, sectionColor } from "../lib/course";
 
 const MASTERY_COLORS = [
-  "var(--stone)",
   "var(--bad)",
-  "var(--terracotta)",
-  "var(--sun)",
-  "var(--good)",
-  "var(--cobalt)",
+  "var(--coral)",
+  "var(--gold)",
+  "var(--plum-light)",
+  "var(--plum)",
+  "var(--ink)",
 ];
 
 export default function Progress() {
@@ -38,17 +40,20 @@ export default function Progress() {
   const mem = memorizedCount(ROOTS, p);
   const memTrend = memorizedTrend(p.history, 30);
   const acc = t.ok + t.bad ? Math.round((t.ok / (t.ok + t.bad)) * 100) : 0;
+  const met = dist.slice(1).reduce((a, n) => a + n, 0);
+  const sealCount = SEALS.filter((s) => p.seals[s.id]).length;
 
   return (
-    <>
-      <div className="statgrid">
+    <div className="progress">
+      <h2>Progress</h2>
+      <div className="stats">
         <div>
           <div className="n tnum">{p.streak}</div>
           <div className="l">day streak</div>
         </div>
         <div>
-          <div className="n tnum">{t.days}</div>
-          <div className="l">days played</div>
+          <div className="n tnum">{p.xp}</div>
+          <div className="l">total XP</div>
         </div>
         <div>
           <div className="n tnum">{acc}%</div>
@@ -56,7 +61,84 @@ export default function Progress() {
         </div>
       </div>
 
-      <section className="block" style={{ marginTop: 16 }}>
+      <div className="sec">
+        <div className="sec-h">
+          <div className="eyebrow">Seals</div>
+          <span className="k tnum">
+            {sealCount} of {SEALS.length}
+          </span>
+        </div>
+        <div className="seals">
+          {SEALS.map((s) => {
+            const on = !!p.seals[s.id];
+            return (
+              <div key={s.id} title={s.hint}>
+                <span className={"seal" + (on ? "" : " off")} aria-label={on ? "earned" : "locked"}>
+                  {s.letter}
+                </span>
+                <span className="n">{s.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="sec">
+        <div className="eyebrow">Mastery across roots you've met</div>
+        <div className="dist" aria-label="Mastery distribution">
+          {dist.slice(1).map((n, i) => (
+            <i
+              key={i}
+              style={{ width: (met ? n / met : 0) * 100 + "%", background: MASTERY_COLORS[i] }}
+              title={`Level ${i + 1}: ${n}`}
+            />
+          ))}
+        </div>
+        <div className="legend">
+          {dist.slice(1).map((n, i) => (
+            <span key={i}>
+              <i style={{ background: MASTERY_COLORS[i] }} />L{i + 1}{" "}
+              <span className="tnum">{n}</span>
+            </span>
+          ))}
+          <span>
+            <i style={{ background: "var(--stone)" }} />
+            not met <span className="tnum">{dist[0]}</span>
+          </span>
+        </div>
+      </div>
+
+      <div className="sec">
+        <div className="sec-h">
+          <div className="eyebrow">The journey</div>
+          <span className="k tnum">
+            {mem} / {ROOTS.length}
+          </span>
+        </div>
+        <div className="journey">
+          {COURSE.sections.map((sec) => {
+            const rs = ROOTS.filter((r) => r.cat === sec.cat);
+            const k = memorizedCount(rs, p);
+            return (
+              <div
+                className="jrow"
+                key={sec.id}
+                style={{ "--c": sectionColor(sec.id) } as React.CSSProperties}
+              >
+                <span className="l">{sec.title}</span>
+                <span className="track">
+                  <i style={{ width: Math.round((k / rs.length) * 100) + "%" }} />
+                </span>
+                <span className="v tnum">
+                  {k}/{rs.length}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <section className="block" style={{ marginTop: 24 }}>
         <div className="row between">
           <div className="eyebrow">Level {l}</div>
           <span className="small muted tnum">
@@ -76,7 +158,7 @@ export default function Progress() {
         </div>
       </section>
 
-      <section className="block cobalt">
+      <section className="block plum">
         <div className="row between">
           <div className="eyebrow">Memorized · last 30 days</div>
           <span className="small tnum" style={{ opacity: 0.85 }}>
@@ -84,32 +166,6 @@ export default function Progress() {
           </span>
         </div>
         <MemChart points={memTrend} total={ROOTS.length} />
-      </section>
-
-      <section className="block">
-        <div className="eyebrow">Path · {COURSE.units.length} units</div>
-        <div className="ustrip" style={{ marginTop: 12 }}>
-          {COURSE.sections.map((sec) => (
-            <div
-              className="urow"
-              key={sec.id}
-              style={{ "--c": sectionColor(sec.id) } as React.CSSProperties}
-            >
-              <span className="l">{sec.title}</span>
-              <span className="units">
-                {COURSE.units
-                  .filter((u) => u.section.id === sec.id)
-                  .map((u) => (
-                    <i
-                      key={u.id}
-                      className={unitStatus(u, COURSE, p)}
-                      title={`${sec.title} ${u.indexInSection + 1}`}
-                    />
-                  ))}
-              </span>
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className="block">
@@ -128,27 +184,6 @@ export default function Progress() {
       <section className="block">
         <div className="eyebrow">Accuracy · last 30 days</div>
         <Trend points={trend} />
-      </section>
-
-      <section className="block">
-        <div className="eyebrow">Mastery across {ROOTS.length} roots</div>
-        <div className="dist" style={{ marginTop: 12 }} aria-label="Mastery distribution">
-          {dist.map((n, i) => (
-            <i
-              key={i}
-              style={{ width: (n / ROOTS.length) * 100 + "%", background: MASTERY_COLORS[i] }}
-              title={`Level ${i}: ${n}`}
-            />
-          ))}
-        </div>
-        <div className="legend">
-          {dist.map((n, i) => (
-            <span key={i}>
-              <i style={{ background: MASTERY_COLORS[i] }} />
-              {i === 0 ? "new" : `L${i}`} <span className="tnum">{n}</span>
-            </span>
-          ))}
-        </div>
       </section>
 
       <section className="block">
@@ -184,7 +219,7 @@ export default function Progress() {
           ))}
         </div>
       </section>
-    </>
+    </div>
   );
 }
 
@@ -224,24 +259,17 @@ function MemChart({
       style={{ marginTop: 8 }}
       aria-label="Memorized roots over time"
     >
-      <polygon points={area} fill="rgba(255,255,255,.18)" />
+      <polygon points={area} fill="rgba(255,255,255,.14)" />
       <polyline
         points={d}
         fill="none"
-        stroke="var(--sun)"
+        stroke="var(--gold)"
         strokeWidth="2.5"
         strokeLinejoin="round"
         strokeLinecap="round"
       />
       {pts.length > 0 && (
-        <circle
-          cx={pts[pts.length - 1].x}
-          cy={pts[pts.length - 1].y}
-          r="4"
-          fill="var(--sun)"
-          stroke="var(--ink)"
-          strokeWidth="1.5"
-        />
+        <circle cx={pts[pts.length - 1].x} cy={pts[pts.length - 1].y} r="4" fill="var(--gold)" />
       )}
       <text x="0" y={H - 1}>
         30d ago
@@ -299,7 +327,7 @@ function Trend({ points }: { points: { day: string; acc: number | null; total: n
           key={i}
           points={d}
           fill="none"
-          stroke="var(--cobalt)"
+          stroke="var(--plum)"
           strokeWidth="2.5"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -307,17 +335,7 @@ function Trend({ points }: { points: { day: string; acc: number | null; total: n
       ))}
       {pts.map(
         (pt) =>
-          pt.y !== null && (
-            <circle
-              key={pt.p.day}
-              cx={pt.x}
-              cy={pt.y}
-              r="3"
-              fill="var(--sun)"
-              stroke="var(--ink)"
-              strokeWidth="1.5"
-            />
-          ),
+          pt.y !== null && <circle key={pt.p.day} cx={pt.x} cy={pt.y} r="3.5" fill="var(--gold)" />,
       )}
       {!any && (
         <text x={W / 2} y={H / 2} textAnchor="middle">
@@ -355,9 +373,8 @@ function Upcoming({ data }: { data: number[] }) {
               y={H - 14 - h}
               width={bw - 4}
               height={h}
-              fill={i === 0 ? "var(--sun)" : "var(--cobalt)"}
-              stroke="var(--ink)"
-              strokeWidth={n ? 1.5 : 0}
+              rx="3"
+              fill={i === 0 ? "var(--coral)" : "var(--plum)"}
             />
             {n > 0 && (
               <text x={i * bw + bw / 2} y={H - 18 - h} textAnchor="middle">

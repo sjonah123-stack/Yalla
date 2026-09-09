@@ -1,4 +1,5 @@
-/* Yalla design tokens — Tel Aviv Bauhaus: flat blocks, hard edges, cobalt / sun / terracotta on warm white. */
+/* Yalla design tokens — "Yalla Mobile": warm cream ground, clay cards with a hard drop,
+   plum / coral / gold accents, chunky radii, Assistant for UI and Frank Ruhl Libre for Hebrew. */
 :root {
   /* Spacing (8-pt) */
   --s1: 4px;
@@ -17,37 +18,53 @@
   --t-lead: 20px;
   --t-h: 28px;
   --t-display: 44px;
-  --t-hero: clamp(72px, 18vw, 132px);
+  --t-hero: clamp(72px, 22vw, 108px);
 
-  --font-ui: "Heebo", "Arial Hebrew", system-ui, -apple-system, sans-serif;
+  --font-ui: "Assistant", "Heebo", "Arial Hebrew", system-ui, -apple-system, sans-serif;
   --font-heb: "Frank Ruhl Libre", "David", "Times New Roman", serif;
 
   /* Color — light */
-  --ground: #f4f1e8;
-  --paper: #ffffff;
-  --stone: #e2ddcf;
-  --ink: #14161f;
-  --ink-2: #4c5061;
-  --ink-3: #868a99;
-  --cobalt: #1b3fd1;
-  --cobalt-ink: #ffffff;
-  --cobalt-soft: #dfe5fb;
-  --sun: #f5c518;
-  --sun-ink: #1f1800;
-  --terracotta: #d2542f;
-  --terracotta-ink: #ffffff;
-  --good: #127a4e;
-  --good-soft: #d9f0e4;
-  --bad: #c0392b;
-  --bad-soft: #f8dcd8;
+  --ground: #f4ecdf;
+  --paper: #fcf8f0;
+  --stone: #e3d6be;
+  --stone-2: #d9cbb0;
+  --clay: #e1d3b8;
+  --locked: #ebe1cf;
+  --ink: #2a1630;
+  --ink-2: #6b5670;
+  --ink-3: #9a8a9e;
+  --ink-4: #b8a9b0;
+  --plum: #4a2352;
+  --plum-deep: #331538;
+  --plum-light: #8e5aa5;
+  --plum-ink: #f8eedf;
+  --coral: #f07358;
+  --coral-deep: #b5452f;
+  --coral-ink: #2a1630;
+  --coral-soft: #fbe3dc;
+  --gold: #e2b04a;
+  --gold-deep: #b8852a;
+  --gold-ink: #2a1630;
+  --good: #4e9a73;
+  --good-deep: #35704f;
+  --good-soft: #ddefe4;
+  --bad: #d2483f;
+  --bad-deep: #9e3229;
+  --bad-soft: #f8dcd6;
+  --hero: linear-gradient(180deg, var(--plum-deep) 0%, var(--plum) 100%);
+  --scrim: rgba(42, 22, 48, 0.45);
+  --hairline: rgba(42, 22, 48, 0.08);
+  --on-dark-soft: rgba(255, 255, 255, 0.1);
 
   /* Shape */
-  --r-sm: 6px;
-  --r: 12px;
+  --r-sm: 12px;
+  --r: 18px;
+  --r-lg: 22px;
+  --r-xl: 30px;
   --r-full: 999px;
-  --rule: 2px;
-  --lift: 4px 4px 0 var(--ink);
-  --lift-sm: 2px 2px 0 var(--ink);
+  --drop: 0 6px 0 var(--clay);
+  --drop-sm: 0 4px 0 var(--clay);
+  --drop-xs: 0 3px 0 var(--stone-2);
 
   /* Motion */
   --dur-fast: 120ms;
@@ -56,52 +73,65 @@
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  --nav-h: 64px;
+  --nav-h: 72px;
+  --shell-w: 520px;
   color-scheme: light;
 }
 
-/* Dark: a designed theme, not a flip. Deep ground, luminous cobalt, sun kept fully saturated. */
+/* Dark: the same clay language on a deep plum ground. Coral and gold stay as they are. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ground: #0e1014;
-    --paper: #171a21;
-    --stone: #2a2e3a;
-    --ink: #f3efe4;
-    --ink-2: #b9bcc8;
-    --ink-3: #7c8093;
-    --cobalt: #5b7dff;
-    --cobalt-ink: #06102e;
-    --cobalt-soft: #1c2650;
-    --sun: #f5c518;
-    --sun-ink: #1f1800;
-    --terracotta: #ef7a55;
-    --terracotta-ink: #2a0d03;
-    --good: #3fc082;
-    --good-soft: #163527;
+    --ground: #1c0f20;
+    --paper: #2a1630;
+    --stone: #3b2542;
+    --stone-2: #4a3350;
+    --clay: #150a18;
+    --locked: #241428;
+    --ink: #f8eedf;
+    --ink-2: #cdbfd0;
+    --ink-3: #9a8a9e;
+    --ink-4: #6b5670;
+    --plum: #8e5aa5;
+    --plum-deep: #4a2352;
+    --plum-light: #b58cc7;
+    --plum-ink: #f8eedf;
+    --coral-soft: #4a2a2a;
+    --good: #6fbf95;
+    --good-deep: #35704f;
+    --good-soft: #1f3a2c;
     --bad: #f07565;
+    --bad-deep: #9e3229;
     --bad-soft: #43231f;
-    --lift: 4px 4px 0 var(--ink);
-    --lift-sm: 2px 2px 0 var(--ink);
+    --hero: linear-gradient(180deg, #120810 0%, #2a1630 100%);
+    --scrim: rgba(0, 0, 0, 0.6);
+    --hairline: rgba(248, 238, 223, 0.1);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --ground: #0e1014;
-  --paper: #171a21;
-  --stone: #2a2e3a;
-  --ink: #f3efe4;
-  --ink-2: #b9bcc8;
-  --ink-3: #7c8093;
-  --cobalt: #5b7dff;
-  --cobalt-ink: #06102e;
-  --cobalt-soft: #1c2650;
-  --sun: #f5c518;
-  --sun-ink: #1f1800;
-  --terracotta: #ef7a55;
-  --terracotta-ink: #2a0d03;
-  --good: #3fc082;
-  --good-soft: #163527;
+  --ground: #1c0f20;
+  --paper: #2a1630;
+  --stone: #3b2542;
+  --stone-2: #4a3350;
+  --clay: #150a18;
+  --locked: #241428;
+  --ink: #f8eedf;
+  --ink-2: #cdbfd0;
+  --ink-3: #9a8a9e;
+  --ink-4: #6b5670;
+  --plum: #8e5aa5;
+  --plum-deep: #4a2352;
+  --plum-light: #b58cc7;
+  --plum-ink: #f8eedf;
+  --coral-soft: #4a2a2a;
+  --good: #6fbf95;
+  --good-deep: #35704f;
+  --good-soft: #1f3a2c;
   --bad: #f07565;
+  --bad-deep: #9e3229;
   --bad-soft: #43231f;
+  --hero: linear-gradient(180deg, #120810 0%, #2a1630 100%);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --hairline: rgba(248, 238, 223, 0.1);
   color-scheme: dark;
 }

@@ -4,47 +4,106 @@ import { useProgress } from "../store/progress";
 import { COURSE } from "../store/course";
 import { ROOTS, ROOT_BY_ID } from "../data/roots";
 import { rootDisplay } from "../lib/hebrew";
-import { GOLD_SCORE, memorizedCount, unitMemorized, unitTitle } from "../lib/course";
+import { GOLD_SCORE, memorizedCount, unitTitle } from "../lib/course";
 import { MODE_TITLE } from "../lib/quiz";
+import {
+  GEM_PER_CORRECT,
+  GEM_PERFECT,
+  GEM_PLACEMENT,
+  GEM_SECTION_CHEST,
+  GEM_UNIT_CHEST,
+  SEAL_BY_ID,
+  type Receipt,
+} from "../lib/rewards";
 import { useCountUp } from "../components/useCountUp";
-import type { Question, Root } from "../types";
-
-function Ring({
-  pct,
-  label,
-  stroke = "var(--sun)",
-}: {
-  pct: number;
-  label: string;
-  stroke?: string;
-}) {
-  const anim = useCountUp(pct, 1100);
-  const r = 50;
-  const c = 2 * Math.PI * r;
-  return (
-    <svg className="ring" viewBox="0 0 120 120" aria-label={label}>
-      <circle className="bg" cx="60" cy="60" r={r} style={{ stroke: "rgba(255,255,255,.25)" }} />
-      <circle
-        className="fg"
-        cx="60"
-        cy="60"
-        r={r}
-        strokeDasharray={c}
-        strokeDashoffset={c * (1 - anim / 100)}
-        style={{ stroke }}
-      />
-      <text x="60" y="60" className="tnum">
-        {anim}%
-      </text>
-    </svg>
-  );
-}
+import type { Question } from "../types";
 
 export default function Summary() {
   const s = useSession((st) => st.s)!;
   if (s.plan.kind === "test") return <TestResult s={s} />;
   if (s.plan.kind === "placement") return <PlacementResult s={s} />;
   return <LessonSummary s={s} />;
+}
+
+function Stats({ xp, acc, best }: { xp: number; acc: number; best: number }) {
+  const shownXp = useCountUp(xp);
+  return (
+    <div className="stats center">
+      <div>
+        <div className="l">XP</div>
+        <div className="n coral tnum">+{shownXp}</div>
+      </div>
+      <div>
+        <div className="l">Accuracy</div>
+        <div className="n tnum">{acc}%</div>
+      </div>
+      <div>
+        <div className="l">Combo</div>
+        <div className="n tnum">×{best}</div>
+      </div>
+    </div>
+  );
+}
+
+/** The gem chest: wobbles closed until tapped, then the lid opens and the gems float out. */
+function Chest({ s, receipt }: { s: Session; receipt: Receipt }) {
+  const claimChest = useSession((st) => st.claimChest);
+  const open = s.chestClaimed;
+  const parts: string[] = [];
+  if (receipt.parts.perfect) parts.push(`Perfect bonus +${GEM_PERFECT}`);
+  if (receipt.unitChests.length)
+    parts.push(`Unit chest +${GEM_UNIT_CHEST * receipt.unitChests.length}`);
+  if (receipt.sectionChests.length)
+    parts.push(`Section chest +${GEM_SECTION_CHEST * receipt.sectionChests.length}`);
+  if (receipt.parts.correct) parts.push(`${s.ok} right × ${GEM_PER_CORRECT}`);
+  return (
+    <div className="chestwrap">
+      {open ? (
+        <div className="chest3d open" aria-label={`${receipt.gems} gems`}>
+          <div className="body" />
+          <div className="lid" />
+          <div className="gems tnum">✦ +{receipt.gems}</div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="chest3d closed"
+          onClick={claimChest}
+          aria-label="Open the chest"
+          autoFocus
+        >
+          <div className="body" />
+          <div className="lid" />
+          <div className="lock" />
+        </button>
+      )}
+      {open ? (
+        <div className="reward">{parts.join(" · ")}</div>
+      ) : (
+        <div className="hint">Tap the chest</div>
+      )}
+    </div>
+  );
+}
+
+function NewSeals({ receipt }: { receipt?: Receipt }) {
+  if (!receipt?.newSeals.length) return null;
+  return (
+    <>
+      {receipt.newSeals.map((id) => {
+        const seal = SEAL_BY_ID[id];
+        return (
+          <div className="sealcard" key={id}>
+            <span className="seal">{seal.letter}</span>
+            <div>
+              <div className="eyebrow">New seal</div>
+              <div className="t">{seal.name}</div>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
 }
 
 function LessonSummary({ s }: { s: Session }) {
@@ -54,9 +113,7 @@ function LessonSummary({ s }: { s: Session }) {
   const p = useProgress((st) => st.p);
   const total = s.ok + s.bad;
   const acc = total ? Math.round((s.ok / total) * 100) : 0;
-  const xp = useCountUp(s.xp);
   const missed = [...new Set(s.missed)].map((id) => ROOT_BY_ID[id]);
-  const learned = s.learned.map((id) => ROOT_BY_ID[id]);
   const memAfter = memorizedCount(ROOTS, p);
   const gained = Math.max(0, memAfter - s.memBefore);
   // Roots at interval 1: answered right today, locked in by tomorrow's review.
@@ -65,6 +122,18 @@ function LessonSummary({ s }: { s: Session }) {
     return st && st.reps === 1 && st.ivl === 1;
   }).length;
   const unit = s.plan.kind === "lesson" ? COURSE.byId[s.plan.unit] : null;
+  const receipt = s.rewards;
+  const unitDone = !!receipt?.unitChests.length;
+  const perfect = !!receipt?.parts.perfect;
+  const headline = unitDone
+    ? "Unit complete! כל הכבוד"
+    : perfect
+      ? "Flawless. מצוין!"
+      : acc >= 70
+        ? "Strong session. יופי!"
+        : "Every miss is a root coming back.";
+  const hasChest = !!receipt && receipt.gems > 0;
+  const claimed = !hasChest || s.chestClaimed;
   const home = () => {
     clear();
     setView("path");
@@ -73,82 +142,63 @@ function LessonSummary({ s }: { s: Session }) {
 
   return (
     <div className="shell view summary">
-      <div style={{ height: "env(safe-area-inset-top)" }} />
-      <section className="block cobalt" style={{ marginTop: 24 }}>
-        <div className="eyebrow">
-          {unit ? `${unitTitle(unit)} · lesson complete` : "Practice complete"}
-        </div>
-        <div className="row between" style={{ marginTop: 8 }}>
-          <div>
-            <div className="big tnum">+{xp}</div>
-            <div className="eyebrow">XP earned</div>
-          </div>
-          <Ring pct={acc} label={`${acc}% accuracy`} />
-        </div>
-        <p className="muted" style={{ marginTop: 12 }}>
-          {s.ok} right · {s.bad} wrong · best combo ×{s.best}
-        </p>
-      </section>
-
-      <section className="block sun">
-        <div className="row between">
-          <div>
-            <div className="eyebrow">Memorized</div>
-            <div className="big tnum" style={{ fontSize: "var(--t-h)" }}>
-              {memAfter}
-              <small style={{ fontSize: "var(--t-body)", fontWeight: 700, opacity: 0.7 }}>
-                /{ROOTS.length}
-              </small>
-              {gained > 0 && <span className="delta tnum"> +{gained}</span>}
-            </div>
-          </div>
-          {unit && (
-            <div style={{ textAlign: "right" }}>
-              <div className="eyebrow">{unitTitle(unit)}</div>
-              <div className="big tnum" style={{ fontSize: "var(--t-h)" }}>
-                {unitMemorized(unit, p)}
-                <small style={{ fontSize: "var(--t-body)", fontWeight: 700, opacity: 0.7 }}>
-                  /{unit.roots.length}
-                </small>
-              </div>
-            </div>
-          )}
-        </div>
-        {pending > 0 && (
-          <p style={{ marginTop: 10 }}>
-            <b>Come back tomorrow</b> to lock in {pending} root{pending === 1 ? "" : "s"} — a second
-            right answer on a new day is what makes a root memorized.
-          </p>
-        )}
-      </section>
-
-      {learned.length > 0 && <RootList title="New roots met" roots={learned} />}
-      {missed.length > 0 && <RootList title="Back soon" roots={missed} />}
-      <div className="btn-row" style={{ marginTop: 16 }}>
-        <button type="button" className="btn primary" onClick={() => start(s.plan)}>
-          {unit ? "Another lesson" : "Another round"}
-        </button>
-        <button type="button" className="btn" onClick={home}>
-          {unit ? "Back to unit" : "Path"}
-        </button>
+      <div className="eyebrow sum-eyebrow">
+        {unit ? `${unitTitle(unit)} · lesson complete` : "Practice complete"}
       </div>
-    </div>
-  );
-}
+      <div className="headline">{headline}</div>
+      <Stats xp={s.xp} acc={acc} best={s.best} />
+      {hasChest && <Chest s={s} receipt={receipt} />}
+      {claimed && <NewSeals receipt={receipt} />}
 
-function RootList({ title, roots }: { title: string; roots: Root[] }) {
-  return (
-    <section className="block">
-      <div className="eyebrow">{title}</div>
-      <ul>
-        {roots.map((r) => (
-          <li key={r.r}>
-            <span className="glyph lead">{rootDisplay(r)}</span>
-            <span className="muted">{r.m}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+      {(gained > 0 || pending > 0) && (
+        <p className="note">
+          {gained > 0 && (
+            <>
+              <b>
+                +{gained} memorized · {memAfter} / {ROOTS.length}
+              </b>
+              {pending > 0 && <br />}
+            </>
+          )}
+          {pending > 0 && (
+            <>
+              Come back tomorrow to lock in {pending} root{pending === 1 ? "" : "s"} — a second
+              right answer on a new day is what makes a root memorized.
+            </>
+          )}
+        </p>
+      )}
+
+      {missed.length > 0 && (
+        <div className="sec">
+          <div className="eyebrow">Back soon</div>
+          <div className="chips">
+            {missed.map((r) => (
+              <span className="chip" key={r.r}>
+                <span className="heb">{rootDisplay(r)}</span> · {r.short}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className={"btn block big " + (claimed ? "plum" : "inert")}
+        onClick={home}
+        disabled={!claimed}
+      >
+        Continue
+      </button>
+      <button
+        type="button"
+        className="btn text block"
+        style={{ marginTop: 8 }}
+        onClick={() => start(s.plan)}
+      >
+        {unit ? "Another lesson" : "Another round"}
+      </button>
+    </div>
   );
 }
 
@@ -171,37 +221,36 @@ function TestResult({ s }: { s: Session }) {
   };
   return (
     <div className="shell view summary">
-      <div style={{ height: "env(safe-area-inset-top)" }} />
-      <section className={"block " + (gold ? "sun celebrate" : "cobalt")} style={{ marginTop: 24 }}>
-        {gold && (
-          <div className="shapes" aria-hidden="true">
-            <i className="a" />
-            <i className="b" />
-            <i className="c" />
-          </div>
-        )}
-        <div className="eyebrow">
-          {unitTitle(unit)} · {gold ? (s.wentGold ? "Gold!" : "Gold again") : "Test"}
+      <div className="eyebrow sum-eyebrow">
+        {unitTitle(unit)} · {gold ? (s.wentGold ? "Gold!" : "Gold again") : "Test"}
+      </div>
+      <div className="headline">
+        {gold
+          ? s.wentGold
+            ? "Unit is gold. כל הכבוד"
+            : "Still gold. יופי!"
+          : `${GOLD_SCORE}% turns it gold.`}
+      </div>
+      <div className="stats center">
+        <div>
+          <div className="l">Score</div>
+          <div className={"n tnum" + (gold ? " coral" : "")}>{score}%</div>
         </div>
-        <div className="row between" style={{ marginTop: 8 }}>
-          <div>
-            <div className="big tnum">
-              {s.ok}
-              <small style={{ fontSize: "var(--t-lead)", fontWeight: 700, opacity: 0.7 }}>
-                /{s.slots.length}
-              </small>
-            </div>
-            <div className="eyebrow">{gold ? "unit is gold" : `${GOLD_SCORE}% turns it gold`}</div>
+        <div>
+          <div className="l">Right</div>
+          <div className="n tnum">
+            {s.ok}
+            <span style={{ fontSize: 16, opacity: 0.6 }}>/{s.slots.length}</span>
           </div>
-          <Ring pct={score} label={`${score}% score`} stroke={gold ? "var(--ink)" : "var(--sun)"} />
         </div>
-        {s.xp > 0 && (
-          <p className="muted" style={{ marginTop: 12 }}>
-            +{s.xp} XP{gold && s.wentGold ? " · next unit unlocked" : ""}
-          </p>
-        )}
-      </section>
-      <section className="block">
+        <div>
+          <div className="l">XP</div>
+          <div className="n tnum">+{s.xp}</div>
+        </div>
+      </div>
+      {gold && s.wentGold && <p className="note">Next unit unlocked.</p>}
+      <NewSeals receipt={s.rewards} />
+      <div className="sec">
         <div className="eyebrow">Question by question</div>
         <ul className="results">
           {s.results.map((r, i) => {
@@ -232,15 +281,18 @@ function TestResult({ s }: { s: Session }) {
             );
           })}
         </ul>
-      </section>
-      <div className="btn-row" style={{ marginTop: 16 }}>
-        <button type="button" className="btn primary" onClick={() => start(s.plan)}>
-          Retake
-        </button>
-        <button type="button" className="btn" onClick={back}>
-          Back to unit
-        </button>
       </div>
+      <button type="button" className="btn block big plum" onClick={back}>
+        Back to unit
+      </button>
+      <button
+        type="button"
+        className="btn text block"
+        style={{ marginTop: 8 }}
+        onClick={() => start(s.plan)}
+      >
+        Retake
+      </button>
     </div>
   );
 }
@@ -252,47 +304,51 @@ function PlacementResult({ s }: { s: Session }) {
   const unit = placement ? COURSE.byId[placement.startUnit] : COURSE.units[0];
   const skipped = unit.pathIndex;
   const score = s.score ?? 0;
+  const firstSeal = s.rewards?.newSeals[0];
   return (
-    <div className="shell view summary">
-      <div style={{ height: "env(safe-area-inset-top)" }} />
-      <section className="block cobalt" style={{ marginTop: 24 }}>
-        <div className="eyebrow">Placement</div>
-        <div className="row between" style={{ marginTop: 8 }}>
-          <div>
-            <div className="eyebrow">Start at</div>
-            <div className="big" style={{ fontSize: "var(--t-h)" }}>
-              {unit.section.he} · {unitTitle(unit)}
-            </div>
-            <div className="small" style={{ marginTop: 6, opacity: 0.85 }}>
-              {skipped
-                ? `${skipped} unit${skipped === 1 ? "" : "s"} marked complete. Their roots come back for review in a week — a miss reopens them.`
-                : "Starting from the first unit."}
-            </div>
-          </div>
-          <Ring pct={score} label={`${score}% correct`} />
+    <div className="dark-screen">
+      <div className="eyebrow">Placement · {score}% correct</div>
+      <div className="big-he">{unit.section.he}</div>
+      <div className="big-t">Start at {unitTitle(unit)}</div>
+      <p>
+        {skipped
+          ? `${skipped} unit${skipped === 1 ? "" : "s"} marked complete. Their roots return for review in a week — a miss reopens them.`
+          : "Starting from the first unit — a solid foundation."}
+      </p>
+      <div className="tiles2">
+        <div>
+          <div className="eyebrow">Gems</div>
+          <div className="v gold tnum">✦ {s.rewards?.parts.placement ?? GEM_PLACEMENT}</div>
         </div>
-      </section>
-      <div className="btn-row" style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          className="btn sun"
-          onClick={() => {
-            if (start({ kind: "lesson", unit: unit.id })) setView("play");
-          }}
-        >
-          Start here
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
+        <div>
+          <div className="eyebrow">{firstSeal ? "New seal" : "Seals"}</div>
+          <div className="v">{firstSeal ? SEAL_BY_ID[firstSeal].letter : "—"}</div>
+        </div>
+      </div>
+      <div className="spacer" />
+      <button
+        type="button"
+        className="btn primary block big"
+        onClick={() => {
+          if (start({ kind: "lesson", unit: unit.id })) setView("play");
+          else {
             clear();
             setView("path");
-          }}
-        >
-          See the path
-        </button>
-      </div>
+          }
+        }}
+      >
+        Begin the journey
+      </button>
+      <button
+        type="button"
+        className="btn ghost block"
+        onClick={() => {
+          clear();
+          setView("path");
+        }}
+      >
+        See the path
+      </button>
     </div>
   );
 }

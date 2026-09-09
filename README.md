@@ -1,10 +1,12 @@
 # Yalla — יאללה
 
-A personal trainer for Hebrew roots (shorashim), built like a mix of Duolingo and Quizlet: a **course path** through every root in the bank, organized by theme into units of ~8 roots, with **flashcards, a timed match game, a unit test and a placement test** inside each unit. The headline number is *roots memorized*, and "memorized" is earned honestly — two first-try correct answers on separate days.
+A personal trainer for Hebrew roots (shorashim), built like a mix of Duolingo and Quizlet: a **course path** through every root in the bank, organized by theme into units of ~8 roots, with **flashcards, a timed match game, a unit test and a placement test** inside each unit. The headline number is *roots memorized*, and "memorized" is earned honestly — two first-try correct answers on separate days. Lessons pay **gems** into a chest, milestones earn **seals**, and a first-run welcome screen offers placement or the first root.
 
 179 hand-curated roots, 925 vocalized words with transliteration, gloss and binyan. The bank is built to grow to 500+ in batches.
 
 Vite + React + TypeScript. Installable as a PWA, fully offline, or buildable as one self-contained HTML file. Live at https://yalla-677b9.web.app.
+
+The look is the "Yalla Mobile" design: a warm cream ground, clay cards with a hard drop shadow, plum / coral / gold accents, chunky radii, Assistant for UI text and Frank Ruhl Libre for Hebrew. Fonts are self-hosted so the artifact build stays offline-complete. Dark mode is the same language on a deep plum ground.
 
 ## Run it
 
@@ -16,7 +18,7 @@ npm run dev          # http://localhost:5173
 ```bash
 npm run build          # PWA → dist/  (deploy to any static host; `firebase deploy --only hosting`)
 npm run build:artifact # single file → dist/yalla.html (+ yalla.artifact.html for a Claude artifact)
-npm test               # vitest: course, lessons, placement, match, SRS, quiz, Hebrew, storage, data integrity
+npm test               # vitest: course, lessons, placement, match, SRS, quiz, Hebrew, storage, rewards, session wiring, data integrity
 npm run lint
 ```
 
@@ -30,6 +32,9 @@ Progress lives in `localStorage` (`yalla.v3`; older `v2` / `v1` records migrate 
 - **Flashcards** — root on the front, meaning and word family on the back; swipe right = know, left = still learning, looping the pile until empty. **Match** — 8 roots and their meanings as 16 tiles against the clock; a wrong pair costs half a second; best time per unit. **Test** — 20 fixed questions covering every root twice; 90%+ turns the unit gold and unlocks the next one. **Placement** — a one-time 30-question sweep of the path; units before your level are marked complete and their roots come back for review a week later, so a wrong guess self-corrects.
 - **Scheduling** — SM-2-flavored per root: right answers push a root 1 → 3 → 7 → 15 → 30+ days out; a miss brings it back tomorrow. Streaks count local calendar days and only advance on a correct answer. A daily XP goal (20 / 50 / 100) fills the ring on the path.
 - **Modes**, gated by mastery so you move from recognition to production: root → meaning, meaning → root, word → root, odd one out, listen → root, which binyan, and typing the root on an on-screen Hebrew keyboard (or a physical one — Hebrew, or the English keys in the same positions). Distractors are scored by letter overlap so wrong options are genuinely confusable.
+- **Gems and chests** — a lesson or practice pays 15 gems + 3 per correct answer (+20 for a flawless run), collected by tapping the chest on the summary screen. The first time a unit becomes complete its chest pays +50; finishing every unit of a section pays a +50 section chest. Placement pays 40 once. Gems and chest markers are stored on the progress record, so a chest is never paid twice, even across devices.
+- **Seals** — twelve milestones (first root, ten memorized, first unit, Speech master, combo ×5, 3-day streak, 500 XP, perfect lesson, typist, Movement master, gem hoarder, level 5), checked at the end of every session; new ones show on the summary and all of them on the Progress page.
+- **Onboarding** — a first-run welcome screen: place me (the placement test) or start from the first root. Reset progress brings it back.
 - **Audio** uses the browser's speech synthesis with a Hebrew voice when one exists.
 
 ## Layout
@@ -42,6 +47,7 @@ Progress lives in `localStorage` (`yalla.v3`; older `v2` / `v1` records migrate 
 | `src/lib/course.ts` | Course building, unit status, memorized counts |
 | `src/lib/lesson.ts` | Lesson and unit-test builders |
 | `src/lib/placement.ts` | Placement sampling, result rule, writes |
+| `src/lib/rewards.ts` | Gems, chests, seals: pure reward rules applied at session end |
 | `src/lib/match.ts` | Match pair selection |
 | `src/lib/srs.ts` | Scheduling, mastery, streak, practice queue |
 | `src/lib/quiz.ts` | Distractors, mode selection, question generation, XP |
@@ -49,8 +55,8 @@ Progress lives in `localStorage` (`yalla.v3`; older `v2` / `v1` records migrate 
 | `src/lib/storage.ts` | localStorage, migrations, per-root/unit merge, artifact DB |
 | `src/lib/stats.ts` | Heatmap, accuracy trend, memorized trend, upcoming reviews |
 | `src/store/` | zustand stores: persisted progress, session plans, UI, the built course |
-| `src/views/` | Path, Unit sheet, Play (+ Summary / results), Flashcards, Match, Bank, Patterns, Progress, Settings |
-| `src/styles/tokens.css` | The design system: spacing, type scale, palette, motion |
+| `src/views/` | Welcome, Path, Unit sheet, Play (+ Summary / results with the chest), Flashcards, Match, Bank, Patterns, Progress, Settings |
+| `src/styles/tokens.css` | The design system: spacing, type scale, palette (light + dark), radii, drops, motion |
 | `scripts/inline-artifact.mjs` | Emits the single-file build |
 
 ## Adding roots

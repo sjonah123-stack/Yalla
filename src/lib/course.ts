@@ -51,7 +51,7 @@ export function buildCourse(
 export const unitTitle = (u: Unit): string =>
   u.section.units.length > 1 ? `${u.section.title} ${u.indexInSection + 1}` : u.section.title;
 
-const COLORS = ["var(--cobalt)", "var(--sun)", "var(--terracotta)", "var(--good)"];
+const COLORS = ["var(--plum)", "var(--coral)", "var(--gold)", "var(--good)"];
 export const sectionColor = (sectionId: string): string =>
   COLORS[
     Math.max(

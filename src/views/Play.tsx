@@ -98,6 +98,11 @@ export default function Play() {
       </div>
 
       <div className={"stage" + (s.answered ? " dim" : "")} key={`${s.i}-${s.slot}`}>
+        {s.answered && s.lastCorrect && s.lastXp > 0 && (
+          <span className="xpfloat tnum" aria-hidden="true">
+            +{s.lastXp}
+          </span>
+        )}
         <div className="q-in">
           <div className="title">
             {planLabel}
@@ -313,7 +318,7 @@ export default function Play() {
   function Learn() {
     return (
       <div className="learn">
-        <div className="eyebrow">Meet this root</div>
+        <div className="eyebrow">New root</div>
         <div className="glyph hero">{rootDisplay(root)}</div>
         <div className="m">{root.m}</div>
         <div className="muted">
@@ -328,7 +333,7 @@ export default function Play() {
         <div className="spacer" />
         <button
           type="button"
-          className="btn sun block big"
+          className="btn primary block big"
           onClick={() => dismissLearn()}
           autoFocus
         >
@@ -337,7 +342,7 @@ export default function Play() {
         <button
           type="button"
           className="btn ghost block"
-          style={{ color: "inherit", marginTop: 4 }}
+          style={{ marginTop: 10 }}
           onClick={() => {
             end();
             setView("path");

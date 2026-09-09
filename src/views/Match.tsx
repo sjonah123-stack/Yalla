@@ -123,7 +123,7 @@ export default function Match({ unitId }: { unitId: UnitId }) {
 
       {final !== null ? (
         <div className="mdone">
-          <section className={"block " + (record ? "sun" : "cobalt")}>
+          <section className={"block " + (record ? "gold" : "plum")}>
             <div className="eyebrow">{record ? "New record" : "Cleared"}</div>
             <div className="mtime" style={{ textAlign: "left", margin: "6px 0 0" }}>
               {formatMs(shownMs)}

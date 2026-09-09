@@ -1,34 +1,3 @@
-/** Geometric nav icons: the Bauhaus circle / triangle / square family. */
-export const IconHome = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <circle cx="12" cy="12" r="9" />
-  </svg>
-);
-export const IconPlay = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M6 3l15 9-15 9z" />
-  </svg>
-);
-export const IconBank = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <rect x="3" y="3" width="18" height="18" rx="1" />
-  </svg>
-);
-export const IconProgress = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <rect x="3" y="13" width="4" height="8" />
-    <rect x="10" y="8" width="4" height="13" />
-    <rect x="17" y="3" width="4" height="18" />
-  </svg>
-);
-export const IconPatterns = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <rect x="3" y="3" width="8" height="8" />
-    <circle cx="17" cy="7" r="4" />
-    <path d="M3 21l4-8 4 8z" />
-    <rect x="13" y="13" width="8" height="8" rx="4" />
-  </svg>
-);
 export const IconSpeaker = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M3 9v6h4l5 4V5L7 9H3z" />

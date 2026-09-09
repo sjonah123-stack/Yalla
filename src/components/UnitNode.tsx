@@ -1,4 +1,5 @@
 import type { Unit, UnitStatus } from "../lib/course";
+import { unitTitle } from "../lib/course";
 import { rootLetters } from "../lib/hebrew";
 
 export function UnitNode({
@@ -7,7 +8,6 @@ export function UnitNode({
   memorized,
   current,
   cracked,
-  color,
   side,
   onClick,
   nodeRef,
@@ -17,33 +17,40 @@ export function UnitNode({
   memorized: number;
   current: boolean;
   cracked: boolean;
-  color: string;
   side: "l" | "r";
   onClick: () => void;
   nodeRef?: (el: HTMLButtonElement | null) => void;
 }) {
   const total = unit.roots.length;
-  const pct = total ? memorized / total : 0;
-  const title = unit.section.units.length > 1 ? `${unit.indexInSection + 1}` : "";
+  const done = status === "complete" || status === "gold";
+  const label =
+    status === "locked"
+      ? "locked"
+      : cracked
+        ? `${memorized}/${total} · repair`
+        : done
+          ? `${memorized}/${total} · ${status === "gold" ? "gold" : "complete"}`
+          : `${memorized}/${total} memorized`;
   return (
     <button
       ref={nodeRef}
       type="button"
       className={`pnode ${status} ${side}${current ? " current" : ""}${cracked ? " cracked" : ""}`}
-      style={{ "--c": color, "--pct": pct } as React.CSSProperties}
       onClick={onClick}
-      aria-label={`${unit.section.title} ${title}, ${status}, ${memorized} of ${total} memorized`}
+      aria-label={`${unitTitle(unit)}, ${status}, ${memorized} of ${total} memorized`}
     >
-      {current && <span className="tag">Continue</span>}
       <span className="disc">
+        <span className="ring" aria-hidden="true" />
         <span className="glyph">{rootLetters(unit.roots[0])}</span>
-        {title && <span className="n tnum">{title}</span>}
+        {done && !cracked && (
+          <span className="check" aria-hidden="true">
+            ✓
+          </span>
+        )}
       </span>
       <span className="lbl">
-        <span className="tnum">
-          {memorized}/{total}
-        </span>
-        {status === "locked" ? " locked" : status === "gold" ? " gold" : cracked ? " repair" : ""}
+        <span className="t">{unitTitle(unit)}</span>
+        <span className="s tnum">{label}</span>
       </span>
     </button>
   );

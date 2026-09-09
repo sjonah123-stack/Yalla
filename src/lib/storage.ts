@@ -1,5 +1,6 @@
-import type { DayStats, Progress, RootState, Settings, UnitRecord } from "../types";
-import { UNIT_IDS } from "../data/course";
+import type { DayStats, Progress, RootState, SealId, Settings, UnitRecord } from "../types";
+import { SECTIONS, UNIT_IDS } from "../data/course";
+import { SEAL_IDS } from "./rewards";
 
 export const KEY = "yalla.v3";
 export const KEY_V2 = "yalla.v2";
@@ -28,9 +29,30 @@ export const defaultProgress = (): Progress => ({
   lastUnit: null,
   settings: defaultSettings(),
   updatedAt: 0,
+  gems: 0,
+  seals: {},
+  bestCombo: 0,
+  perfectLessons: 0,
+  typedOk: 0,
+  sectionChests: {},
+  onboardedAt: null,
 });
 
 const KNOWN_UNITS = new Set<string>(UNIT_IDS);
+const KNOWN_SECTIONS = new Set<string>(SECTIONS.map((s) => s.id));
+const KNOWN_SEALS = new Set<string>(SEAL_IDS);
+
+/** Non-negative integer, else 0. */
+const count = (x: unknown): number => (typeof x === "number" && x >= 0 ? Math.floor(x) : 0);
+
+/** Keep only `known` keys whose values are numbers. */
+function numericMap(raw: unknown, known: ReadonlySet<string>): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (raw && typeof raw === "object")
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>))
+      if (known.has(k) && typeof v === "number") out[k] = v;
+  return out;
+}
 
 /** Coerce any stored blob (v1, v2 or v3, possibly partial) into a well-formed Progress. */
 export function normalize(raw: unknown): Progress {
@@ -52,18 +74,36 @@ export function normalize(raw: unknown): Progress {
     r.placement && typeof r.placement === "object" && KNOWN_UNITS.has(r.placement.startUnit)
       ? { ...r.placement }
       : null;
+  const roots = r.roots && typeof r.roots === "object" ? { ...r.roots } : {};
+  let onboardedAt: number | null;
+  if (typeof r.onboardedAt === "number") onboardedAt = r.onboardedAt;
+  else {
+    // Legacy blob: anyone who has played (or placed) has implicitly been onboarded.
+    const played =
+      !!placement ||
+      !!r.lastUnit ||
+      Object.values(roots).some((st) => st && typeof st === "object" && st.ok + st.bad > 0);
+    onboardedAt = played ? (typeof r.updatedAt === "number" && r.updatedAt) || 1 : null;
+  }
   return {
     v: 3,
     xp: typeof r.xp === "number" ? r.xp : 0,
     streak: typeof r.streak === "number" ? r.streak : 0,
     lastPlay: typeof r.lastPlay === "string" ? r.lastPlay : null,
-    roots: r.roots && typeof r.roots === "object" ? { ...r.roots } : {},
+    roots,
     history: r.history && typeof r.history === "object" ? { ...r.history } : {},
     units,
     placement,
     lastUnit: typeof r.lastUnit === "string" && KNOWN_UNITS.has(r.lastUnit) ? r.lastUnit : null,
     settings,
     updatedAt: typeof r.updatedAt === "number" ? r.updatedAt : 0,
+    gems: count(r.gems),
+    seals: numericMap(r.seals, KNOWN_SEALS) as Partial<Record<SealId, number>>,
+    bestCombo: count(r.bestCombo),
+    perfectLessons: count(r.perfectLessons),
+    typedOk: count(r.typedOk),
+    sectionChests: numericMap(r.sectionChests, KNOWN_SECTIONS),
+    onboardedAt,
   };
 }
 
@@ -105,6 +145,21 @@ export function mergeUnit(a: UnitRecord | undefined, b: UnitRecord | undefined):
   if (testPassedAt !== undefined) out.testPassedAt = testPassedAt;
   const matchBestMs = minDef(a?.matchBestMs, b?.matchBestMs);
   if (matchBestMs !== undefined) out.matchBestMs = matchBestMs;
+  const chestAt = minDef(a?.chestAt, b?.chestAt);
+  if (chestAt !== undefined) out.chestAt = chestAt;
+  return out;
+}
+
+/** Union of two id → timestamp maps, keeping the earliest where both have one. */
+function unionEarliest(
+  a: Record<string, number | undefined>,
+  b: Record<string, number | undefined>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    const v = minDef(a[k], b[k]);
+    if (v !== undefined) out[k] = v;
+  }
   return out;
 }
 
@@ -146,6 +201,18 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     lastUnit: newer.lastUnit,
     settings: { ...newer.settings },
     updatedAt: Math.max(a.updatedAt, b.updatedAt),
+    gems: Math.max(a.gems, b.gems),
+    seals: unionEarliest(a.seals, b.seals) as Partial<Record<SealId, number>>,
+    bestCombo: Math.max(a.bestCombo, b.bestCombo),
+    perfectLessons: Math.max(a.perfectLessons, b.perfectLessons),
+    typedOk: Math.max(a.typedOk, b.typedOk),
+    sectionChests: unionEarliest(a.sectionChests, b.sectionChests),
+    onboardedAt:
+      a.onboardedAt === null
+        ? b.onboardedAt
+        : b.onboardedAt === null
+          ? a.onboardedAt
+          : Math.min(a.onboardedAt, b.onboardedAt),
   };
 }
 

@@ -85,6 +85,8 @@ export interface UnitRecord {
   testPassedAt?: number;
   /** Best Match time in ms. */
   matchBestMs?: number;
+  /** When the unit's completion chest was paid out (gems). */
+  chestAt?: number;
 }
 
 export interface Placement {
@@ -93,6 +95,20 @@ export interface Placement {
   /** 0–100 */
   score: number;
 }
+
+export type SealId =
+  | "first-root"
+  | "ten-memorized"
+  | "first-unit"
+  | "speech-done"
+  | "combo-5"
+  | "streak-3"
+  | "xp-500"
+  | "perfect-lesson"
+  | "typist"
+  | "movement-done"
+  | "gems-300"
+  | "level-5";
 
 export interface Progress {
   v: 3;
@@ -106,6 +122,20 @@ export interface Progress {
   lastUnit: UnitId | null;
   settings: Settings;
   updatedAt: number;
+  /** Soft currency, only ever goes up. */
+  gems: number;
+  /** Seal id → earnedAt (ms). Sticky once earned. */
+  seals: Partial<Record<SealId, number>>;
+  /** Best in-session combo ever. */
+  bestCombo: number;
+  /** Completed lessons/practices with zero misses. */
+  perfectLessons: number;
+  /** Correct typeRoot answers, lifetime. */
+  typedOk: number;
+  /** Section id → when its chest was paid out. */
+  sectionChests: Record<string, number>;
+  /** When onboarding was completed (inferred for legacy records). */
+  onboardedAt: number | null;
 }
 
 export type Mode =

@@ -118,9 +118,9 @@ export default function Flashcards({ unitId }: { unitId: UnitId }) {
 
       {done ? (
         <div className="fcdone">
-          <section className="block sun">
+          <section className="block gold">
             <div className="eyebrow">All {total} known</div>
-            <h2 style={{ fontSize: "var(--t-h)", fontWeight: 900, marginTop: 6 }}>
+            <h2 style={{ fontSize: 28, marginTop: 6 }}>
               {round > 1 ? `Cleared in ${round} rounds.` : "First pass, no misses."}
             </h2>
             <p style={{ marginTop: 8 }}>

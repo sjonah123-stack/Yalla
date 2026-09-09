@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type React from "react";
 import { useProgress } from "../store/progress";
+import { useSession } from "../store/session";
 import { speechAvailable } from "../lib/speech";
 import type { Settings as S } from "../types";
 
@@ -56,9 +57,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const bool = (k: keyof S, v: boolean) => set({ [k]: v } as Partial<S>);
   return (
     <div className="modal" onClick={onClose} role="dialog" aria-modal="true" aria-label="Settings">
-      <div className="panel" onClick={(e) => e.stopPropagation()}>
+      <div className="panel settings" onClick={(e) => e.stopPropagation()}>
         <div className="row between">
-          <h2 style={{ fontSize: "var(--t-h)", fontWeight: 900 }}>Settings</h2>
+          <h2>Settings</h2>
           <button type="button" className="btn sm" onClick={onClose}>
             Done
           </button>
@@ -83,9 +84,9 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             <Seg
               value={st.dailyGoal}
               options={[
-                { v: 20, l: "Casual · 20" },
-                { v: 50, l: "Regular · 50" },
-                { v: 100, l: "Serious · 100" },
+                { v: 20, l: "20" },
+                { v: 50, l: "50" },
+                { v: 100, l: "100" },
               ]}
               onChange={(v) => set({ dailyGoal: v })}
             />,
@@ -127,10 +128,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         </p>
         <button
           type="button"
-          className="btn quiet sm"
-          style={{ marginTop: 12, color: "var(--bad)" }}
+          className="btn text"
+          style={{ marginTop: 10, padding: "8px 0", color: "var(--coral-deep)" }}
           onClick={() => {
             if (confirm("Erase all progress on this device? This cannot be undone.")) {
+              useSession.getState().clear();
               reset();
               onClose();
             }
