@@ -36,6 +36,7 @@ export const defaultProgress = (): Progress => ({
   typedOk: 0,
   sectionChests: {},
   onboardedAt: null,
+  resetAt: 0,
 });
 
 const KNOWN_UNITS = new Set<string>(UNIT_IDS);
@@ -104,6 +105,7 @@ export function normalize(raw: unknown): Progress {
     typedOk: count(r.typedOk),
     sectionChests: numericMap(r.sectionChests, KNOWN_SECTIONS),
     onboardedAt,
+    resetAt: count(r.resetAt),
   };
 }
 
@@ -168,6 +170,8 @@ function unionEarliest(
  * Roots merge per id; history per day; units per id; settings from the newer record.
  */
 export function mergeProgress(a: Progress, b: Progress): Progress {
+  // A reset is an epoch: the record with the newer resetAt replaces the other wholesale.
+  if (a.resetAt !== b.resetAt) return { ...(a.resetAt > b.resetAt ? a : b) };
   const newer = a.updatedAt >= b.updatedAt ? a : b;
   const roots: Record<string, RootState> = {};
   for (const id of new Set([...Object.keys(a.roots), ...Object.keys(b.roots)])) {
@@ -213,6 +217,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
         : b.onboardedAt === null
           ? a.onboardedAt
           : Math.min(a.onboardedAt, b.onboardedAt),
+    resetAt: a.resetAt,
   };
 }
 
@@ -249,7 +254,166 @@ export function saveLocal(p: Progress): void {
   }
 }
 
-// ---------- Claude artifact DB (optional, cross-device) ----------
+// ---------- Remote sync ----------
+//
+// Two backends share one seam: the Claude artifact DB (single-file build) and Firestore
+// (web build, see cloud.ts). Local storage stays the source of truth; the remote is merged
+// on connect and written through a trailing debounce on every local change.
+
+export type SyncStatus = "local" | "synced" | "error";
+
+export interface RemoteBackend {
+  /** Read the remote record; null when none exists yet. */
+  load(): Promise<Progress | null>;
+  /** Overwrite the remote record. */
+  save(p: Progress): Promise<void>;
+  /** Live updates from other devices; returns an unsubscribe. */
+  subscribe?(cb: (incoming: Progress, hasPendingWrites: boolean) => void): () => void;
+}
+
+export const PUSH_DELAY = 800;
+
+let remote: RemoteBackend | null = null;
+let pending: { p: Progress; timer: ReturnType<typeof setTimeout> } | null = null;
+let lastPushedAt = 0;
+
+/** Attach (or, with null, detach) the remote. Detaching drops any queued push. */
+export function setRemote(r: RemoteBackend | null): void {
+  if (pending) clearTimeout(pending.timer);
+  pending = null;
+  remote = r;
+  if (!r) lastPushedAt = 0;
+}
+
+export const remoteConnected = (): boolean => !!remote;
+/** `updatedAt` of the last record handed to the remote (0 = nothing pushed yet). */
+export const lastPushedUpdatedAt = (): number => lastPushedAt;
+export const pushPending = (): boolean => !!pending;
+/** Swap the payload of a queued push (after an incoming merge) without resetting its timer. */
+export function replacePending(p: Progress): void {
+  if (pending) pending.p = p;
+}
+
+/** Debounced push to the remote. Resolves with the resulting status. */
+export function pushRemote(p: Progress, immediate = false): Promise<SyncStatus> {
+  const r = remote;
+  if (!r) return Promise.resolve("local");
+  if (pending) clearTimeout(pending.timer);
+  return new Promise((resolve) => {
+    const go = () => {
+      const payload = pending?.p ?? p;
+      pending = null;
+      lastPushedAt = payload.updatedAt;
+      r.save(payload)
+        .then(() => resolve("synced"))
+        .catch(() => resolve("error"));
+    };
+    if (immediate) {
+      pending = null;
+      go();
+    } else pending = { p, timer: setTimeout(go, PUSH_DELAY) };
+  });
+}
+
+/**
+ * Decide what a live update from the remote means for the local record.
+ * Returns the record to adopt, or null when nothing should change.
+ */
+export function applyIncoming(
+  local: Progress,
+  incoming: Progress,
+  lastPushed: number,
+  hasPendingWrites: boolean,
+): Progress | null {
+  if (hasPendingWrites) return null; // latency-compensated echo of our own write
+  if (incoming.updatedAt === lastPushed) return null; // server ack of our own write
+  const merged = mergeProgress(local, incoming);
+  return JSON.stringify(merged) === JSON.stringify(local) ? null : merged;
+}
+
+// ----- Cloud document shape and sign-in reconciliation (Firestore) -----
+
+export interface CloudDoc {
+  v: 3;
+  updatedAt: number;
+  resetAt: number;
+  /** The whole Progress as JSON: no undefined fields, no per-field indexing, Hebrew keys are fine. */
+  json: string;
+}
+
+export const encodeDoc = (p: Progress): CloudDoc => ({
+  v: 3,
+  updatedAt: p.updatedAt,
+  resetAt: p.resetAt,
+  json: JSON.stringify(p),
+});
+
+export function decodeDoc(data: unknown): Progress | null {
+  if (!data || typeof data !== "object") return null;
+  const json = (data as { json?: unknown }).json;
+  if (typeof json !== "string") return null;
+  try {
+    return normalize(JSON.parse(json));
+  } catch {
+    return null;
+  }
+}
+
+export type ReconcileMode = "merge" | "replace" | "upload" | "fresh";
+
+/**
+ * What to adopt when `uid` signs in on a device whose last synced account was `lastUid`.
+ * A device that never synced (or synced this same account) merges; a device last used by someone
+ * else takes the cloud record as-is and never uploads the other person's progress.
+ */
+export function reconcileSignIn(
+  local: Progress,
+  cloud: Progress | null,
+  lastUid: string | null,
+  uid: string,
+): { p: Progress; mode: ReconcileMode } {
+  const sameDevice = lastUid === null || lastUid === uid;
+  if (!cloud)
+    return sameDevice ? { p: local, mode: "upload" } : { p: defaultProgress(), mode: "fresh" };
+  if (sameDevice) return { p: mergeProgress(local, cloud), mode: "merge" };
+  return { p: cloud, mode: "replace" };
+}
+
+export const KEY_UID = "yalla.uid";
+export const KEY_CLOUD = "yalla.cloud";
+
+export function getLastUid(): string | null {
+  try {
+    return localStorage.getItem(KEY_UID);
+  } catch {
+    return null;
+  }
+}
+export function setLastUid(uid: string): void {
+  try {
+    localStorage.setItem(KEY_UID, uid);
+  } catch {
+    /* ignore */
+  }
+}
+/** Whether a cloud session was active on this device (drives SDK preload at startup). */
+export function cloudFlag(): boolean {
+  try {
+    return localStorage.getItem(KEY_CLOUD) === "1";
+  } catch {
+    return false;
+  }
+}
+export function setCloudFlag(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(KEY_CLOUD, "1");
+    else localStorage.removeItem(KEY_CLOUD);
+  } catch {
+    /* ignore */
+  }
+}
+
+// ----- Claude artifact DB (single-file build) -----
 
 interface ClaudeDoc {
   get(): Promise<{ exists: boolean; data(): unknown }>;
@@ -264,45 +428,29 @@ declare global {
   }
 }
 
-export type SyncStatus = "local" | "synced" | "error";
-
-let db: ClaudeDb | null = null;
-let timer: ReturnType<typeof setTimeout> | null = null;
+const claudeBackend = (db: ClaudeDb): RemoteBackend => ({
+  async load() {
+    const snap = await db.doc("progress/main").get();
+    return snap.exists ? normalize(snap.data()) : null;
+  },
+  save: (p) => db.doc("progress/main").set(p),
+});
 
 /** Connect to the artifact DB if present; returns the merged record to adopt, or null. */
 export async function connectRemote(local: Progress): Promise<Progress | null> {
   if (typeof window === "undefined" || typeof window.claude?.use !== "function") return null;
   try {
-    db = (await window.claude.use("db")) ?? null;
+    const db = (await window.claude.use("db")) ?? null;
     if (!db) return null;
-    const snap = await db.doc("progress/main").get();
-    if (!snap.exists) {
-      await db.doc("progress/main").set(local);
-      return local;
-    }
-    const merged = mergeProgress(local, normalize(snap.data()));
-    await db.doc("progress/main").set(merged);
+    const backend = claudeBackend(db);
+    const cloud = await backend.load();
+    const merged = cloud ? mergeProgress(local, cloud) : local;
+    await backend.save(merged);
+    setRemote(backend);
+    lastPushedAt = merged.updatedAt;
     return merged;
   } catch {
-    db = null;
+    setRemote(null);
     return null;
   }
-}
-
-export const remoteConnected = (): boolean => !!db;
-
-/** Debounced push to the remote. Resolves with the resulting status. */
-export function pushRemote(p: Progress, immediate = false): Promise<SyncStatus> {
-  if (!db) return Promise.resolve("local");
-  if (timer) clearTimeout(timer);
-  return new Promise((resolve) => {
-    const go = () =>
-      db!
-        .doc("progress/main")
-        .set(p)
-        .then(() => resolve("synced"))
-        .catch(() => resolve("error"));
-    if (immediate) go();
-    else timer = setTimeout(go, 800);
-  });
 }

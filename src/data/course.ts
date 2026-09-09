@@ -71,6 +71,49 @@ export const SECTIONS: readonly SectionDef[] = [
     units: ["jewish-1"],
   },
   { id: "culture", cat: "culture", title: "Culture", he: "תרבות", units: ["culture-1"] },
+  // Batch 2 (v0.5): appended so every earlier unit keeps its place on the path.
+  {
+    id: "body",
+    cat: "body & health",
+    title: "Body & health",
+    he: "גוף ובריאות",
+    units: ["body-1", "body-2", "body-3"],
+  },
+  {
+    id: "clothing",
+    cat: "clothing & objects",
+    title: "Clothing & objects",
+    he: "בגדים וחפצים",
+    units: ["clothing-1", "clothing-2"],
+  },
+  {
+    id: "weather",
+    cat: "weather & seasons",
+    title: "Weather & seasons",
+    he: "מזג אוויר ועונות",
+    units: ["weather-1", "weather-2"],
+  },
+  {
+    id: "tech",
+    cat: "technology & media",
+    title: "Technology & media",
+    he: "טכנולוגיה ותקשורת",
+    units: ["tech-1", "tech-2", "tech-3"],
+  },
+  {
+    id: "education",
+    cat: "education",
+    title: "Education",
+    he: "חינוך ולימוד",
+    units: ["education-1", "education-2", "education-3"],
+  },
+  {
+    id: "military",
+    cat: "military & security",
+    title: "Military & security",
+    he: "צבא וביטחון",
+    units: ["military-1", "military-2", "military-3"],
+  },
 ];
 
 /** Unit ids that once existed. Progress records for them are dropped on load. */

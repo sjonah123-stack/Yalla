@@ -234,3 +234,160 @@ describe("mergeProgress (rewards fields)", () => {
     expect(mergeProgress(defaultProgress(), defaultProgress()).onboardedAt).toBeNull();
   });
 });
+
+// ---------- Cloud sync ----------
+import { vi } from "vitest";
+import {
+  applyIncoming,
+  decodeDoc,
+  encodeDoc,
+  lastPushedUpdatedAt,
+  PUSH_DELAY,
+  pushRemote,
+  reconcileSignIn,
+  remoteConnected,
+  replacePending,
+  setRemote,
+  type RemoteBackend,
+} from "./storage";
+
+const withXp = (xp: number, updatedAt = xp) => ({ ...defaultProgress(), xp, updatedAt });
+
+describe("mergeProgress (reset epochs)", () => {
+  it("lets the newer resetAt win wholesale", () => {
+    const old = { ...withXp(500), roots: { כתב: newRootState() } };
+    const wiped = { ...defaultProgress(), resetAt: 1000, updatedAt: 1 };
+    expect(mergeProgress(old, wiped)).toEqual(wiped);
+    expect(mergeProgress(wiped, old)).toEqual(wiped);
+  });
+  it("merges field-wise when epochs are equal and keeps the epoch", () => {
+    const a = { ...withXp(10), resetAt: 7 };
+    const b = { ...withXp(20), resetAt: 7 };
+    const m = mergeProgress(a, b);
+    expect(m.xp).toBe(20);
+    expect(m.resetAt).toBe(7);
+  });
+  it("normalize coerces resetAt", () => {
+    expect(normalize({ v: 3 }).resetAt).toBe(0);
+    expect(normalize({ v: 3, resetAt: -5 }).resetAt).toBe(0);
+    expect(normalize({ v: 3, resetAt: 12.7 }).resetAt).toBe(12);
+  });
+});
+
+describe("cloud document", () => {
+  it("round-trips through encodeDoc/decodeDoc", () => {
+    const p = {
+      ...withXp(42),
+      roots: { שכר2: newRootState() },
+      history: { "2026-09-09": { ok: 1, bad: 0, xp: 5 } },
+    };
+    const d = encodeDoc(p);
+    expect(d).toMatchObject({ v: 3, updatedAt: 42, resetAt: 0 });
+    expect(decodeDoc(d)).toEqual(p);
+  });
+  it("rejects malformed documents", () => {
+    expect(decodeDoc(null)).toBeNull();
+    expect(decodeDoc({ v: 3 })).toBeNull();
+    expect(decodeDoc({ json: "{not json" })).toBeNull();
+  });
+});
+
+describe("reconcileSignIn", () => {
+  const local = withXp(10);
+  const cloud = withXp(20);
+  it("merges on a device that never synced", () => {
+    const r = reconcileSignIn(local, cloud, null, "u1");
+    expect(r.mode).toBe("merge");
+    expect(r.p.xp).toBe(20);
+  });
+  it("merges when the same account returns", () => {
+    expect(reconcileSignIn(local, cloud, "u1", "u1").mode).toBe("merge");
+  });
+  it("replaces local with cloud for a different account", () => {
+    const r = reconcileSignIn({ ...local, xp: 999 }, cloud, "u1", "u2");
+    expect(r.mode).toBe("replace");
+    expect(r.p).toEqual(cloud);
+  });
+  it("uploads local when the cloud is empty for this device's account", () => {
+    expect(reconcileSignIn(local, null, null, "u1")).toEqual({ p: local, mode: "upload" });
+    expect(reconcileSignIn(local, null, "u1", "u1").mode).toBe("upload");
+  });
+  it("starts fresh when the cloud is empty and the device belonged to someone else", () => {
+    const r = reconcileSignIn(local, null, "u1", "u2");
+    expect(r.mode).toBe("fresh");
+    expect(r.p.xp).toBe(0);
+    expect(r.p.onboardedAt).toBeNull();
+  });
+});
+
+describe("applyIncoming", () => {
+  const local = withXp(10);
+  it("ignores echoes of our own writes", () => {
+    expect(applyIncoming(local, withXp(20), 0, true)).toBeNull();
+    expect(applyIncoming(local, withXp(20), 20, false)).toBeNull();
+  });
+  it("merges a genuinely remote change", () => {
+    expect(applyIncoming(local, withXp(20), 5, false)?.xp).toBe(20);
+  });
+  it("returns null when the merge changes nothing", () => {
+    expect(applyIncoming(withXp(30), withXp(20), 5, false)).toBeNull();
+  });
+});
+
+describe("remote backend seam", () => {
+  const fake = () => {
+    const saved: unknown[] = [];
+    const backend: RemoteBackend & { saved: unknown[]; fail: boolean } = {
+      saved,
+      fail: false,
+      load: async () => null,
+      save: async (p) => {
+        if (backend.fail) throw new Error("boom");
+        saved.push(p);
+      },
+    };
+    return backend;
+  };
+  it("resolves local when nothing is attached", async () => {
+    setRemote(null);
+    expect(remoteConnected()).toBe(false);
+    await expect(pushRemote(withXp(1))).resolves.toBe("local");
+  });
+  it("coalesces rapid pushes into the last record after the delay", async () => {
+    vi.useFakeTimers();
+    const b = fake();
+    setRemote(b);
+    pushRemote(withXp(1));
+    pushRemote(withXp(2));
+    const last = pushRemote(withXp(3));
+    expect(b.saved).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(PUSH_DELAY);
+    await expect(last).resolves.toBe("synced");
+    expect(b.saved).toEqual([withXp(3)]);
+    expect(lastPushedUpdatedAt()).toBe(3);
+    vi.useRealTimers();
+    setRemote(null);
+  });
+  it("pushes immediately on request and reports errors", async () => {
+    const b = fake();
+    setRemote(b);
+    await expect(pushRemote(withXp(4), true)).resolves.toBe("synced");
+    b.fail = true;
+    await expect(pushRemote(withXp(5), true)).resolves.toBe("error");
+    setRemote(null);
+  });
+  it("swaps a queued payload and cancels on detach", async () => {
+    vi.useFakeTimers();
+    const b = fake();
+    setRemote(b);
+    pushRemote(withXp(6));
+    replacePending(withXp(7));
+    await vi.advanceTimersByTimeAsync(PUSH_DELAY);
+    expect(b.saved).toEqual([withXp(7)]);
+    pushRemote(withXp(8));
+    setRemote(null);
+    await vi.advanceTimersByTimeAsync(PUSH_DELAY);
+    expect(b.saved).toHaveLength(1);
+    vi.useRealTimers();
+  });
+});

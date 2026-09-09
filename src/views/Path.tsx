@@ -62,7 +62,7 @@ export default function Path() {
   };
   const status = (u: Unit) => unitStatus(u, COURSE, p);
   const curMem = unitMemorized(cur, p);
-  const curGlyph = rootLetters(cur.roots[0]);
+  const curGlyph = cur.roots[0] ? rootLetters(cur.roots[0]) : "?";
 
   return (
     <>

@@ -483,6 +483,9 @@ a {
   border-radius: 14px;
   box-shadow: var(--drop-xs);
 }
+.btn.sm.plum {
+  box-shadow: 0 3px 0 var(--plum-deep);
+}
 .btn.sm:active {
   transform: translateY(2px);
   box-shadow: none;

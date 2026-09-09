@@ -5,6 +5,7 @@ import { VitePWA } from "vite-plugin-pwa";
 const artifact = !!process.env.ARTIFACT;
 
 export default defineConfig({
+  define: { __ARTIFACT__: JSON.stringify(artifact) },
   plugins: [
     react(),
     ...(artifact
@@ -27,7 +28,11 @@ export default defineConfig({
                 { src: "icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
               ],
             },
-            workbox: { globPatterns: ["**/*.{js,css,html,woff2,png,svg}"] },
+            workbox: {
+              globPatterns: ["**/*.{js,css,html,woff2,png,svg}"],
+              // Firebase Auth serves /__/auth/* on this origin; never answer it with index.html.
+              navigateFallbackDenylist: [/^\/__\//],
+            },
           }),
         ]),
   ],

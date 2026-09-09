@@ -24,7 +24,7 @@ const seenBad = (): RootState => ({ ...newRootState(), bad: 1, due: now });
 
 describe("buildCourse", () => {
   it("has 24 units in path order, every root in exactly one unit", () => {
-    expect(course.units).toHaveLength(24);
+    expect(course.units).toHaveLength(UNIT_IDS.length);
     expect(course.units.map((u) => u.id)).toEqual([...UNIT_IDS]);
     const counted = course.units.reduce((a, u) => a + u.roots.length, 0);
     expect(counted).toBe(ROOTS.length);

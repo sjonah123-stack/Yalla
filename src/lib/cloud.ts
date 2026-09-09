@@ -1,0 +1,138 @@
+/**
+ * Firebase-backed cloud sync: Google sign-in + one Firestore document per user.
+ * This is the only module that imports the Firebase SDK; it is loaded lazily via cloud-loader.ts
+ * and never bundled into the artifact build. Keep it thin — the decisions live in storage.ts.
+ */
+import { initializeApp, type FirebaseApp } from "firebase/app";
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  getRedirectResult,
+  GoogleAuthProvider,
+  initializeAuth,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut as fbSignOut,
+  type Auth,
+  type User,
+} from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  initializeFirestore,
+  onSnapshot,
+  persistentLocalCache,
+  setDoc,
+  type Firestore,
+} from "firebase/firestore";
+import { firebaseConfig } from "./firebase-config";
+import { decodeDoc, encodeDoc, type RemoteBackend } from "./storage";
+import type { Progress } from "../types";
+
+export interface CloudUser {
+  uid: string;
+  name: string | null;
+  email: string | null;
+  photo: string | null;
+}
+
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let fs: Firestore | null = null;
+
+function init(): { auth: Auth; fs: Firestore } {
+  if (!app) {
+    app = initializeApp(firebaseConfig);
+    auth = initializeAuth(app, {
+      persistence: browserLocalPersistence,
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
+    fs = initializeFirestore(app, { localCache: persistentLocalCache() });
+  }
+  return { auth: auth!, fs: fs! };
+}
+
+const toUser = (u: User): CloudUser => ({
+  uid: u.uid,
+  name: u.displayName,
+  email: u.email,
+  photo: u.photoURL,
+});
+
+/** Progress document for one user. */
+export function firestoreBackend(uid: string): RemoteBackend {
+  const { fs } = init();
+  const ref = doc(fs, "users", uid);
+  return {
+    async load() {
+      const snap = await getDoc(ref);
+      return snap.exists() ? decodeDoc(snap.data()) : null;
+    },
+    save: (p: Progress) => setDoc(ref, encodeDoc(p)),
+    subscribe(cb) {
+      return onSnapshot(ref, (snap) => {
+        if (!snap.exists()) return;
+        const p = decodeDoc(snap.data());
+        if (p) cb(p, snap.metadata.hasPendingWrites);
+      });
+    },
+  };
+}
+
+/**
+ * Start listening to auth state. Resolves any pending redirect sign-in first, then reports the
+ * current user (null when signed out) on every change.
+ */
+export async function watchAuth(cb: (user: CloudUser | null) => void): Promise<() => void> {
+  const { auth } = init();
+  try {
+    await getRedirectResult(auth);
+  } catch {
+    /* a failed redirect just leaves the user signed out */
+  }
+  return onAuthStateChanged(auth, (u) => cb(u ? toUser(u) : null));
+}
+
+// Only fall back to a redirect when the popup could not open at all; a popup the user closed
+// (or one that showed a Google error) must not bounce the whole page to accounts.google.com.
+const POPUP_FALLBACK = new Set([
+  "auth/popup-blocked",
+  "auth/operation-not-supported-in-this-environment",
+]);
+
+const standalone = (): boolean =>
+  typeof matchMedia === "function" && matchMedia("(display-mode: standalone)").matches;
+
+/** Google sign-in: popup where it works, redirect in installed PWAs or when the popup fails. */
+export async function signIn(): Promise<void> {
+  const { auth } = init();
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  if (standalone()) return signInWithRedirect(auth, provider);
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    const code = (e as { code?: string }).code ?? "";
+    if (POPUP_FALLBACK.has(code)) return signInWithRedirect(auth, provider);
+    throw e;
+  }
+}
+
+export async function signOut(): Promise<void> {
+  const { auth } = init();
+  await fbSignOut(auth);
+}
+
+/** Human-readable reason for a failed sign-in. */
+export function describeError(e: unknown): string {
+  const code = (e as { code?: string }).code ?? "";
+  if (code === "auth/operation-not-allowed")
+    return "Google sign-in isn't enabled for this app yet.";
+  if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request")
+    return "Sign-in cancelled.";
+  if (code === "auth/network-request-failed") return "No connection — try again online.";
+  if (code === "auth/unauthorized-domain") return "This site isn't authorised for sign-in.";
+  if (code) return `Sign-in failed (${code.replace("auth/", "")}).`;
+  return "Sign-in failed.";
+}

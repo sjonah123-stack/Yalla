@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import type React from "react";
 import { useProgress } from "../store/progress";
 import { useSession } from "../store/session";
+import { useCloud } from "../store/cloud";
+import { loadCloud } from "../lib/cloud-loader";
 import { speechAvailable } from "../lib/speech";
 import type { Settings as S } from "../types";
 
@@ -40,6 +42,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const set = useProgress((s) => s.setSettings);
   const sync = useProgress((s) => s.sync);
   const reset = useProgress((s) => s.reset);
+  const cloud = useCloud();
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", k);
@@ -122,16 +125,54 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             />,
           )}
         </div>
+        {loadCloud &&
+          row(
+            "Account",
+            cloud.status === "signed-in"
+              ? `${cloud.user?.name ?? cloud.user?.email ?? "Signed in"} · progress follows you`
+              : cloud.status === "error"
+                ? (cloud.error ?? "Sign-in failed")
+                : "Sign in to keep progress across devices",
+            cloud.status === "signed-in" ? (
+              <button type="button" className="btn sm" onClick={() => cloud.signOut()}>
+                Sign out
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn sm plum"
+                onClick={() => cloud.signIn()}
+                disabled={cloud.status === "signing-in" || cloud.status === "loading"}
+              >
+                {cloud.status === "signing-in" || cloud.status === "loading"
+                  ? "Signing in…"
+                  : "Sign in with Google"}
+              </button>
+            ),
+          )}
         <p className="small muted" style={{ marginTop: 16 }}>
           Progress is saved on this device
-          {sync === "synced" ? " and synced to your Claude artifact" : ""}.
+          {sync === "synced"
+            ? loadCloud
+              ? " and in your account"
+              : " and synced to your Claude artifact"
+            : sync === "error"
+              ? " — the last cloud save failed, it will retry on your next answer"
+              : ""}
+          .
         </p>
         <button
           type="button"
           className="btn text"
           style={{ marginTop: 10, padding: "8px 0", color: "var(--coral-deep)" }}
           onClick={() => {
-            if (confirm("Erase all progress on this device? This cannot be undone.")) {
+            if (
+              confirm(
+                cloud.status === "signed-in"
+                  ? "Erase all progress on this device and in your account? This cannot be undone."
+                  : "Erase all progress on this device? This cannot be undone.",
+              )
+            ) {
               useSession.getState().clear();
               reset();
               onClose();

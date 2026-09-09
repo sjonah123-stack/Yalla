@@ -26,6 +26,10 @@ html = html.replace(
 // Drop icon links and modulepreloads — no external requests allowed.
 html = html.replace(/<link rel="(icon|apple-touch-icon|modulepreload|manifest)"[^>]*>\s*/g, "");
 
+// The artifact is offline-only: the Firebase cloud module must have been folded out by `__ARTIFACT__`.
+if (/firebase|firestore\.googleapis/i.test(html))
+  throw new Error("Firebase leaked into the artifact build — check __ARTIFACT__ in cloud-loader.ts");
+
 mkdirSync("dist", { recursive: true });
 writeFileSync("dist/yalla.html", html);
 const artifact = html

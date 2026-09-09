@@ -9,8 +9,8 @@ const now = Date.now();
 
 describe("placementSample", () => {
   it("covers the path in order with one root per stride, lowest rank first", () => {
-    const s = placementSample(course, 30);
-    expect(s).toHaveLength(30);
+    const s = placementSample(course);
+    expect(s).toHaveLength(Math.max(30, course.units.length));
     const idx = s.map((r) => course.byId[r.unit].pathIndex);
     for (let i = 1; i < idx.length; i++) expect(idx[i]).toBeGreaterThanOrEqual(idx[i - 1]);
     expect(new Set(s.map((r) => r.unit)).size).toBe(course.units.length);
@@ -43,7 +43,7 @@ describe("placementResult", () => {
 
 describe("applyPlacement", () => {
   it("memorizes correct roots, completes earlier units, pre-schedules their unseen roots", () => {
-    const s = placementSample(course, 30);
+    const s = placementSample(course);
     const answers = s.map((root, i) => ({ root, ok: i < 8 || (i > 8 && i < 10) }));
     const p = applyPlacement(course, defaultProgress(), answers, now);
     const start = course.byId[p.placement!.startUnit];

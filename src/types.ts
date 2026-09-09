@@ -136,6 +136,8 @@ export interface Progress {
   sectionChests: Record<string, number>;
   /** When onboarding was completed (inferred for legacy records). */
   onboardedAt: number | null;
+  /** Reset epoch (ms). A record with a newer resetAt replaces an older one wholesale on merge; 0 = never. */
+  resetAt: number;
 }
 
 export type Mode =

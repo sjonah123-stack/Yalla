@@ -4,6 +4,8 @@ import { useProgress } from "./store/progress";
 import { useSession } from "./store/session";
 import { initSpeech } from "./lib/speech";
 import { connectRemote } from "./lib/storage";
+import { loadCloud } from "./lib/cloud-loader";
+import { useCloud } from "./store/cloud";
 import Path from "./views/Path";
 import Play from "./views/Play";
 import Bank from "./views/Bank";
@@ -45,13 +47,19 @@ export default function App() {
 
   useEffect(() => {
     initSpeech().then((ok) => setAudioReady(ok));
-    const { p, adopt, setSync } = useProgress.getState();
-    connectRemote(p).then((merged) => {
-      if (merged) {
-        adopt(merged);
-        setSync("synced");
-      }
-    });
+    if (loadCloud) {
+      // Web build: Firebase sync (SDK loads only if this device had a cloud session).
+      useCloud.getState().boot();
+    } else {
+      // Artifact build: the Claude artifact DB, merged on connect.
+      const { p, adopt, setSync } = useProgress.getState();
+      connectRemote(p).then((merged) => {
+        if (merged) {
+          adopt(merged);
+          setSync("synced");
+        }
+      });
+    }
   }, []);
 
   if (view === "play" && session) return <Play />;

@@ -5,8 +5,10 @@ import { applyAnswer, DAY, newRootState, seen } from "./srs";
 export const PLACEMENT_LEN = 30;
 
 /** One root per stride of the path (lowest rank first), in path order. */
-export function placementSample(course: Course, n = PLACEMENT_LEN): Root[] {
+export function placementSample(course: Course, n?: number): Root[] {
   const K = course.units.length;
+  // Every unit is sampled at least once, so long paths get a longer sweep.
+  n ??= Math.max(PLACEMENT_LEN, K);
   if (!K) return [];
   const used = new Map<UnitId, number>();
   const out: Root[] = [];

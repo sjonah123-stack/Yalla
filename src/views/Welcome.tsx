@@ -3,6 +3,8 @@ import { COURSE } from "../store/course";
 import { useProgress } from "../store/progress";
 import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
+import { useCloud } from "../store/cloud";
+import { loadCloud } from "../lib/cloud-loader";
 
 /** First run: the welcome screen. Either path marks the device onboarded before it navigates. */
 export default function Welcome() {
@@ -10,6 +12,8 @@ export default function Welcome() {
   const start = useSession((s) => s.start);
   const setView = useUi((s) => s.setView);
   const showToast = useUi((s) => s.showToast);
+  const cloudStatus = useCloud((s) => s.status);
+  const signIn = useCloud((s) => s.signIn);
 
   const place = () => {
     markOnboarded();
@@ -51,6 +55,17 @@ export default function Welcome() {
       <button type="button" className="btn ghost block" onClick={begin}>
         Start from the first root
       </button>
+      {loadCloud && (
+        <button
+          type="button"
+          className="btn text block"
+          style={{ marginTop: 6, color: "inherit", opacity: 0.8 }}
+          onClick={signIn}
+          disabled={cloudStatus === "signing-in" || cloudStatus === "loading"}
+        >
+          {cloudStatus === "signing-in" ? "Signing in…" : "Already have progress? Sign in"}
+        </button>
+      )}
     </div>
   );
 }

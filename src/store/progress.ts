@@ -164,7 +164,7 @@ export const useProgress = create<ProgressStore>((set, get) => ({
     if (p.onboardedAt === null) set({ p: persist({ ...p, onboardedAt: Date.now() }, set) });
   },
   reset: () => {
-    set({ p: persist(defaultProgress(), set) });
+    set({ p: persist({ ...defaultProgress(), resetAt: Date.now() }, set) });
   },
 }));
 

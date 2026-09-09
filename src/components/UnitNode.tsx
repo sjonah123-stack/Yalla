@@ -41,7 +41,7 @@ export function UnitNode({
     >
       <span className="disc">
         <span className="ring" aria-hidden="true" />
-        <span className="glyph">{rootLetters(unit.roots[0])}</span>
+        <span className="glyph">{unit.roots[0] ? rootLetters(unit.roots[0]) : "?"}</span>
         {done && !cracked && (
           <span className="check" aria-hidden="true">
             ✓
