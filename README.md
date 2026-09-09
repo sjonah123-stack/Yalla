@@ -4,7 +4,7 @@ A personal trainer for Hebrew roots (shorashim), built like a mix of Duolingo an
 
 299 hand-curated roots, 1,564 vocalized words with transliteration, gloss and binyan, in 20 themed sections. The bank is built to grow to 500+ in batches.
 
-Vite + React + TypeScript. Installable as a PWA, fully offline, or buildable as one self-contained HTML file. Live at https://yalla-677b9.web.app.
+Vite + React + TypeScript. Installable as a PWA, fully offline, or buildable as one self-contained HTML file. Live at https://yalla-roots.web.app (also https://yalla-677b9.web.app).
 
 The look is the "Yalla Mobile" design: a warm cream ground, clay cards with a hard drop shadow, plum / coral / gold accents, chunky radii, Assistant for UI text and Frank Ruhl Libre for Hebrew. Fonts are self-hosted so the artifact build stays offline-complete. Dark mode is the same language on a deep plum ground.
 
@@ -16,7 +16,7 @@ npm run dev          # http://localhost:5173
 ```
 
 ```bash
-npm run build          # PWA → dist/  (`firebase deploy --only hosting,firestore:rules`)
+npm run build          # PWA → dist/  (`firebase deploy --only hosting,firestore:rules` — hosting targets `app` and `roots` publish the same build to both sites)
 npm run build:artifact # single file → dist/yalla.html (+ yalla.artifact.html for a Claude artifact)
 npm test               # vitest: course, lessons, placement, match, SRS, quiz, Hebrew, storage, rewards, session wiring, data integrity
 npm run lint

@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "yalla-677b9"
-  }
+  },
+  "targets": {
+    "yalla-677b9": {
+      "hosting": {
+        "app": [
+          "yalla-677b9"
+        ],
+        "roots": [
+          "yalla-roots"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
