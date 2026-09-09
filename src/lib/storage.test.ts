@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defaultProgress, mergeProgress, normalize, pruneHistory } from "./storage";
+import { defaultProgress, mergeProgress, mergeUnit, normalize, pruneHistory } from "./storage";
 import { newRootState } from "./srs";
 
 describe("normalize", () => {
@@ -15,17 +15,53 @@ describe("normalize", () => {
       updatedAt: 5,
     };
     const p = normalize(v1);
-    expect(p.v).toBe(2);
+    expect(p.v).toBe(3);
     expect(p.xp).toBe(420);
     expect(p.roots["כתב"].reps).toBe(2);
     expect(p.settings.nikud).toBe(false);
     expect(p.settings.cats).toEqual(["time"]);
     expect(p.settings.audio).toBe(true);
     expect(p.settings.theme).toBe("system");
+    expect(p.settings.dailyGoal).toBe(50);
+    expect("newPerSession" in p.settings).toBe(false);
+    expect(p.units).toEqual({});
+    expect(p.placement).toBeNull();
+    expect(p.lastUnit).toBeNull();
+  });
+  it("migrates a v2 blob keeping roots, xp and streak", () => {
+    const v2 = { ...defaultProgress(), v: 2, xp: 900, streak: 7, roots: { דבר: newRootState() } };
+    const p = normalize(v2);
+    expect(p.v).toBe(3);
+    expect(p.xp).toBe(900);
+    expect(p.streak).toBe(7);
+    expect(p.roots["דבר"]).toBeDefined();
+  });
+  it("drops unit records and placement for unknown units", () => {
+    const p = normalize({
+      ...defaultProgress(),
+      units: { "speech-1": { testBest: 95 }, "ghost-9": { testBest: 100 } },
+      placement: { at: 1, startUnit: "ghost-9", score: 50 },
+      lastUnit: "ghost-9",
+    });
+    expect(Object.keys(p.units)).toEqual(["speech-1"]);
+    expect(p.placement).toBeNull();
+    expect(p.lastUnit).toBeNull();
   });
   it("tolerates garbage", () => {
     expect(normalize(null).xp).toBe(0);
     expect(normalize("x").settings.sessionLen).toBe(20);
+    expect(normalize({ settings: { dailyGoal: 7 } }).settings.dailyGoal).toBe(50);
+  });
+});
+
+describe("mergeUnit", () => {
+  it("keeps best test, best time, earliest completion, any placement", () => {
+    const m = mergeUnit(
+      { testBest: 80, matchBestMs: 30000, completedAt: 200 },
+      { testBest: 95, matchBestMs: 25000, completedAt: 100, placed: true },
+    );
+    expect(m).toEqual({ testBest: 95, matchBestMs: 25000, completedAt: 100, placed: true });
+    expect(mergeUnit(undefined, { testBest: 50 })).toEqual({ testBest: 50 });
   });
 });
 
@@ -49,7 +85,7 @@ describe("mergeProgress", () => {
     a.xp = 300;
     b.xp = 200;
     a.history["2026-01-01"] = { ok: 5, bad: 1, xp: 50 };
-    b.history["2026-01-01"] = { ok: 3, bad: 2, xp: 30 };
+    b.history["2026-01-01"] = { ok: 3, bad: 2, xp: 30, mem: 4 };
     b.history["2026-01-02"] = { ok: 1, bad: 0, xp: 10 };
     a.streak = 2;
     a.lastPlay = "2026-01-01";
@@ -60,10 +96,23 @@ describe("mergeProgress", () => {
     b.updatedAt = 5;
     const m = mergeProgress(a, b);
     expect(m.xp).toBe(300);
-    expect(m.history["2026-01-01"]).toEqual({ ok: 5, bad: 2, xp: 50 });
+    expect(m.history["2026-01-01"]).toEqual({ ok: 5, bad: 2, xp: 50, mem: 4 });
     expect(m.history["2026-01-02"].xp).toBe(10);
     expect(m.streak).toBe(3);
     expect(m.settings.nikud).toBe(false);
+  });
+  it("merges units per id and keeps the earliest placement", () => {
+    const a = defaultProgress();
+    const b = defaultProgress();
+    a.units["speech-1"] = { testBest: 70 };
+    b.units["speech-1"] = { matchBestMs: 20000 };
+    b.units["speech-2"] = { completedAt: 5 };
+    a.placement = { at: 20, startUnit: "speech-2", score: 60 };
+    b.placement = { at: 10, startUnit: "speech-1", score: 40 };
+    const m = mergeProgress(a, b);
+    expect(m.units["speech-1"]).toEqual({ testBest: 70, matchBestMs: 20000 });
+    expect(m.units["speech-2"]).toEqual({ completedAt: 5 });
+    expect(m.placement?.startUnit).toBe("speech-1");
   });
 });
 

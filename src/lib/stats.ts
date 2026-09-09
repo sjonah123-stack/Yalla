@@ -127,3 +127,30 @@ export function totals(history: Record<string, DayStats>): {
   }
   return { ok, bad, xp, days };
 }
+
+export interface MemPoint {
+  day: string;
+  /** Memorized count at end of day, or null if not recorded. */
+  mem: number | null;
+}
+
+/** Memorized-root count per day for the trailing `days` days (recorded from v3 on). */
+export function memorizedTrend(
+  history: Record<string, DayStats>,
+  days: number,
+  today = new Date(),
+): MemPoint[] {
+  const out: MemPoint[] = [];
+  let last: number | null = null;
+  // Carry the last known value forward so gaps (days without play) don't break the line.
+  const keys = Object.keys(history).sort();
+  const first = dayKey(shiftDay(today, -(days - 1)));
+  for (const k of keys) if (k < first && history[k].mem !== undefined) last = history[k].mem!;
+  for (let i = days - 1; i >= 0; i--) {
+    const key = dayKey(shiftDay(today, -i));
+    const m = history[key]?.mem;
+    if (m !== undefined) last = m;
+    out.push({ day: key, mem: last });
+  }
+  return out;
+}

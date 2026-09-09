@@ -1,10 +1,12 @@
 import { useEffect, useRef } from "react";
 import type React from "react";
-import { useSession } from "../store/session";
+import { planRules, useSession } from "../store/session";
 import { useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
 import { KEY_ROWS, PRAISE, FINALS, keyToHebrew, rootDisplay, stripNikud } from "../lib/hebrew";
 import { mastery } from "../lib/srs";
+import { unitTitle } from "../lib/course";
+import { COURSE } from "../store/course";
 import { speak } from "../lib/speech";
 import { BINYAN_BY_ID } from "../data/binyanim";
 import { WordList } from "../components/WordList";
@@ -14,7 +16,7 @@ import Summary from "./Summary";
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
 export default function Play() {
-  const s = useSession((st) => st.s)!;
+  const s0 = useSession((st) => st.s);
   const { pickOption, typeKey, submitTyped, next, end, dismissLearn } = useSession.getState();
   const nikud = useProgress((st) => st.p.settings.nikud);
   const setView = useUi((st) => st.setView);
@@ -33,6 +35,7 @@ export default function Play() {
         return;
       }
       if (st.answered) {
+        if (!planRules(st.plan).feedbackEach) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           next();
@@ -54,7 +57,25 @@ export default function Play() {
     return () => document.removeEventListener("keydown", onKey);
   }, [pickOption, typeKey, submitTyped, next, dismissLearn]);
 
+  // Test / placement: no feedback sheet — tick, then move on.
+  const feedbackEach = s0 ? planRules(s0.plan).feedbackEach : true;
+  const answered = !!s0?.answered;
+  const qi = s0?.i ?? 0;
+  useEffect(() => {
+    if (!s0 || s0.done || !answered || feedbackEach) return;
+    const t = setTimeout(() => next(), 450);
+    return () => clearTimeout(t);
+  }, [answered, qi, feedbackEach, next]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!s0) return null;
+  const s = s0;
   if (s.done) return <Summary />;
+  const planLabel =
+    s.plan.kind === "test"
+      ? `Test · ${unitTitle(COURSE.byId[s.plan.unit])} · `
+      : s.plan.kind === "placement"
+        ? "Placement · "
+        : "";
   const q = s.q!;
   const root = q.root;
   const wordText = (h: string) => (nikud ? h : stripNikud(h));
@@ -79,6 +100,7 @@ export default function Play() {
       <div className={"stage" + (s.answered ? " dim" : "")} key={`${s.i}-${s.slot}`}>
         <div className="q-in">
           <div className="title">
+            {planLabel}
             {q.title}
             {q.word && q.mode !== "whichBinyan" && q.mode !== "hearWord" && (
               <>
@@ -93,7 +115,7 @@ export default function Play() {
 
       <div className="answer">
         {q.mode === "typeRoot" ? <Typing /> : <Tiles />}
-        {s.answered && <Sheet />}
+        {s.answered && feedbackEach && <Sheet />}
       </div>
       {s.learning && <Learn />}
     </div>
@@ -318,7 +340,7 @@ export default function Play() {
           style={{ color: "inherit", marginTop: 4 }}
           onClick={() => {
             end();
-            setView("home");
+            setView("path");
           }}
         >
           Not now

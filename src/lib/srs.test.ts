@@ -78,13 +78,12 @@ describe("touchStreak", () => {
 describe("buildQueue", () => {
   it("puts due roots first and caps new roots", () => {
     const p = defaultProgress();
-    p.settings.newPerSession = 4;
     const dueIds = ROOTS.slice(0, 3).map((r) => r.r);
     for (const id of dueIds)
       p.roots[id] = { ...newRootState(), reps: 2, ivl: 3, due: now - DAY, ok: 2 };
     for (const r of ROOTS.slice(3, 20))
       p.roots[r.r] = { ...newRootState(), reps: 3, ivl: 7, due: now + 5 * DAY, ok: 3 };
-    const q = buildQueue(ROOTS, p, 10, now);
+    const q = buildQueue(ROOTS, p, 10, 4, now);
     expect(q).toHaveLength(10);
     for (const id of dueIds) expect(q.some((r) => r.r === id)).toBe(true);
     const fresh = q.filter((r) => !p.roots[r.r]);
@@ -92,13 +91,12 @@ describe("buildQueue", () => {
   });
   it("falls back to unseen roots for a brand-new learner", () => {
     const p = defaultProgress();
-    p.settings.newPerSession = 4;
-    expect(buildQueue(ROOTS, p, 10, now)).toHaveLength(10);
+    expect(buildQueue(ROOTS, p, 10, 4, now)).toHaveLength(10);
   });
   it("respects the theme filter", () => {
     const p = defaultProgress();
     p.settings.cats = ["time"];
-    const q = buildQueue(ROOTS, p, 20, now);
+    const q = buildQueue(ROOTS, p, 20, 0, now);
     expect(q.every((r) => r.cat === "time")).toBe(true);
   });
 });

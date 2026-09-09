@@ -14,16 +14,19 @@ import {
   IconPlay,
   IconProgress,
 } from "./components/Icons";
-import Home from "./views/Home";
+import Path from "./views/Path";
 import Play from "./views/Play";
 import Bank from "./views/Bank";
 import Progress from "./views/Progress";
 import Patterns from "./views/Patterns";
 import Settings from "./views/Settings";
+import UnitSheet from "./views/Unit";
+import Flashcards from "./views/Flashcards";
+import Match from "./views/Match";
 
 const NAV: { v: View; label: string; Icon: () => React.JSX.Element }[] = [
-  { v: "home", label: "Home", Icon: IconHome },
-  { v: "play", label: "Play", Icon: IconPlay },
+  { v: "path", label: "Path", Icon: IconHome },
+  { v: "play", label: "Practice", Icon: IconPlay },
   { v: "bank", label: "Roots", Icon: IconBank },
   { v: "patterns", label: "Patterns", Icon: IconPatterns },
   { v: "progress", label: "Progress", Icon: IconProgress },
@@ -35,6 +38,8 @@ export default function App() {
   const showToast = useUi((s) => s.showToast);
   const settingsOpen = useUi((s) => s.settingsOpen);
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
+  const unitSheet = useUi((s) => s.unitSheet);
+  const toolUnit = useUi((s) => s.toolUnit);
   const theme = useProgress((s) => s.p.settings.theme);
   const session = useSession((s) => s.s);
   const start = useSession((s) => s.start);
@@ -63,28 +68,25 @@ export default function App() {
   const go = (v: View) => {
     if (v === "play") {
       if (!session || session.done) {
-        if (!start()) return showToast("No roots match this filter yet.");
+        if (!start({ kind: "practice" }))
+          return showToast("Nothing to practice yet — start the path.");
       }
     }
     setView(v);
   };
 
   if (view === "play" && session) return <Play />;
-  // A "play" view with no session (e.g. after a reload) falls back to Home.
-  const shown: View = view === "play" ? "home" : view;
+  if (view === "flashcards" && toolUnit) return <Flashcards unitId={toolUnit} />;
+  if (view === "match" && toolUnit) return <Match unitId={toolUnit} />;
+  // A tool/play view with nothing to show (e.g. after a reload) falls back to the path.
+  const shown: View = ["path", "bank", "patterns", "progress"].includes(view) ? view : "path";
 
   return (
     <>
       <div className="shell">
         <TopBar onSettings={() => setSettingsOpen(true)} />
-        <main key={view} className="view">
-          {view === "home" && (
-            <Home
-              onStart={(len) =>
-                start(len) ? setView("play") : showToast("No roots match this filter yet.")
-              }
-            />
-          )}
+        <main key={shown} className="view">
+          {shown === "path" && <Path />}
           {shown === "bank" && <Bank />}
           {shown === "progress" && <Progress />}
           {shown === "patterns" && <Patterns />}
@@ -106,6 +108,7 @@ export default function App() {
         </div>
       </nav>
       <Toast />
+      {unitSheet && <UnitSheet unitId={unitSheet} />}
       {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
     </>
   );

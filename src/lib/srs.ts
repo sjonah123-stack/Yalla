@@ -117,16 +117,17 @@ export function buildQueue(
   roots: readonly Root[],
   progress: Pick<Progress, "roots" | "settings">,
   len: number,
+  newPerSession = 0,
   now: number = Date.now(),
 ): Root[] {
   const P = pool(roots, progress.settings.cats);
   const st = (r: Root) => progress.roots[r.r];
   const due = P.filter((r) => isDue(st(r), now)).sort((a, b) => st(a)!.due - st(b)!.due);
-  const fresh = shuffle(P.filter((r) => !seen(st(r)))).sort((a, b) => a.tier - b.tier);
+  const fresh = shuffle(P.filter((r) => !seen(st(r)))).sort((a, b) => a.rank - b.rank);
   const q: Root[] = due.slice(0, len);
   let added = 0;
   for (const r of fresh) {
-    if (q.length >= len || added >= progress.settings.newPerSession) break;
+    if (q.length >= len || added >= newPerSession) break;
     q.push(r);
     added++;
   }

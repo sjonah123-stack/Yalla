@@ -84,7 +84,7 @@ export function makeQuestion(root: Root, all: readonly Root[], mode: Mode): Ques
         mode,
         root,
         title,
-        opts: shuffle([root, ...sim].map((r) => ({ label: r.m, ok: r === root }))),
+        opts: shuffle([root, ...sim].map((r) => ({ label: r.short, ok: r === root }))),
       };
     case "meaningRoot":
       return { mode, root, title, opts: rootOpts() };

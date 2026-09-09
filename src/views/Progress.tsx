@@ -4,12 +4,15 @@ import {
   accuracyTrend,
   heatmap,
   masteryDistribution,
+  memorizedTrend,
   themeStrength,
   totals,
   upcomingReviews,
 } from "../lib/stats";
 import { useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
+import { COURSE } from "../store/course";
+import { memorizedCount, sectionColor, unitStatus } from "../lib/course";
 
 const MASTERY_COLORS = [
   "var(--stone)",
@@ -32,6 +35,8 @@ export default function Progress() {
   const themes = themeStrength(ROOTS, p);
   const upcoming = upcomingReviews(ROOTS, p, 14);
   const l = level(p.xp);
+  const mem = memorizedCount(ROOTS, p);
+  const memTrend = memorizedTrend(p.history, 30);
   const acc = t.ok + t.bad ? Math.round((t.ok / (t.ok + t.bad)) * 100) : 0;
 
   return (
@@ -68,6 +73,42 @@ export default function Progress() {
                 ) + "%",
             }}
           />
+        </div>
+      </section>
+
+      <section className="block cobalt">
+        <div className="row between">
+          <div className="eyebrow">Memorized · last 30 days</div>
+          <span className="small tnum" style={{ opacity: 0.85 }}>
+            {mem} / {ROOTS.length}
+          </span>
+        </div>
+        <MemChart points={memTrend} total={ROOTS.length} />
+      </section>
+
+      <section className="block">
+        <div className="eyebrow">Path · {COURSE.units.length} units</div>
+        <div className="ustrip" style={{ marginTop: 12 }}>
+          {COURSE.sections.map((sec) => (
+            <div
+              className="urow"
+              key={sec.id}
+              style={{ "--c": sectionColor(sec.id) } as React.CSSProperties}
+            >
+              <span className="l">{sec.title}</span>
+              <span className="units">
+                {COURSE.units
+                  .filter((u) => u.section.id === sec.id)
+                  .map((u) => (
+                    <i
+                      key={u.id}
+                      className={unitStatus(u, COURSE, p)}
+                      title={`${sec.title} ${u.indexInSection + 1}`}
+                    />
+                  ))}
+              </span>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -129,7 +170,7 @@ export default function Progress() {
               aria-pressed={p.settings.cats.includes(th.cat)}
               onClick={() => {
                 toggleCat(th.cat);
-                setView("home");
+                setView("path");
               }}
             >
               <span className="l">{th.cat}</span>
@@ -144,6 +185,74 @@ export default function Progress() {
         </div>
       </section>
     </>
+  );
+}
+
+function MemChart({
+  points,
+  total,
+}: {
+  points: { day: string; mem: number | null }[];
+  total: number;
+}) {
+  const W = 300;
+  const H = 90;
+  const padY = 8;
+  const vals = points.map((p) => p.mem).filter((m): m is number => m !== null);
+  if (!vals.length)
+    return (
+      <p className="small" style={{ marginTop: 8, opacity: 0.85 }}>
+        Tracking starts today — every day you play adds a point.
+      </p>
+    );
+  const max = Math.max(1, ...vals);
+  const top = Math.min(total, Math.ceil(max * 1.15));
+  const pts = points
+    .map((p, i) => ({
+      x: (i / (points.length - 1)) * W,
+      y: p.mem === null ? null : padY + (1 - p.mem / top) * (H - padY * 2),
+    }))
+    .filter((p): p is { x: number; y: number } => p.y !== null);
+  const d = pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const area = pts.length
+    ? `${pts[0].x.toFixed(1)},${H - padY} ${d} ${pts[pts.length - 1].x.toFixed(1)},${H - padY}`
+    : "";
+  return (
+    <svg
+      className="chart onink"
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ marginTop: 8 }}
+      aria-label="Memorized roots over time"
+    >
+      <polygon points={area} fill="rgba(255,255,255,.18)" />
+      <polyline
+        points={d}
+        fill="none"
+        stroke="var(--sun)"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {pts.length > 0 && (
+        <circle
+          cx={pts[pts.length - 1].x}
+          cy={pts[pts.length - 1].y}
+          r="4"
+          fill="var(--sun)"
+          stroke="var(--ink)"
+          strokeWidth="1.5"
+        />
+      )}
+      <text x="0" y={H - 1}>
+        30d ago
+      </text>
+      <text x={W} y={H - 1} textAnchor="end">
+        today · {vals[vals.length - 1]}
+      </text>
+      <text x={W} y={padY + 4} textAnchor="end">
+        {top}
+      </text>
+    </svg>
   );
 }
 

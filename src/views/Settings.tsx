@@ -78,17 +78,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             />,
           )}
           {row(
-            "New roots",
-            "Max new roots per session",
+            "Daily goal",
+            "XP per day to fill the ring",
             <Seg
-              value={st.newPerSession}
+              value={st.dailyGoal}
               options={[
-                { v: 4, l: "4" },
-                { v: 8, l: "8" },
-                { v: 12, l: "12" },
-                { v: 20, l: "20" },
+                { v: 20, l: "Casual · 20" },
+                { v: 50, l: "Regular · 50" },
+                { v: 100, l: "Serious · 100" },
               ]}
-              onChange={(v) => set({ newPerSession: v })}
+              onChange={(v) => set({ dailyGoal: v })}
             />,
           )}
           {row(

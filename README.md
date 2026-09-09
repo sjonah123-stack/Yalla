@@ -1,8 +1,10 @@
 # Yalla — יאללה
 
-A personal, gamified trainer for Hebrew roots (shorashim). 179 hand-curated roots, 930 vocalized words with transliteration, gloss and binyan. Spaced repetition, seven question modes, audio, a binyan primer, and a progress dashboard.
+A personal trainer for Hebrew roots (shorashim), built like a mix of Duolingo and Quizlet: a **course path** through every root in the bank, organized by theme into units of ~8 roots, with **flashcards, a timed match game, a unit test and a placement test** inside each unit. The headline number is *roots memorized*, and "memorized" is earned honestly — two first-try correct answers on separate days.
 
-Vite + React + TypeScript. Installable as a PWA, fully offline, or buildable as one self-contained HTML file.
+179 hand-curated roots, 925 vocalized words with transliteration, gloss and binyan. The bank is built to grow to 500+ in batches.
+
+Vite + React + TypeScript. Installable as a PWA, fully offline, or buildable as one self-contained HTML file. Live at https://yalla-677b9.web.app.
 
 ## Run it
 
@@ -12,47 +14,61 @@ npm run dev          # http://localhost:5173
 ```
 
 ```bash
-npm run build          # PWA → dist/  (deploy to any static host)
+npm run build          # PWA → dist/  (deploy to any static host; `firebase deploy --only hosting`)
 npm run build:artifact # single file → dist/yalla.html (+ yalla.artifact.html for a Claude artifact)
-npm test               # vitest: SRS, quiz, Hebrew normalization, storage merge, data integrity
+npm test               # vitest: course, lessons, placement, match, SRS, quiz, Hebrew, storage, data integrity
 npm run lint
 ```
 
-Progress lives in `localStorage` (`yalla.v2`; a `yalla.v1` record from the original app is migrated on first load). Inside a Claude artifact it also syncs to the artifact DB with a per-root merge, so phone and laptop share one record without either overwriting the other.
+Progress lives in `localStorage` (`yalla.v3`; older `v2` / `v1` records migrate on first load). Inside a Claude artifact it also syncs to the artifact DB with a per-root, per-unit merge, so phone and laptop share one record without either overwriting the other.
 
 ## How it works
 
-- **Scheduling** — SM-2-flavored per root: right answers push a root 1 → 3 → 7 → 15 → 30+ days out; a miss brings it back tomorrow and re-queues it four questions later in the same session. Mastery 0–5 is derived from the current interval. Streaks count local calendar days and only advance on a correct answer.
-- **Sessions** — due roots first, then a capped number of new roots (most frequent tier first), then the weakest seen roots. New roots get a "meet this root" card before their first question.
-- **Modes**, gated by mastery so you move from recognition to production: root → meaning, meaning → root, word → root, odd one out, **listen** → root, **which binyan**, and typing the root on an on-screen Hebrew keyboard (or a physical one — Hebrew, or the English keys in the same positions).
-- **Distractors** are scored by letter overlap with the answer, so wrong options are genuinely confusable rather than random.
-- **XP** — 10 for recognition, 15 for odd-one-out and listening, 20 for typing and binyan; +5 at combo ×3 and ×6; half for a retry. Level = ⌊√(XP/100)⌋ + 1.
-- **Audio** uses the browser's speech synthesis with a Hebrew voice when one exists; otherwise speaker buttons and the listening mode disappear rather than mispronouncing.
+- **The path** — 14 theme sections (speech, movement, senses & mind, …) split into 24 units. A unit is *locked* until the one before it is complete (or you test out of it), *started* once quizzed, *learned* when every root has been answered right once, *complete* when every root is memorized, and *gold* after a unit test at 90%+. A complete unit whose roots slip shows as needing repair.
+- **Memorized** — a root's interval reaches 3 days: two first-try corrects with no lapse since. A root's schedule advances at most once per session, so the second correct has to come on a later day. That is the whole loop: learn today, lock in tomorrow.
+- **Lessons** — 16 questions on one unit: up to 4 new roots (each introduced with a "meet this root" card and drilled once more later), ~30% cumulative review from earlier units, and the unit's weakest roots. Misses are re-queued four questions later. **Practice** is a global review of due roots; new roots only enter through the path.
+- **Flashcards** — root on the front, meaning and word family on the back; swipe right = know, left = still learning, looping the pile until empty. **Match** — 8 roots and their meanings as 16 tiles against the clock; a wrong pair costs half a second; best time per unit. **Test** — 20 fixed questions covering every root twice; 90%+ turns the unit gold and unlocks the next one. **Placement** — a one-time 30-question sweep of the path; units before your level are marked complete and their roots come back for review a week later, so a wrong guess self-corrects.
+- **Scheduling** — SM-2-flavored per root: right answers push a root 1 → 3 → 7 → 15 → 30+ days out; a miss brings it back tomorrow. Streaks count local calendar days and only advance on a correct answer. A daily XP goal (20 / 50 / 100) fills the ring on the path.
+- **Modes**, gated by mastery so you move from recognition to production: root → meaning, meaning → root, word → root, odd one out, listen → root, which binyan, and typing the root on an on-screen Hebrew keyboard (or a physical one — Hebrew, or the English keys in the same positions). Distractors are scored by letter overlap so wrong options are genuinely confusable.
+- **Audio** uses the browser's speech synthesis with a Hebrew voice when one exists.
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `src/data/roots.ts` | The root bank (typed; see below to add roots) |
+| `src/data/roots/<section>.ts` | The root bank, one file per theme section; `index.ts` concatenates them |
+| `src/data/course.ts` | Section order and unit order (unit membership lives on each root) |
 | `src/data/binyanim.ts` | The seven binyanim: pattern, gloss, example |
-| `src/lib/srs.ts` | Scheduling, mastery, streak, queue building |
+| `src/lib/course.ts` | Course building, unit status, memorized counts |
+| `src/lib/lesson.ts` | Lesson and unit-test builders |
+| `src/lib/placement.ts` | Placement sampling, result rule, writes |
+| `src/lib/match.ts` | Match pair selection |
+| `src/lib/srs.ts` | Scheduling, mastery, streak, practice queue |
 | `src/lib/quiz.ts` | Distractors, mode selection, question generation, XP |
 | `src/lib/hebrew.ts` | Nikud stripping, final-letter normalization, keyboard maps |
-| `src/lib/storage.ts` | localStorage, v1 → v2 migration, per-root merge, artifact DB |
-| `src/lib/stats.ts` | Heatmap, accuracy trend, mastery distribution, upcoming reviews |
-| `src/store/` | zustand stores: persisted progress, ephemeral session, UI |
-| `src/views/` | Home, Play (+ Learn, Summary), Bank, Patterns, Progress, Settings |
+| `src/lib/storage.ts` | localStorage, migrations, per-root/unit merge, artifact DB |
+| `src/lib/stats.ts` | Heatmap, accuracy trend, memorized trend, upcoming reviews |
+| `src/store/` | zustand stores: persisted progress, session plans, UI, the built course |
+| `src/views/` | Path, Unit sheet, Play (+ Summary / results), Flashcards, Match, Bank, Patterns, Progress, Settings |
 | `src/styles/tokens.css` | The design system: spacing, type scale, palette, motion |
 | `scripts/inline-artifact.mjs` | Emits the single-file build |
 
 ## Adding roots
 
-Append to `ROOTS` in `src/data/roots.ts`:
+Roots go in the file for their theme, e.g. `src/data/roots/nature.ts`:
 
 ```ts
-{r:"שרש",m:"root",tier:1,cat:"nature",words:[
- {h:"שֹׁרֶשׁ",t:"shoresh",g:"root",b:"noun"},
- {h:"הִשְׁתָּרֵשׁ",t:"hishtaresh",g:"took root",b:"hitpa'el"}]},
+{
+  r: "שרש", m: "root / take root", short: "root", rank: 12, cat: "nature", unit: "nature-3",
+  words: [
+    { h: "שֹׁרֶשׁ", t: "shoresh", g: "root", b: "noun" },
+    { h: "הִשְׁתָּרֵשׁ", t: "hishtaresh", g: "took root", b: "hitpa'el" },
+  ],
+},
 ```
 
-`r` must be unique — use a digit suffix for homographs (`שכר2`); digits are stripped for display and typing. `b` is one of the seven binyanim or `noun` / `adj` / `adv` / `prep` / `phrase` / `interj`; TypeScript rejects anything else, and `npm test` checks the whole bank.
+- `r` must be unique — a digit suffix marks a homograph (`שכר2`); digits are stripped for display and typing. Homographs need different `short` labels.
+- `short` is one sense in at most two words: it is the Match tile and the multiple-choice label. `m` can list several senses.
+- `rank` orders roots within their section (1 = most useful) and must be unique within a unit.
+- `unit` must be listed under its section in `src/data/course.ts`. **Growing a section = appending a new serial** (`nature-3`) to that section's `units`; never rename or reuse a unit id — saved progress refers to them. A new theme is a new `SectionDef`.
+- Every unit needs 5–10 roots; every word needs nikud; no vocalized word may appear under two roots. `npm test` enforces all of this.

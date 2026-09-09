@@ -1,16 +1,47 @@
 import { create } from "zustand";
-import type { Mode, Question, Root } from "../types";
+import type { Mode, Question, Root, UnitId } from "../types";
 import { ROOTS } from "../data/roots";
 import { buildQueue, mastery, seen } from "../lib/srs";
 import { makeQuestion, modeFor, xpFor } from "../lib/quiz";
+import { buildLesson, buildTest, testScore } from "../lib/lesson";
+import { placementSample } from "../lib/placement";
+import { memorizedCount } from "../lib/course";
 import { speechAvailable } from "../lib/speech";
 import { useProgress } from "./progress";
+import { COURSE } from "./course";
 
 export type Tick = "pending" | "good" | "bad" | "recovered";
 
+export type Plan =
+  | { kind: "lesson"; unit: UnitId }
+  | { kind: "practice" }
+  | { kind: "test"; unit: UnitId }
+  | { kind: "placement" };
+
+/** Behaviour flags derived from the plan. */
+export const planRules = (plan: Plan) => ({
+  /** Show the feedback sheet after each question (else tick and move on, results at the end). */
+  feedbackEach: plan.kind === "lesson" || plan.kind === "practice",
+  /** Misses are re-queued a few questions later. */
+  requeue: plan.kind === "lesson" || plan.kind === "practice",
+  learnFirst: plan.kind === "lesson",
+  writesSrs: plan.kind !== "placement",
+  xp: plan.kind !== "placement",
+});
+
+export interface Result {
+  slot: number;
+  ok: boolean;
+  /** What the learner picked/typed, for the results list. */
+  picked: string;
+}
+
 export interface Session {
-  /** The fixed set of roots for this session; one rail tick each. */
+  plan: Plan;
+  /** The fixed set of slots for this session; one rail tick each. A root may fill two slots. */
   slots: Root[];
+  /** For test/placement: the mode fixed per slot. */
+  modes?: Mode[];
   ticks: Tick[];
   /** Working queue (slot indices); missed roots get re-inserted. */
   queue: number[];
@@ -32,14 +63,22 @@ export interface Session {
   bad: number;
   xp: number;
   retried: Set<number>;
+  /** Roots whose SRS already advanced this session (further slots are drills). */
+  advanced: Set<string>;
   learned: string[];
   missed: string[];
+  results: Result[];
+  /** Memorized count when the session started, for the summary strip. */
+  memBefore: number;
   done: boolean;
+  /** Set when the session finished: test score, or placement handled. */
+  score?: number;
+  wentGold?: boolean;
 }
 
 interface SessionStore {
   s: Session | null;
-  start: (len?: number) => boolean;
+  start: (plan: Plan) => boolean;
   dismissLearn: () => void;
   pickOption: (i: number) => void;
   typeKey: (k: string) => void;
@@ -49,24 +88,37 @@ interface SessionStore {
   clear: () => void;
 }
 
-function question(root: Root): Question {
-  const st = useProgress.getState().p.roots[root.r];
-  const mode: Mode = modeFor(root, mastery(st), {
-    audio: speechAvailable() && useProgress.getState().p.settings.audio,
-  });
+const pick = <T>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
+
+function question(s: Session, root: Root, slot: number): Question {
+  const prog = useProgress.getState().p;
+  let mode: Mode;
+  if (s.modes) mode = s.modes[slot];
+  else if (s.plan.kind === "placement") mode = pick<Mode>(["rootMeaning", "meaningRoot"]);
+  else
+    mode = modeFor(root, mastery(prog.roots[root.r]), {
+      audio: speechAvailable() && prog.settings.audio,
+    });
   return makeQuestion(root, ROOTS, mode);
 }
 
 function load(s: Session): Session {
-  if (s.i >= s.queue.length) return { ...s, done: true, q: null };
+  if (s.i >= s.queue.length) return finish(s);
   const slot = s.queue[s.i];
   const root = s.slots[slot];
   const prog = useProgress.getState().p;
-  const learning = prog.settings.learnFirst && !seen(prog.roots[root.r]) && !s.retried.has(slot);
+  const rules = planRules(s.plan);
+  const learning =
+    rules.learnFirst &&
+    prog.settings.learnFirst &&
+    !seen(prog.roots[root.r]) &&
+    !s.retried.has(slot) &&
+    !s.advanced.has(root.r) &&
+    !s.slots.slice(0, slot).includes(root);
   return {
     ...s,
     slot,
-    q: question(root),
+    q: question(s, root, slot),
     learning,
     answered: false,
     picked: null,
@@ -75,14 +127,56 @@ function load(s: Session): Session {
   };
 }
 
+/** Close the session and apply end-of-session effects (test score, placement). */
+function finish(s: Session): Session {
+  const prog = useProgress.getState();
+  const out: Session = { ...s, done: true, q: null };
+  if (s.plan.kind === "test") {
+    out.score = testScore(s.results.filter((r) => r.ok).length, s.slots.length);
+    out.wentGold = prog.recordTest(s.plan.unit, out.score);
+  } else if (s.plan.kind === "placement") {
+    prog.finishPlacement(s.results.map((r) => ({ root: s.slots[r.slot], ok: r.ok })));
+    out.score = testScore(s.results.filter((r) => r.ok).length, s.slots.length);
+  }
+  return out;
+}
+
+function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[] } {
+  const prog = useProgress.getState().p;
+  switch (plan.kind) {
+    case "lesson":
+      return { slots: buildLesson(COURSE, plan.unit, prog) };
+    case "practice": {
+      const seenRoots = ROOTS.filter((r) => seen(prog.roots[r.r]));
+      return { slots: buildQueue(seenRoots, prog, prog.settings.sessionLen, 0) };
+    }
+    case "test": {
+      const t = buildTest(COURSE, plan.unit);
+      return { slots: t.map((x) => x.root), modes: t.map((x) => x.mode) };
+    }
+    case "placement": {
+      const sample = placementSample(COURSE);
+      const order = sample.slice();
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      return { slots: order };
+    }
+  }
+}
+
 export const useSession = create<SessionStore>((set, get) => ({
   s: null,
-  start: (len) => {
-    const prog = useProgress.getState().p;
-    const slots = buildQueue(ROOTS, prog, len ?? prog.settings.sessionLen);
+  start: (plan) => {
+    const { slots, modes } = buildSlots(plan);
     if (!slots.length) return false;
+    const prog = useProgress.getState();
+    if (plan.kind === "lesson") prog.setLastUnit(plan.unit);
     const s: Session = {
+      plan,
       slots,
+      modes,
       ticks: slots.map(() => "pending"),
       queue: slots.map((_, i) => i),
       i: 0,
@@ -100,8 +194,11 @@ export const useSession = create<SessionStore>((set, get) => ({
       bad: 0,
       xp: 0,
       retried: new Set(),
+      advanced: new Set(),
       learned: [],
       missed: [],
+      results: [],
+      memBefore: memorizedCount(ROOTS, prog.p),
       done: false,
     };
     set({ s: load(s) });
@@ -114,7 +211,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   pickOption: (i) => {
     const s = get().s;
     if (!s || !s.q?.opts || s.answered) return;
-    answer(s, s.q.opts[i].ok, i, set);
+    answer(s, s.q.opts[i].ok, i, s.q.opts[i].label, set);
   },
   typeKey: (k) => {
     const s = get().s;
@@ -123,14 +220,15 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (k === "⌫") return set({ s: { ...s, typed: s.typed.slice(0, -1) } });
     if (s.typed.length >= L) return;
     const typed = [...s.typed, k];
-    if (typed.length === L) answer({ ...s, typed }, typed.join("") === s.q.answer, null, set);
+    if (typed.length === L)
+      answer({ ...s, typed }, typed.join("") === s.q.answer, null, typed.join(""), set);
     else set({ s: { ...s, typed } });
   },
   submitTyped: () => {
     const s = get().s;
     if (!s || s.q?.mode !== "typeRoot" || s.answered) return;
     if (s.typed.length === s.q.answer!.length)
-      answer(s, s.typed.join("") === s.q.answer, null, set);
+      answer(s, s.typed.join("") === s.q.answer, null, s.typed.join(""), set);
   },
   next: () => {
     const s = get().s;
@@ -139,7 +237,10 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
   end: () => {
     const s = get().s;
-    if (s) set({ s: { ...s, done: true, q: null } });
+    if (!s || s.done) return;
+    // Ending a test or placement early discards it rather than scoring a partial run.
+    if (s.plan.kind === "test" || s.plan.kind === "placement") set({ s: null });
+    else set({ s: { ...s, done: true, q: null } });
   },
   clear: () => set({ s: null }),
 }));
@@ -148,30 +249,37 @@ function answer(
   s: Session,
   correct: boolean,
   picked: number | null,
+  pickedLabel: string,
   set: (p: Partial<SessionStore>) => void,
 ) {
   const q = s.q!;
   const id = q.root.r;
+  const rules = planRules(s.plan);
   const first = !s.retried.has(s.slot);
+  // A root's SRS advances at most once per session; later slots are drills.
+  const srsFirst = first && !s.advanced.has(id);
   const prog = useProgress.getState();
   const wasNew = !seen(prog.p.roots[id]);
   const combo = correct ? s.combo + 1 : 0;
-  const xp = correct ? xpFor(q.mode, combo, first) : 0;
-  prog.recordAnswer(id, correct, first, xp);
+  const xp = correct && rules.xp ? xpFor(q.mode, combo, srsFirst) : 0;
+  if (rules.writesSrs) prog.recordAnswer(id, correct, srsFirst, xp);
 
   const ticks = s.ticks.slice();
   const queue = s.queue.slice();
   const retried = new Set(s.retried);
+  const advanced = new Set(s.advanced);
   const missed = s.missed.slice();
   const learned = s.learned.slice();
+  const results = [...s.results, { slot: s.slot, ok: correct, picked: pickedLabel }];
   if (correct) {
     ticks[s.slot] = first ? "good" : "recovered";
-    if (wasNew) learned.push(id);
+    advanced.add(id);
+    if (wasNew && !learned.includes(id)) learned.push(id);
   } else {
     ticks[s.slot] = "bad";
-    if (first) {
+    if (!missed.includes(id)) missed.push(id);
+    if (first && rules.requeue) {
       retried.add(s.slot);
-      missed.push(id);
       queue.splice(Math.min(queue.length, s.i + 4), 0, s.slot);
     }
   }
@@ -190,8 +298,10 @@ function answer(
       ticks,
       queue,
       retried,
+      advanced,
       missed,
       learned,
+      results,
     },
   });
 }

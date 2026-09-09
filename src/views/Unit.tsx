@@ -1,0 +1,166 @@
+import { useEffect } from "react";
+import { COURSE } from "../store/course";
+import { useProgress } from "../store/progress";
+import { useSession, type Plan } from "../store/session";
+import { useUi } from "../store/ui";
+import {
+  GOLD_SCORE,
+  sectionColor,
+  unitCracked,
+  unitMemorized,
+  unitStatus,
+  unitTitle,
+} from "../lib/course";
+import { formatMs } from "../lib/match";
+import { rootDisplay } from "../lib/hebrew";
+import { mastery } from "../lib/srs";
+import { MasteryArc } from "../components/MasteryArc";
+import type { UnitId } from "../types";
+
+const STATUS_TEXT = {
+  locked: "Locked — finish the unit before it, or test out.",
+  available: "Not started.",
+  started: "In progress.",
+  learned: "Every root answered right once. Come back tomorrow to lock them in.",
+  complete: "Complete — every root memorized.",
+  gold: "Gold — passed the unit test.",
+} as const;
+
+export default function UnitSheet({ unitId }: { unitId: UnitId }) {
+  const u = COURSE.byId[unitId];
+  const p = useProgress((s) => s.p);
+  const closeUnit = useUi((s) => s.closeUnit);
+  const openTool = useUi((s) => s.openTool);
+  const openRoot = useUi((s) => s.openRoot);
+  const setView = useUi((s) => s.setView);
+  const showToast = useUi((s) => s.showToast);
+  const start = useSession((s) => s.start);
+
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === "Escape" && closeUnit();
+    document.addEventListener("keydown", k);
+    return () => document.removeEventListener("keydown", k);
+  }, [closeUnit]);
+
+  if (!u) return null;
+  const status = unitStatus(u, COURSE, p);
+  const cracked = unitCracked(u, p);
+  const rec = p.units[u.id];
+  const mem = unitMemorized(u, p);
+  const locked = status === "locked";
+  const finished = status === "complete" || status === "gold";
+  const go = (plan: Plan) => {
+    closeUnit();
+    if (start(plan)) setView("play");
+    else showToast("Nothing to study here yet.");
+  };
+
+  return (
+    <div
+      className="modal sheetwrap"
+      onClick={closeUnit}
+      role="dialog"
+      aria-modal="true"
+      aria-label={unitTitle(u)}
+    >
+      <div
+        className="panel usheet"
+        onClick={(e) => e.stopPropagation()}
+        style={{ "--c": sectionColor(u.section.id) } as React.CSSProperties}
+      >
+        <div className="row between">
+          <div>
+            <div className="eyebrow">
+              <i className="sq" /> {u.section.he} · {u.section.title}
+            </div>
+            <h2>{unitTitle(u)}</h2>
+          </div>
+          <span className={`upill ${status}${cracked ? " cracked" : ""}`}>
+            {cracked ? "needs repair" : status}
+          </span>
+        </div>
+        <p className="small muted" style={{ marginTop: 4 }}>
+          {cracked
+            ? "Some of these roots have slipped. A lesson will bring them back."
+            : STATUS_TEXT[status]}
+        </p>
+        <div className="row between" style={{ marginTop: 12 }}>
+          <span className="tnum">
+            <b>{mem}</b> / {u.roots.length} memorized
+          </span>
+          <span className="small muted tnum">
+            {rec?.testBest !== undefined ? `Test ${rec.testBest}%` : ""}
+            {rec?.testBest !== undefined && rec?.matchBestMs !== undefined ? " · " : ""}
+            {rec?.matchBestMs !== undefined ? `Match ${formatMs(rec.matchBestMs)}` : ""}
+          </span>
+        </div>
+        <div className="uroots">
+          {u.roots.map((r) => {
+            const st = p.roots[r.r];
+            const m = mastery(st);
+            return (
+              <button
+                type="button"
+                key={r.r}
+                className={"uroot" + (locked ? " dim" : "")}
+                onClick={() => openRoot(r.r)}
+              >
+                <span className="glyph">{rootDisplay(r)}</span>
+                <span className="s">{r.short}</span>
+                <MasteryArc level={m} size={22} />
+              </button>
+            );
+          })}
+        </div>
+        <div className="uactions">
+          {locked ? (
+            <button
+              type="button"
+              className="btn primary block"
+              onClick={() => go({ kind: "test", unit: u.id })}
+            >
+              Test out · score {GOLD_SCORE}%+ to unlock
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className={"btn block " + (finished ? "" : "sun big")}
+                onClick={() => go({ kind: "lesson", unit: u.id })}
+              >
+                {status === "available"
+                  ? "Start lesson"
+                  : finished
+                    ? "Practice lesson"
+                    : "Continue lesson"}
+              </button>
+              <div className="btn-row" style={{ marginTop: 8 }}>
+                <button type="button" className="btn" onClick={() => openTool("flashcards", u.id)}>
+                  Flashcards
+                </button>
+                <button type="button" className="btn" onClick={() => openTool("match", u.id)}>
+                  Match{rec?.matchBestMs !== undefined ? ` · ${formatMs(rec.matchBestMs)}` : ""}
+                </button>
+              </div>
+              <button
+                type="button"
+                className={
+                  "btn block " +
+                  (finished && status !== "gold" ? "sun big" : status === "gold" ? "" : "primary")
+                }
+                style={{ marginTop: 8 }}
+                onClick={() => go({ kind: "test", unit: u.id })}
+              >
+                {status === "gold"
+                  ? `Retake test · best ${rec?.testBest}%`
+                  : rec?.testBest !== undefined
+                    ? `Test · best ${rec.testBest}%`
+                    : "Unit test"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

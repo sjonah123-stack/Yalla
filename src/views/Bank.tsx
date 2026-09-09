@@ -9,9 +9,8 @@ import { useUi } from "../store/ui";
 import { MasteryArc } from "../components/MasteryArc";
 import { WordList } from "../components/WordList";
 
-const CAT_COLORS = ["var(--cobalt)", "var(--sun)", "var(--terracotta)", "var(--good)"];
-export const catColor = (cat: string) =>
-  CAT_COLORS[[...new Set(ROOTS.map((r) => r.cat as string))].indexOf(cat) % CAT_COLORS.length];
+import { catColor, unitTitle } from "../lib/course";
+import { COURSE } from "../store/course";
 
 export default function Bank() {
   const filter = useUi((s) => s.bankFilter);
@@ -118,7 +117,7 @@ const RootRow = memo(function RootRow({
         <span>
           <div className="m">{root.m}</div>
           <div className="c">
-            {root.words.length} words · {dueTxt}
+            {unitTitle(COURSE.byId[root.unit])} · {root.words.length} words · {dueTxt}
           </div>
         </span>
         <MasteryArc level={m} />
@@ -137,8 +136,25 @@ function groupByForm(words: readonly Word[]): [string, Word[]][] {
 
 function RootDetail({ root }: { root: Root }) {
   const st = useProgress((s) => s.p.roots[root.r]);
+  const openUnit = useUi((s) => s.openUnit);
+  const setView = useUi((s) => s.setView);
   return (
     <div className="rdetail">
+      <div className="row between" style={{ marginBottom: 8 }}>
+        <span className="small muted">
+          <b>{root.short}</b> · rank {root.rank} in {root.cat}
+        </span>
+        <button
+          type="button"
+          className="btn quiet sm"
+          onClick={() => {
+            setView("path");
+            openUnit(root.unit);
+          }}
+        >
+          Go to {unitTitle(COURSE.byId[root.unit])} →
+        </button>
+      </div>
       {groupByForm(root.words).map(([form, ws]) => (
         <div key={form}>
           <div className="bh">

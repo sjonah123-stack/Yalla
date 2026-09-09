@@ -1,43 +1,68 @@
-import type { DayStats, Progress, RootState, Settings } from "../types";
+import type { DayStats, Progress, RootState, Settings, UnitRecord } from "../types";
+import { UNIT_IDS } from "../data/course";
 
-export const KEY = "yalla.v2";
+export const KEY = "yalla.v3";
+export const KEY_V2 = "yalla.v2";
 export const KEY_V1 = "yalla.v1";
 export const HISTORY_DAYS = 400;
 
 export const defaultSettings = (): Settings => ({
   sessionLen: 20,
-  newPerSession: 8,
   cats: [],
   nikud: true,
   audio: true,
   learnFirst: true,
   theme: "system",
+  dailyGoal: 50,
 });
 
 export const defaultProgress = (): Progress => ({
-  v: 2,
+  v: 3,
   xp: 0,
   streak: 0,
   lastPlay: null,
   roots: {},
   history: {},
+  units: {},
+  placement: null,
+  lastUnit: null,
   settings: defaultSettings(),
   updatedAt: 0,
 });
 
-/** Coerce any stored blob (v1 or v2, possibly partial) into a well-formed Progress. */
+const KNOWN_UNITS = new Set<string>(UNIT_IDS);
+
+/** Coerce any stored blob (v1, v2 or v3, possibly partial) into a well-formed Progress. */
 export function normalize(raw: unknown): Progress {
   const d = defaultProgress();
   if (!raw || typeof raw !== "object") return d;
-  const r = raw as Partial<Progress> & { settings?: Partial<Settings> };
+  const r = raw as Partial<Progress> & {
+    settings?: Partial<Settings> & { newPerSession?: number };
+  };
+  const settings = { ...d.settings, ...(r.settings ?? {}) } as Settings & {
+    newPerSession?: number;
+  };
+  delete settings.newPerSession;
+  if (![20, 50, 100].includes(settings.dailyGoal)) settings.dailyGoal = 50;
+  const units: Record<string, UnitRecord> = {};
+  if (r.units && typeof r.units === "object")
+    for (const [id, rec] of Object.entries(r.units))
+      if (KNOWN_UNITS.has(id) && rec && typeof rec === "object") units[id] = { ...rec };
+  const placement =
+    r.placement && typeof r.placement === "object" && KNOWN_UNITS.has(r.placement.startUnit)
+      ? { ...r.placement }
+      : null;
   return {
-    v: 2,
+    v: 3,
     xp: typeof r.xp === "number" ? r.xp : 0,
     streak: typeof r.streak === "number" ? r.streak : 0,
     lastPlay: typeof r.lastPlay === "string" ? r.lastPlay : null,
     roots: r.roots && typeof r.roots === "object" ? { ...r.roots } : {},
     history: r.history && typeof r.history === "object" ? { ...r.history } : {},
-    settings: { ...d.settings, ...(r.settings ?? {}) },
+    units,
+    placement,
+    lastUnit: typeof r.lastUnit === "string" && KNOWN_UNITS.has(r.lastUnit) ? r.lastUnit : null,
+    settings,
     updatedAt: typeof r.updatedAt === "number" ? r.updatedAt : 0,
   };
 }
@@ -53,15 +78,39 @@ function betterRoot(a: RootState | undefined, b: RootState | undefined): RootSta
   return a.due >= b.due ? a : b;
 }
 
-const maxDay = (a: DayStats | undefined, b: DayStats | undefined): DayStats => ({
-  ok: Math.max(a?.ok ?? 0, b?.ok ?? 0),
-  bad: Math.max(a?.bad ?? 0, b?.bad ?? 0),
-  xp: Math.max(a?.xp ?? 0, b?.xp ?? 0),
-});
+const maxDay = (a: DayStats | undefined, b: DayStats | undefined): DayStats => {
+  const out: DayStats = {
+    ok: Math.max(a?.ok ?? 0, b?.ok ?? 0),
+    bad: Math.max(a?.bad ?? 0, b?.bad ?? 0),
+    xp: Math.max(a?.xp ?? 0, b?.xp ?? 0),
+  };
+  const mem = Math.max(a?.mem ?? -1, b?.mem ?? -1);
+  if (mem >= 0) out.mem = mem;
+  return out;
+};
+
+const minDef = (a?: number, b?: number): number | undefined =>
+  a === undefined ? b : b === undefined ? a : Math.min(a, b);
+const maxDef = (a?: number, b?: number): number | undefined =>
+  a === undefined ? b : b === undefined ? a : Math.max(a, b);
+
+export function mergeUnit(a: UnitRecord | undefined, b: UnitRecord | undefined): UnitRecord {
+  const out: UnitRecord = {};
+  const completedAt = minDef(a?.completedAt, b?.completedAt);
+  if (completedAt !== undefined) out.completedAt = completedAt;
+  if (a?.placed || b?.placed) out.placed = true;
+  const testBest = maxDef(a?.testBest, b?.testBest);
+  if (testBest !== undefined) out.testBest = testBest;
+  const testPassedAt = minDef(a?.testPassedAt, b?.testPassedAt);
+  if (testPassedAt !== undefined) out.testPassedAt = testPassedAt;
+  const matchBestMs = minDef(a?.matchBestMs, b?.matchBestMs);
+  if (matchBestMs !== undefined) out.matchBestMs = matchBestMs;
+  return out;
+}
 
 /**
  * Merge two progress records field by field so neither device's work is discarded.
- * Roots merge per id; history per day; settings from the newer record.
+ * Roots merge per id; history per day; units per id; settings from the newer record.
  */
 export function mergeProgress(a: Progress, b: Progress): Progress {
   const newer = a.updatedAt >= b.updatedAt ? a : b;
@@ -74,14 +123,27 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
   for (const day of new Set([...Object.keys(a.history), ...Object.keys(b.history)])) {
     history[day] = maxDay(a.history[day], b.history[day]);
   }
+  const units: Record<string, UnitRecord> = {};
+  for (const id of new Set([...Object.keys(a.units), ...Object.keys(b.units)])) {
+    units[id] = mergeUnit(a.units[id], b.units[id]);
+  }
+  const placement =
+    a.placement && b.placement
+      ? a.placement.at <= b.placement.at
+        ? a.placement
+        : b.placement
+      : (a.placement ?? b.placement);
   const laterPlay = (a.lastPlay ?? "") >= (b.lastPlay ?? "") ? a : b;
   return {
-    v: 2,
+    v: 3,
     xp: Math.max(a.xp, b.xp),
     streak: laterPlay.streak,
     lastPlay: laterPlay.lastPlay,
     roots,
     history,
+    units,
+    placement: placement ? { ...placement } : null,
+    lastUnit: newer.lastUnit,
     settings: { ...newer.settings },
     updatedAt: Math.max(a.updatedAt, b.updatedAt),
   };
@@ -99,12 +161,11 @@ export function pruneHistory(p: Progress, days = HISTORY_DAYS): Progress {
 
 export function loadLocal(): Progress {
   try {
-    const v2 = localStorage.getItem(KEY);
-    if (v2) return normalize(JSON.parse(v2));
-    const v1 = localStorage.getItem(KEY_V1);
-    if (v1) {
-      const p = normalize(JSON.parse(v1));
-      localStorage.setItem(KEY, JSON.stringify(p));
+    for (const key of [KEY, KEY_V2, KEY_V1]) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const p = normalize(JSON.parse(raw));
+      if (key !== KEY) localStorage.setItem(KEY, JSON.stringify(p));
       return p;
     }
   } catch {
