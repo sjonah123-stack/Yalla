@@ -133,6 +133,10 @@ export function describeError(e: unknown): string {
     return "Sign-in cancelled.";
   if (code === "auth/network-request-failed") return "No connection — try again online.";
   if (code === "auth/unauthorized-domain") return "This site isn't authorised for sign-in.";
+  if (code === "permission-denied") return "Cloud save was refused — check the Firestore rules.";
+  if (code === "unavailable")
+    return "Cloud is unreachable right now — progress stays on this device.";
   if (code) return `Sign-in failed (${code.replace("auth/", "")}).`;
-  return "Sign-in failed.";
+  const msg = (e as { message?: string }).message;
+  return msg ? `Sync failed: ${msg.slice(0, 80)}` : "Sign-in failed.";
 }

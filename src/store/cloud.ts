@@ -55,11 +55,15 @@ async function attach(cloud: Cloud, user: CloudUser, set: (s: Partial<CloudStore
   const { p, mode } = reconcileSignIn(progress.p, remote, getLastUid(), user.uid);
   if (mode === "replace" || mode === "fresh") useSession.getState().clear();
   setRemote(backend);
-  progress.adopt(p);
+  // Signing in is onboarding: never leave a signed-in person on the welcome screen.
+  const adopted = p.onboardedAt === null ? { ...p, onboardedAt: Date.now() } : p;
+  progress.adopt(adopted);
   setLastUid(user.uid);
   setCloudFlag(true);
-  if (mode !== "replace") pushRemote(p, true).then((s) => progress.setSync(s));
+  if (mode !== "replace" || adopted !== p)
+    pushRemote(adopted, true).then((s) => progress.setSync(s));
   else progress.setSync("synced");
+  if (useUi.getState().view !== "play") useUi.getState().setView("path");
   unsubSnapshot?.();
   unsubSnapshot =
     backend.subscribe?.((incoming, hasPendingWrites) => {
@@ -86,7 +90,12 @@ async function watch(set: (s: Partial<CloudStore>) => void): Promise<void> {
   if (!cloud || watching) return;
   watching = true;
   await cloud.watchAuth((user) => {
-    if (user) attach(cloud, user, set).catch((e) => set({ status: "error", error: String(e) }));
+    if (user)
+      attach(cloud, user, set).catch((e) => {
+        const msg = cloud.describeError(e);
+        set({ status: "error", error: msg });
+        useUi.getState().showToast(msg);
+      });
     else detach(set);
   });
 }
