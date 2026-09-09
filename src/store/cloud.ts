@@ -63,7 +63,7 @@ async function attach(cloud: Cloud, user: CloudUser, set: (s: Partial<CloudStore
   if (mode !== "replace" || adopted !== p)
     pushRemote(adopted, true).then((s) => progress.setSync(s));
   else progress.setSync("synced");
-  if (useUi.getState().view !== "play") useUi.getState().setView("path");
+  if (useUi.getState().view !== "play") useUi.getState().setView("home");
   unsubSnapshot?.();
   unsubSnapshot =
     backend.subscribe?.((incoming, hasPendingWrites) => {

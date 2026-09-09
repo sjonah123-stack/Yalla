@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import type { UnitId } from "../types";
 
-export type View = "path" | "play" | "bank" | "patterns" | "progress" | "flashcards" | "match";
+export type View =
+  "home" | "path" | "play" | "bank" | "patterns" | "progress" | "flashcards" | "match";
 
 interface UiStore {
   view: View;
@@ -27,7 +28,7 @@ interface UiStore {
 }
 
 export const useUi = create<UiStore>((set) => ({
-  view: "path",
+  view: "home",
   setView: (view) => set({ view }),
   toast: "",
   toastKey: 0,

@@ -6,6 +6,7 @@ import { initSpeech } from "./lib/speech";
 import { connectRemote } from "./lib/storage";
 import { loadCloud } from "./lib/cloud-loader";
 import { useCloud } from "./store/cloud";
+import Home from "./views/Home";
 import Path from "./views/Path";
 import Play from "./views/Play";
 import Bank from "./views/Bank";
@@ -18,7 +19,8 @@ import Match from "./views/Match";
 import Welcome from "./views/Welcome";
 
 const NAV: { v: View; label: string; glyph: string }[] = [
-  { v: "path", label: "Path", glyph: "◉" },
+  { v: "home", label: "Home", glyph: "◉" },
+  { v: "path", label: "Path", glyph: "ד" },
   { v: "bank", label: "Roots", glyph: "ש" },
   { v: "patterns", label: "Patterns", glyph: "ב" },
   { v: "progress", label: "Progress", glyph: "◈" },
@@ -67,12 +69,15 @@ export default function App() {
   if (view === "flashcards" && toolUnit) return <Flashcards unitId={toolUnit} />;
   if (view === "match" && toolUnit) return <Match unitId={toolUnit} />;
   // A tool/play view with nothing to show (e.g. after a reload) falls back to the path.
-  const shown: View = ["path", "bank", "patterns", "progress"].includes(view) ? view : "path";
+  const shown: View = ["home", "path", "bank", "patterns", "progress"].includes(view)
+    ? view
+    : "home";
 
   return (
     <>
       <div className="shell">
-        <main key={shown} className={"view" + (shown === "path" ? "" : " pad")}>
+        <main key={shown} className={"view" + (shown === "home" ? "" : " pad")}>
+          {shown === "home" && <Home />}
           {shown === "path" && <Path />}
           {shown === "bank" && <Bank />}
           {shown === "progress" && <Progress />}
