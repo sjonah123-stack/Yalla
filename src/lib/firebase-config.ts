@@ -1,9 +1,6 @@
 /**
  * Public Firebase web config for project yalla-677b9 (safe to commit: access is governed by
- * Firestore rules and Auth, not by this object). `authDomain` is the default one because the
- * auto-created OAuth client only registers that handler; to make the sign-in handler
- * first-party later, add https://yalla-677b9.web.app/__/auth/handler to the OAuth client's
- * authorized redirect URIs in Google Cloud and switch authDomain to yalla-677b9.web.app.
+ * Firestore rules and Auth, not by this object).
  */
 export const firebaseConfig = {
   apiKey: "AIzaSyCb7BVxx-DblNJTX9C_HovG0Ch-q9rKJ4Q",
@@ -13,3 +10,21 @@ export const firebaseConfig = {
   messagingSenderId: "964636313927",
   appId: "1:964636313927:web:e4961723165b50f26fa462",
 };
+
+/**
+ * Hosting origins whose own `/__/auth/handler` is an authorized redirect URI on the project's
+ * OAuth client (Google Cloud → APIs & Services → Credentials → "Web client (auto created by
+ * Google Service)"). On these hosts sign-in runs first-party, which is the only way redirect
+ * sign-in survives Safari's third-party-storage blocking (installed PWAs, iPhones). Add a host
+ * here ONLY after its handler URL is registered — otherwise Google answers redirect_uri_mismatch.
+ */
+export const FIRST_PARTY_AUTH_HOSTS: readonly string[] = [
+  "yalla-677b9.firebaseapp.com",
+  // Pending registration of their handler URLs on the OAuth client (see README):
+  // "yalla-677b9.web.app",
+  // "yalla-roots.web.app",
+];
+
+/** The auth domain to use when the app is served from `hostname`. */
+export const authDomainFor = (hostname: string): string =>
+  FIRST_PARTY_AUTH_HOSTS.includes(hostname) ? hostname : firebaseConfig.authDomain;

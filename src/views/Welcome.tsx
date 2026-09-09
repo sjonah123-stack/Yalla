@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { ROOTS } from "../data/roots";
 import { COURSE } from "../store/course";
 import { useProgress } from "../store/progress";
@@ -14,6 +15,8 @@ export default function Welcome() {
   const showToast = useUi((s) => s.showToast);
   const cloudStatus = useCloud((s) => s.status);
   const signIn = useCloud((s) => s.signIn);
+  const warm = useCloud((s) => s.warm);
+  useEffect(() => warm(), [warm]);
 
   const place = () => {
     markOnboarded();

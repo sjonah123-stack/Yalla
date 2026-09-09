@@ -26,7 +26,7 @@ import {
   setDoc,
   type Firestore,
 } from "firebase/firestore";
-import { firebaseConfig } from "./firebase-config";
+import { authDomainFor, firebaseConfig } from "./firebase-config";
 import { decodeDoc, encodeDoc, type RemoteBackend } from "./storage";
 import type { Progress } from "../types";
 
@@ -40,10 +40,13 @@ export interface CloudUser {
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 let fs: Firestore | null = null;
+let firstParty = false;
 
 function init(): { auth: Auth; fs: Firestore } {
   if (!app) {
-    app = initializeApp(firebaseConfig);
+    const authDomain = authDomainFor(location.hostname);
+    firstParty = authDomain === location.hostname;
+    app = initializeApp({ ...firebaseConfig, authDomain });
     auth = initializeAuth(app, {
       persistence: browserLocalPersistence,
       popupRedirectResolver: browserPopupRedirectResolver,
@@ -81,15 +84,21 @@ export function firestoreBackend(uid: string): RemoteBackend {
 }
 
 /**
- * Start listening to auth state. Resolves any pending redirect sign-in first, then reports the
- * current user (null when signed out) on every change.
+ * Start listening to auth state. Resolves any pending redirect sign-in first (reporting a
+ * failure through `onRedirectError` instead of dropping it), then reports the current user
+ * (null when signed out) on every change. Calling this early also warms the popup/redirect
+ * resolver, so a later Sign in tap can open its window inside the click's user activation —
+ * Safari blocks a popup that opens only after a network round-trip.
  */
-export async function watchAuth(cb: (user: CloudUser | null) => void): Promise<() => void> {
+export async function watchAuth(
+  cb: (user: CloudUser | null) => void,
+  onRedirectError?: (e: unknown) => void,
+): Promise<() => void> {
   const { auth } = init();
   try {
     await getRedirectResult(auth);
-  } catch {
-    /* a failed redirect just leaves the user signed out */
+  } catch (e) {
+    onRedirectError?.(e);
   }
   return onAuthStateChanged(auth, (u) => cb(u ? toUser(u) : null));
 }
@@ -103,18 +112,25 @@ const POPUP_FALLBACK = new Set([
 
 const standalone = (): boolean =>
   typeof matchMedia === "function" && matchMedia("(display-mode: standalone)").matches;
+const touchDevice = (): boolean =>
+  typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
 
-/** Google sign-in: popup where it works, redirect in installed PWAs or when the popup fails. */
+/**
+ * Google sign-in. A redirect is the reliable flow on phones and in installed PWAs, but it only
+ * completes when the auth domain is this page's own origin (Safari/WebKit and Chrome partition
+ * the third-party storage a cross-origin redirect needs). So: first-party host → redirect on
+ * touch devices and installed apps, popup on desktops; any other host → popup only.
+ */
 export async function signIn(): Promise<void> {
   const { auth } = init();
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  if (standalone()) return signInWithRedirect(auth, provider);
+  if (firstParty && (standalone() || touchDevice())) return signInWithRedirect(auth, provider);
   try {
     await signInWithPopup(auth, provider);
   } catch (e) {
     const code = (e as { code?: string }).code ?? "";
-    if (POPUP_FALLBACK.has(code)) return signInWithRedirect(auth, provider);
+    if (firstParty && POPUP_FALLBACK.has(code)) return signInWithRedirect(auth, provider);
     throw e;
   }
 }
@@ -131,6 +147,8 @@ export function describeError(e: unknown): string {
     return "Google sign-in isn't enabled for this app yet.";
   if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request")
     return "Sign-in cancelled.";
+  if (code === "auth/popup-blocked")
+    return "The sign-in window was blocked — allow pop-ups for this site and tap Sign in again.";
   if (code === "auth/network-request-failed") return "No connection — try again online.";
   if (code === "auth/unauthorized-domain") return "This site isn't authorised for sign-in.";
   if (code === "permission-denied") return "Cloud save was refused — check the Firestore rules.";

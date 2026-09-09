@@ -27,6 +27,12 @@ interface CloudStore {
   error: string | null;
   /** Load the SDK if this device had a cloud session, and start watching auth. */
   boot: () => Promise<void>;
+  /**
+   * Load the SDK and start watching auth ahead of a likely Sign in tap (welcome screen,
+   * settings sheet), so the tap itself opens Google's window without first waiting on the
+   * network — Safari otherwise blocks it as a pop-up.
+   */
+  warm: () => void;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -85,19 +91,29 @@ function detach(set: (s: Partial<CloudStore>) => void) {
   set({ status: "signed-out", user: null });
 }
 
-async function watch(set: (s: Partial<CloudStore>) => void): Promise<void> {
+function fail(cloud: Cloud | null, e: unknown, set: (s: Partial<CloudStore>) => void) {
+  const msg = cloud ? cloud.describeError(e) : "Sign-in failed.";
+  set({ status: "error", error: msg });
+  useUi.getState().showToast(msg);
+}
+
+async function watch(
+  set: (s: Partial<CloudStore>) => void,
+  get: () => CloudStore,
+): Promise<void> {
   const cloud = await sdk();
   if (!cloud || watching) return;
   watching = true;
-  await cloud.watchAuth((user) => {
-    if (user)
-      attach(cloud, user, set).catch((e) => {
-        const msg = cloud.describeError(e);
-        set({ status: "error", error: msg });
-        useUi.getState().showToast(msg);
-      });
-    else detach(set);
-  });
+  await cloud.watchAuth(
+    (user) => {
+      if (user) attach(cloud, user, set).catch((e) => fail(cloud, e, set));
+      // The listener reports "nobody" once as soon as it starts. While a sign-in is in flight
+      // that must not clear the cloud flag — a redirect leaves the page right after this, and
+      // boot() only collects the result on return if the flag survived.
+      else if (get().status !== "signing-in") detach(set);
+    },
+    (e) => fail(cloud, e, set),
+  );
 }
 
 export const useCloud = create<CloudStore>((set, get) => ({
@@ -109,10 +125,16 @@ export const useCloud = create<CloudStore>((set, get) => ({
     if (!cloudFlag()) return set({ status: "signed-out" });
     set({ status: "loading" });
     try {
-      await watch(set);
+      await watch(set, get);
     } catch (e) {
       set({ status: "error", error: String(e) });
     }
+  },
+  warm: () => {
+    if (!loadCloud || watching) return;
+    watch(set, get).catch(() => {
+      /* the tap will retry and report */
+    });
   },
   signIn: async () => {
     if (!loadCloud) return;
@@ -122,7 +144,7 @@ export const useCloud = create<CloudStore>((set, get) => ({
       if (!cloud) return;
       // The flag must be set before a redirect leaves the page, so boot() preloads on return.
       setCloudFlag(true);
-      await watch(set);
+      await watch(set, get);
       await cloud.signIn();
     } catch (e) {
       const cloud = mod;

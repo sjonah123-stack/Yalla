@@ -43,6 +43,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const sync = useProgress((s) => s.sync);
   const reset = useProgress((s) => s.reset);
   const cloud = useCloud();
+  useEffect(() => useCloud.getState().warm(), []);
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", k);

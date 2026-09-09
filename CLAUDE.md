@@ -49,9 +49,12 @@ https://yalla-roots.web.app and https://yalla-677b9.web.app.
   local record. `resetAt` is an epoch: a reset wins wholesale on merge. Snapshot updates merge
   in but never push back. Signing in counts as onboarding.
 - Artifact build: the same merge against the Claude artifact DB (`connectRemote`).
-- Firebase project `yalla-677b9`; public config in `src/lib/firebase-config.ts`
-  (`authDomain` must stay `yalla-677b9.firebaseapp.com` unless the web.app handler is added
-  to the OAuth client in Google Cloud). Rules in `firestore.rules`.
+- Firebase project `yalla-677b9`; public config in `src/lib/firebase-config.ts`. `authDomain`
+  is the page's own origin on the hosts in `FIRST_PARTY_AUTH_HOSTS` (first-party sign-in, the
+  only way redirect sign-in works on iPhones / installed PWAs); a host goes in that list only
+  after `https://<host>/__/auth/handler` is an authorized redirect URI on the OAuth client in
+  Google Cloud Credentials. Phones sign in by redirect, desktops by popup. Rules in
+  `firestore.rules`.
 
 ## Rewards
 
