@@ -26,11 +26,12 @@ Progress lives in `localStorage` (`yalla.v3`; older `v2` / `v1` records migrate 
 
 **Sign in with Google** (Settings → Account, or the link on the welcome screen) and progress follows you: the web app keeps one Firestore document per user (`users/{uid}`, the whole record as JSON) and merges it with the device record per root, per day and per unit, so phone and laptop never overwrite each other. Live updates from another device arrive through a snapshot listener; a "Reset progress" propagates as a wipe (a `resetAt` epoch beats a merge). Signing in on a device that someone else used replaces the local record instead of merging it. Inside a Claude artifact the same merge runs against the artifact DB; the Firebase SDK is never bundled into the single-file build.
 
-Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows each user only their own document) + Google sign-in. The public web config is committed in `src/lib/firebase-config.ts`; `authDomain` is the Hosting domain so the sign-in handler is first-party.
+Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows each user only their own document) + Google sign-in. The public web config is committed in `src/lib/firebase-config.ts`; `authDomain` is the default `yalla-677b9.firebaseapp.com`, because the OAuth client Firebase auto-creates only registers that handler. Google sign-in is enabled in the console; `yalla-roots.web.app` is an authorized domain.
 
 ## How it works
 
-- **The path** — 20 theme sections (speech, movement, senses & mind, … body & health, weather, technology, education, military) split into 40 units. A unit is *locked* until the one before it is complete (or you test out of it), *started* once quizzed, *learned* when every root has been answered right once, *complete* when every root is memorized, and *gold* after a unit test at 90%+. A complete unit whose roots slip shows as needing repair.
+- **Home** — the dashboard: streak, gems, roots memorized, today's XP ring, level bar, the Continue card and shortcuts to Practice, the current unit's tools and the seals.
+- **The path** — 20 theme sections (speech, movement, senses & mind, … body & health, weather, technology, education, military) split into 40 units, shown as one card per theme; the open theme lists its units as chips. A unit is *locked* until the one before it is complete (or you test out of it), *started* once quizzed, *learned* when every root has been answered right once, *complete* when every root is memorized, and *gold* after a unit test at 90%+. A complete unit whose roots slip shows as needing repair.
 - **Memorized** — a root's interval reaches 3 days: two first-try corrects with no lapse since. A root's schedule advances at most once per session, so the second correct has to come on a later day. That is the whole loop: learn today, lock in tomorrow.
 - **Lessons** — 16 questions on one unit: up to 4 new roots (each introduced with a "meet this root" card and drilled once more later), ~30% cumulative review from earlier units, and the unit's weakest roots. Misses are re-queued four questions later. **Practice** is a global review of due roots; new roots only enter through the path.
 - **Flashcards** — root on the front, meaning and word family on the back; swipe right = know, left = still learning, looping the pile until empty. **Match** — 8 roots and their meanings as 16 tiles against the clock; a wrong pair costs half a second; best time per unit. **Test** — 20 fixed questions covering every root twice; 90%+ turns the unit gold and unlocks the next one. **Placement** — a one-time sweep of the path, one question per unit; units before your level are marked complete and their roots come back for review a week later, so a wrong guess self-corrects.
@@ -60,7 +61,7 @@ Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows ea
 | `src/lib/cloud.ts` | Firebase Auth (Google) + Firestore backend; lazy-loaded, excluded from the artifact build |
 | `src/lib/stats.ts` | Heatmap, accuracy trend, memorized trend, upcoming reviews |
 | `src/store/` | zustand stores: persisted progress, session plans, UI, cloud account, the built course |
-| `src/views/` | Welcome, Path, Unit sheet, Play (+ Summary / results with the chest), Flashcards, Match, Bank, Patterns, Progress, Settings |
+| `src/views/` | Welcome, Home (dashboard), Path (theme cards), Unit sheet, Play (+ Summary / results with the chest), Flashcards, Match, Bank, Patterns, Progress, Settings |
 | `src/styles/tokens.css` | The design system: spacing, type scale, palette (light + dark), radii, drops, motion |
 | `scripts/inline-artifact.mjs` | Emits the single-file build |
 
