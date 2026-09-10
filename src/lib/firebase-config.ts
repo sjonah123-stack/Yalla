@@ -20,9 +20,8 @@ export const firebaseConfig = {
  */
 export const FIRST_PARTY_AUTH_HOSTS: readonly string[] = [
   "yalla-677b9.firebaseapp.com",
-  // Pending registration of their handler URLs on the OAuth client (see README):
-  // "yalla-677b9.web.app",
-  // "yalla-roots.web.app",
+  "yalla-roots.web.app",
+  // Add "yalla-677b9.web.app" once its handler URL is accepted by the OAuth client (see README).
 ];
 
 /** The auth domain to use when the app is served from `hostname`. */
