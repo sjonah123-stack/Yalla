@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useSheetDrag } from "../components/useSheetDrag";
 import { COURSE } from "../store/course";
 import { useProgress } from "../store/progress";
 import { useSession, type Plan } from "../store/session";
@@ -24,6 +25,7 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
   const u = COURSE.byId[unitId];
   const p = useProgress((s) => s.p);
   const closeUnit = useUi((s) => s.closeUnit);
+  const drag = useSheetDrag<HTMLDivElement>(closeUnit);
   const openTool = useUi((s) => s.openTool);
   const openRoot = useUi((s) => s.openRoot);
   const setView = useUi((s) => s.setView);
@@ -57,7 +59,12 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
       aria-modal="true"
       aria-label={unitTitle(u)}
     >
-      <div className="panel usheet" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="panel usheet"
+        onClick={(e) => e.stopPropagation()}
+        ref={drag.ref}
+        style={drag.style}
+      >
         <div className="row between" style={{ alignItems: "flex-start" }}>
           <div>
             <div className="eyebrow">

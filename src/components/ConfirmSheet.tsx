@@ -1,10 +1,12 @@
 import { useEffect } from "react";
 import { useUi } from "../store/ui";
+import { useSheetDrag } from "./useSheetDrag";
 
 /** The in-app confirm sheet, driven by `useUi().confirm(spec)`. Escape and the backdrop cancel. */
 export function ConfirmSheet() {
   const spec = useUi((s) => s.confirmSpec);
   const resolve = useUi((s) => s.resolveConfirm);
+  const drag = useSheetDrag<HTMLDivElement>(() => resolve(null));
   useEffect(() => {
     if (!spec) return;
     // Capture phase, so the sheet swallows Escape before Settings / the unit sheet / Play see it.
@@ -26,7 +28,12 @@ export function ConfirmSheet() {
       aria-modal="true"
       aria-labelledby="confirm-title"
     >
-      <div className="panel confirm" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="panel confirm"
+        onClick={(e) => e.stopPropagation()}
+        ref={drag.ref}
+        style={drag.style}
+      >
         <h2 id="confirm-title">{spec.title}</h2>
         {spec.body && <p>{spec.body}</p>}
         <div className="actions">

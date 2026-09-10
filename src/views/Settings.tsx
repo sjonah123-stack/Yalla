@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSheetDrag } from "../components/useSheetDrag";
 import type React from "react";
 import { useProgress } from "../store/progress";
 import { useSession } from "../store/session";
@@ -43,6 +44,7 @@ const ON_OFF = [
 ] as const;
 
 export default function Settings({ onClose }: { onClose: () => void }) {
+  const drag = useSheetDrag<HTMLDivElement>(onClose);
   const p = useProgress((s) => s.p);
   const st = p.settings;
   const set = useProgress((s) => s.setSettings);
@@ -72,7 +74,12 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const bool = (k: keyof S, v: boolean) => set({ [k]: v } as Partial<S>);
   return (
     <div className="modal" onClick={onClose} role="dialog" aria-modal="true" aria-label="Settings">
-      <div className="panel settings" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="panel settings"
+        onClick={(e) => e.stopPropagation()}
+        ref={drag.ref}
+        style={drag.style}
+      >
         <div className="row between">
           <h2>Settings</h2>
           <button type="button" className="btn sm" onClick={onClose}>

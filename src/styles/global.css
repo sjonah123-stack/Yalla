@@ -2636,6 +2636,8 @@ button.chip {
   max-height: 88dvh;
   overflow: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
+  transition: transform var(--dur) var(--ease-out);
   background: var(--ground);
   color: var(--ink);
   border-radius: 32px 32px 0 0;
