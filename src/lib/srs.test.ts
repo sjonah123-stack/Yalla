@@ -15,18 +15,34 @@ describe("dayKey", () => {
 });
 
 describe("applyAnswer", () => {
-  it("progresses 1 → 3 → ivl*ease on first-attempt corrects", () => {
+  it("progresses 1 → 3 → ivl*ease on first-attempt corrects, one step per due day", () => {
     let s = applyAnswer(undefined, true, true, now);
     expect(s.ivl).toBe(1);
     expect(s.due).toBe(now + DAY);
-    s = applyAnswer(s, true, true, now);
+    s = applyAnswer(s, true, true, s.due);
     expect(s.ivl).toBe(3);
-    s = applyAnswer(s, true, true, now);
+    s = applyAnswer(s, true, true, s.due);
     expect(s.ivl).toBe(Math.round(3 * 2.6)); // ease 2.5 + 0.05*2
+  });
+  it("a second right answer in the same sitting does not advance the root", () => {
+    let s = applyAnswer(undefined, true, true, now);
+    const again = applyAnswer(s, true, true, now + 1000); // first try in a later session, same day
+    expect(again.reps).toBe(1);
+    expect(again.ivl).toBe(1);
+    expect(again.due).toBe(s.due);
+    expect(again.ok).toBe(2);
+    expect(mastery(again)).toBe(1); // not memorized
+    s = applyAnswer(again, true, true, s.due); // the next day it is
+    expect(mastery(s)).toBe(2);
+  });
+  it("a same-session drill never demotes a mature root", () => {
+    const mature = { ...newRootState(), reps: 5, ivl: 20, due: now + 20 * DAY, ok: 5 };
+    const d = applyAnswer(mature, true, false, now);
+    expect([d.reps, d.ivl, d.due, d.ok]).toEqual([5, 20, mature.due, 6]);
   });
   it("clamps ease to [1.3, 3]", () => {
     let s = newRootState();
-    for (let i = 0; i < 20; i++) s = applyAnswer(s, true, true, now);
+    for (let i = 0; i < 20; i++) s = applyAnswer(s, true, true, Math.max(now, s.due));
     expect(s.ease).toBe(3);
     for (let i = 0; i < 20; i++) s = applyAnswer(s, false, true, now);
     expect(s.ease).toBeCloseTo(1.3);

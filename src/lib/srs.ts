@@ -54,15 +54,21 @@ export function applyAnswer(
   const r = { ...(prev ?? newRootState()) };
   if (correct) {
     r.ok++;
-    if (firstAttempt) {
-      r.reps++;
-      r.ivl = r.reps === 1 ? 1 : r.reps === 2 ? 3 : Math.round(r.ivl * r.ease);
-      r.ease = Math.min(3, r.ease + 0.05);
-    } else {
+    if (r.reps === 0) {
+      // First right answer, or the first after a miss: (re)learned, back tomorrow.
       r.reps = 1;
       r.ivl = 1;
+      r.due = now + DAY;
+    } else if (firstAttempt && r.due <= now) {
+      // A first-try right answer once the root is due advances it: 1 → 3 → ivl × ease days.
+      // "Memorized" (interval ≥ 3) therefore needs a right answer on a later day, never twice
+      // in one sitting.
+      r.reps++;
+      r.ivl = r.reps === 2 ? 3 : Math.round(r.ivl * r.ease);
+      r.ease = Math.min(3, r.ease + 0.05);
+      r.due = now + r.ivl * DAY;
     }
-    r.due = now + r.ivl * DAY;
+    // Otherwise a same-session drill or an early review: credit only, the schedule stands.
   } else {
     r.bad++;
     r.lapses++;

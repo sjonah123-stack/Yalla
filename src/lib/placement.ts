@@ -70,7 +70,9 @@ export function applyPlacement(
   const units = { ...p.units };
   for (const a of answers) {
     if (!a.ok) continue;
-    roots[a.root.r] = applyAnswer(applyAnswer(roots[a.root.r], true, true, now), true, true, now);
+    // A placement-correct root counts as memorized: its second step is granted on the spot.
+    const learned = applyAnswer(roots[a.root.r], true, true, now);
+    roots[a.root.r] = { ...applyAnswer(learned, true, true, learned.due), due: now + 3 * DAY };
   }
   const startIdx = course.byId[startUnit]?.pathIndex ?? 0;
   for (const u of course.units) {
