@@ -14,8 +14,6 @@ const PENALTY = 500;
 
 export default function Match({ unitId }: { unitId: UnitId }) {
   const u = COURSE.byId[unitId];
-  const setView = useUi((s) => s.setView);
-  const openUnit = useUi((s) => s.openUnit);
   const showToast = useUi((s) => s.showToast);
   const best = useProgress((s) => s.p.units[unitId]?.matchBestMs);
   const { recordMatch } = useProgress.getState();
@@ -105,10 +103,7 @@ export default function Match({ unitId }: { unitId: UnitId }) {
 
   const shownMs = useCountUp(final ?? 0, 700);
   if (!u) return null;
-  const leave = () => {
-    setView("path");
-    openUnit(u.id);
-  };
+  const leave = () => useUi.getState().leaveTool();
 
   return (
     <div className="tool">

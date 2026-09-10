@@ -11,6 +11,7 @@ import {
   unitCracked,
   unitStatus,
   unitTitle,
+  sectionSummary,
 } from "./course";
 import { DAY, newRootState } from "./srs";
 import { defaultProgress } from "./storage";
@@ -113,5 +114,29 @@ describe("unitStatus", () => {
     expect(memorized(learnedSt())).toBe(false);
     expect(memorized(mem())).toBe(true);
     expect(memorized(undefined)).toBe(false);
+  });
+});
+
+describe("sectionSummary", () => {
+  it("marks the first section open and current for a new learner, later ones locked", () => {
+    const p = defaultProgress();
+    const first = sectionSummary(SECTIONS[0], course, p);
+    expect(first.state).toBe("open");
+    expect(first.isCurrent).toBe(true);
+    expect(first.memorized).toBe(0);
+    expect(first.pct).toBe(0);
+    expect(first.units.map((u) => u.id)).toEqual([...SECTIONS[0].units]);
+    const later = sectionSummary(SECTIONS[3], course, p);
+    expect(later.state).toBe("locked");
+    expect(later.isCurrent).toBe(false);
+  });
+  it("is done at 100% memorized and counts match memorizedCount", () => {
+    const p = defaultProgress();
+    for (const u of course.units.filter((u) => u.section.id === SECTIONS[0].id))
+      for (const r of u.roots) p.roots[r.r] = mem();
+    const s = sectionSummary(SECTIONS[0], course, p);
+    expect(s.state).toBe("done");
+    expect(s.pct).toBe(100);
+    expect(s.memorized).toBe(memorizedCount(s.roots, p));
   });
 });

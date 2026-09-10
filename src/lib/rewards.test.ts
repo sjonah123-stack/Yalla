@@ -5,20 +5,21 @@ import { buildCourse } from "./course";
 import { DAY, newRootState } from "./srs";
 import { defaultProgress } from "./storage";
 import {
-  applySessionEnd,
-  awardSeals,
   GEM_BASE,
-  GEM_PER_CORRECT,
   GEM_PERFECT,
+  GEM_PER_CORRECT,
   GEM_PLACEMENT,
   GEM_SECTION_CHEST,
+  GEM_SPEED_CAP,
   GEM_UNIT_CHEST,
+  SEALS,
+  SEAL_BY_ID,
+  SEAL_IDS,
+  applySessionEnd,
+  awardSeals,
   isPerfect,
   newSeals,
   pendingChests,
-  SEAL_BY_ID,
-  SEAL_IDS,
-  SEALS,
   sessionGems,
   settle,
   type SessionEnd,
@@ -186,13 +187,20 @@ describe("awardSeals", () => {
     { id: "movement-done", make: () => withSections(defaultProgress(), ["movement"]) },
     { id: "gems-300", make: () => ({ ...defaultProgress(), gems: 300 }) },
     { id: "level-5", make: () => ({ ...defaultProgress(), xp: 1600 }) },
+    {
+      id: "speed-20",
+      make: () => ({
+        ...defaultProgress(),
+        history: { "2026-01-01": { ok: 20, bad: 0, xp: 100, speedBest: 20 } },
+      }),
+    },
   ];
 
-  it("has 12 seals with unique ids and letters in alef-bet order", () => {
-    expect(SEALS).toHaveLength(12);
-    expect(new Set(SEAL_IDS).size).toBe(12);
-    expect(new Set(SEALS.map((s) => s.letter)).size).toBe(12);
-    expect(SEALS.map((s) => s.letter).join("")).toBe("אבגדהוזחטיכל");
+  it("has 13 seals with unique ids and letters in alef-bet order", () => {
+    expect(SEALS).toHaveLength(13);
+    expect(new Set(SEAL_IDS).size).toBe(13);
+    expect(new Set(SEALS.map((s) => s.letter)).size).toBe(13);
+    expect(SEALS.map((s) => s.letter).join("")).toBe("אבגדהוזחטיכלמ");
     expect(SEAL_IDS).toEqual([
       "first-root",
       "ten-memorized",
@@ -206,6 +214,7 @@ describe("awardSeals", () => {
       "movement-done",
       "gems-300",
       "level-5",
+      "speed-20",
     ]);
     for (const s of SEALS) {
       expect(SEAL_BY_ID[s.id]).toBe(s);
@@ -342,5 +351,28 @@ describe("newSeals", () => {
     expect(newSeals(before, after)).toEqual(["first-root", "level-5"]);
     expect(newSeals(after, before)).toEqual([]);
     expect(newSeals(before, before)).toEqual([]);
+  });
+});
+
+describe("speed round gems", () => {
+  const end = (ok: number, completed: boolean) => ({
+    kind: "speed" as const,
+    ok,
+    bad: 0,
+    best: ok,
+    typedOk: 0,
+    completed,
+  });
+  it("pays the base only when the timer ran out, caps per-correct, never perfect", () => {
+    expect(sessionGems(end(30, true))).toEqual({
+      base: GEM_BASE,
+      correct: GEM_PER_CORRECT * GEM_SPEED_CAP,
+      perfect: 0,
+    });
+    expect(sessionGems(end(3, false))).toEqual({ base: 0, correct: 9, perfect: 0 });
+  });
+  it("never counts as a perfect lesson", () => {
+    const { p } = applySessionEnd(course, defaultProgress(), end(10, true), now);
+    expect(p.perfectLessons).toBe(0);
   });
 });

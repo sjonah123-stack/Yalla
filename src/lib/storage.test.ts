@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { defaultProgress, mergeProgress, mergeUnit, normalize, pruneHistory } from "./storage";
+import {
+  FLAG_NOTE_MAX,
+  defaultProgress,
+  mergeFlag,
+  mergeProgress,
+  mergeUnit,
+  normalize,
+  pruneHistory,
+} from "./storage";
 import { newRootState } from "./srs";
 
 describe("normalize", () => {
@@ -61,6 +69,7 @@ describe("mergeUnit", () => {
       { testBest: 95, matchBestMs: 25000, completedAt: 100, placed: true },
     );
     expect(m).toEqual({ testBest: 95, matchBestMs: 25000, completedAt: 100, placed: true });
+    expect(mergeUnit({ sortBestMs: 9000 }, { sortBestMs: 7000 })).toEqual({ sortBestMs: 7000 });
     expect(mergeUnit(undefined, { testBest: 50 })).toEqual({ testBest: 50 });
   });
 });
@@ -97,6 +106,7 @@ describe("mergeProgress", () => {
     const m = mergeProgress(a, b);
     expect(m.xp).toBe(300);
     expect(m.history["2026-01-01"]).toEqual({ ok: 5, bad: 2, xp: 50, mem: 4 });
+    expect(m.history["2026-01-02"].speedBest).toBeUndefined();
     expect(m.history["2026-01-02"].xp).toBe(10);
     expect(m.streak).toBe(3);
     expect(m.settings.nikud).toBe(false);
@@ -389,5 +399,50 @@ describe("remote backend seam", () => {
     await vi.advanceTimersByTimeAsync(PUSH_DELAY);
     expect(b.saved).toHaveLength(1);
     vi.useRealTimers();
+  });
+});
+
+describe("flags", () => {
+  it("normalize fills {} for legacy blobs and drops junk, clamping notes", () => {
+    expect(normalize({ v: 3 }).flags).toEqual({});
+    const long = "x".repeat(200);
+    const n = normalize({
+      v: 3,
+      flags: {
+        כתב: { at: 5, why: "nikud", note: long },
+        דבר: { at: "no", why: "gloss" },
+        אמר: { at: 7, why: "bogus" },
+        שאל: { at: 8, why: "other", cleared: 9, note: "  " },
+      },
+    });
+    expect(Object.keys(n.flags)).toEqual(["כתב", "שאל"]);
+    expect(n.flags["כתב"].note!.length).toBe(FLAG_NOTE_MAX);
+    expect(n.flags["שאל"]).toEqual({ at: 8, why: "other", cleared: 9 });
+  });
+  it("merges as a union where the newer event (flag or clear) wins", () => {
+    const a = defaultProgress();
+    const b = defaultProgress();
+    a.flags["כתב"] = { at: 10, why: "gloss" };
+    b.flags["כתב"] = { at: 10, why: "gloss", cleared: 20 };
+    a.flags["דבר"] = { at: 30, why: "nikud" };
+    b.flags["דבר"] = { at: 5, why: "root", cleared: 6 };
+    b.flags["אמר"] = { at: 1, why: "other" };
+    const m = mergeProgress(a, b);
+    expect(m.flags["כתב"].cleared).toBe(20);
+    expect(m.flags["דבר"]).toEqual({ at: 30, why: "nikud" });
+    expect(m.flags["אמר"]).toEqual({ at: 1, why: "other" });
+    expect(mergeFlag(undefined, undefined)).toBeUndefined();
+  });
+  it("survives the cloud document round-trip", () => {
+    const p = defaultProgress();
+    p.flags["כתב"] = { at: 3, why: "translit", note: "kh not ch" };
+    expect(decodeDoc(encodeDoc(p))!.flags).toEqual(p.flags);
+  });
+  it("per-day speedBest merges by max", () => {
+    const a = defaultProgress();
+    const b = defaultProgress();
+    a.history["2026-02-01"] = { ok: 1, bad: 0, xp: 5, speedBest: 12 };
+    b.history["2026-02-01"] = { ok: 1, bad: 0, xp: 5, speedBest: 20 };
+    expect(mergeProgress(a, b).history["2026-02-01"].speedBest).toBe(20);
   });
 });

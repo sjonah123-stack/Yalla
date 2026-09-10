@@ -14,6 +14,7 @@ import {
   streakAlive,
   trickyRoots,
 } from "../lib/srs";
+import { speedBestToday } from "../lib/speed";
 import { rootDisplay, rootLetters } from "../lib/hebrew";
 import { SECTION_BY_CAT } from "../data/course";
 import { SEALS } from "../lib/rewards";
@@ -53,6 +54,7 @@ export default function Home() {
   const curMem = unitMemorized(cur, p);
   const curGlyph = cur.roots[0] ? rootLetters(cur.roots[0]) : "?";
   const tricky = trickyRoots(ROOTS, p);
+  const speedBest = speedBestToday(p.history, dayKey());
   const cats = p.settings.cats;
 
   const go = (plan: Plan) => {
@@ -63,7 +65,9 @@ export default function Home() {
           ? plan.focus === "tricky"
             ? "No tricky roots right now — nice."
             : "Nothing due yet — keep going on the path."
-          : "Nothing to study here.",
+          : plan.kind === "speed"
+            ? "Learn a few more roots first — speed rounds review what you've seen."
+            : "Nothing to study here.",
       );
   };
 
@@ -168,7 +172,7 @@ export default function Home() {
               ▣
             </span>
             This unit
-            <span className="s">flashcards · match · test</span>
+            <span className="s">flashcards · match · sort · test</span>
           </button>
           <button type="button" onClick={() => setView("progress")}>
             <span className="ic plum" aria-hidden="true">
@@ -201,6 +205,28 @@ export default function Home() {
               onClick={() => go({ kind: "practice", focus: "tricky" })}
             >
               Drill them
+            </button>
+          </section>
+        )}
+        {anySeen && (
+          <section className="block" style={{ marginTop: 12 }}>
+            <div className="eyebrow">Speed round</div>
+            <p className="small muted" style={{ marginTop: 6 }}>
+              {speedBest > 0 ? (
+                <>
+                  best today <span className="tnum">{speedBest}</span>
+                </>
+              ) : (
+                "no round yet today"
+              )}
+            </p>
+            <button
+              type="button"
+              className="btn plum block"
+              style={{ marginTop: 12 }}
+              onClick={() => go({ kind: "speed" })}
+            >
+              Go · 60 seconds
             </button>
           </section>
         )}

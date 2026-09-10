@@ -3,7 +3,9 @@ import { useProgress } from "./progress";
 import { useSession } from "./session";
 import { COURSE } from "./course";
 import { defaultProgress } from "../lib/storage";
-import { GEM_BASE, GEM_PER_CORRECT, GEM_PERFECT } from "../lib/rewards";
+import { GEM_BASE, GEM_PER_CORRECT, GEM_PERFECT, GEM_SPEED_CAP } from "../lib/rewards";
+import { SPEED_LEN } from "../lib/speed";
+import { dayKey } from "../lib/srs";
 import { applyAnswer, isTricky } from "../lib/srs";
 import { ROOTS } from "../data/roots";
 
@@ -129,5 +131,66 @@ describe("tricky practice", () => {
   it("cannot start when nothing is tricky", () => {
     useProgress.getState().adopt(defaultProgress());
     expect(useSession.getState().start({ kind: "practice", focus: "tricky" })).toBe(false);
+  });
+});
+
+describe("speed round", () => {
+  const seed = (n: number) => {
+    const p = defaultProgress();
+    const now = Date.now();
+    for (const r of ROOTS.slice(0, n)) p.roots[r.r] = applyAnswer(undefined, true, true, now);
+    p.onboardedAt = now;
+    useProgress.getState().adopt(p);
+  };
+  const answerRight = (n: number) => {
+    const S = useSession;
+    for (let k = 0; k < n; k++) {
+      const s = S.getState().s!;
+      if (s.answered) S.getState().next();
+      const q = S.getState().s!.q!;
+      S.getState().pickOption(q.opts!.findIndex((o) => o.ok));
+    }
+  };
+  it("builds a long queue with quick modes, scores on timeUp, pays capped gems, sets the best", () => {
+    seed(6);
+    useSession.getState().clear();
+    expect(useSession.getState().start({ kind: "speed" })).toBe(true);
+    const s0 = useSession.getState().s!;
+    expect(s0.slots).toHaveLength(SPEED_LEN);
+    expect(s0.modes).toHaveLength(SPEED_LEN);
+    expect(s0.modes!.every((m) => m !== "typeRoot" && m !== "hearWord")).toBe(true);
+    answerRight(25);
+    useSession.getState().timeUp();
+    const s = useSession.getState().s!;
+    expect(s.done).toBe(true);
+    expect(s.score).toBe(25);
+    expect(s.newBest).toBe(true);
+    expect(s.rewards!.parts).toMatchObject({
+      base: GEM_BASE,
+      correct: GEM_PER_CORRECT * GEM_SPEED_CAP,
+      perfect: 0,
+    });
+    expect(useProgress.getState().p.history[dayKey()].speedBest).toBe(25);
+    expect(s.rewards!.newSeals).toContain("speed-20");
+    // A worse second round keeps the best.
+    useSession.getState().clear();
+    useSession.getState().start({ kind: "speed" });
+    answerRight(5);
+    useSession.getState().timeUp();
+    expect(useSession.getState().s!.newBest).toBe(false);
+    expect(useProgress.getState().p.history[dayKey()].speedBest).toBe(25);
+  });
+  it("needs a minimum pool, and an early × pays per answer but no base", () => {
+    seed(2);
+    useSession.getState().clear();
+    expect(useSession.getState().start({ kind: "speed" })).toBe(false);
+    seed(5);
+    useSession.getState().start({ kind: "speed" });
+    answerRight(3);
+    useSession.getState().end();
+    const s = useSession.getState().s!;
+    expect(s.done).toBe(true);
+    expect(s.rewards!.parts.base).toBe(0);
+    expect(s.rewards!.parts.correct).toBe(9);
   });
 });

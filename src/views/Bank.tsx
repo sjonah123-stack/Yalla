@@ -1,10 +1,12 @@
-import { memo, useMemo } from "react";
-import type { Root, RootState, Word } from "../types";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import type React from "react";
+import type { FlagReason, Root, RootFlag, RootState, Word } from "../types";
 import { ROOTS } from "../data/roots";
 import { BINYAN_BY_ID, isBinyan } from "../data/binyanim";
 import { normLetters, rootDisplay, rootLetters, stripNikud } from "../lib/hebrew";
 import { DAY, isDue, isTricky, mastery, seen } from "../lib/srs";
-import { useProgress } from "../store/progress";
+import { FLAG_LABEL, isActiveFlag } from "../lib/flags";
+import { useFlag, useProgress } from "../store/progress";
 import { useUi, type BankChip } from "../store/ui";
 import { MasteryDots } from "../components/MasteryDots";
 import { HeaderGear } from "../components/HeaderGear";
@@ -15,7 +17,12 @@ import { COURSE } from "../store/course";
 import { SECTION_BY_CAT } from "../data/course";
 
 /** Does a root's state pass the selected filter chip? */
-function matchesChip(chip: BankChip, st: RootState | undefined, now: number): boolean {
+function matchesChip(
+  chip: BankChip,
+  st: RootState | undefined,
+  now: number,
+  flag: RootFlag | undefined,
+): boolean {
   switch (chip) {
     case "due":
       return isDue(st, now);
@@ -27,6 +34,8 @@ function matchesChip(chip: BankChip, st: RootState | undefined, now: number): bo
       return !seen(st);
     case "tricky":
       return isTricky(st);
+    case "flagged":
+      return isActiveFlag(flag);
     default:
       return true;
   }
@@ -40,7 +49,16 @@ export default function Bank() {
   const chip = useUi((s) => s.bankChip);
   const setChip = useUi((s) => s.setBankChip);
   const roots = useProgress((s) => s.p.roots);
+  const flags = useProgress((s) => s.p.flags);
   const now = Date.now();
+  const openRef = useRef<HTMLDivElement | null>(null);
+
+  // Landing here from "open this root" (or coming back to it): bring the row into view.
+  useEffect(() => {
+    if (!useUi.getState().bankOpen) return;
+    const t = setTimeout(() => openRef.current?.scrollIntoView({ block: "center" }), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const groups = useMemo(() => {
     const f = filter.trim().toLowerCase();
@@ -57,15 +75,23 @@ export default function Bank() {
               w.g.toLowerCase().includes(f) ||
               w.t.toLowerCase().includes(f),
           )) &&
-        matchesChip(chip, roots[r.r], now),
+        matchesChip(chip, roots[r.r], now, flags[r.r]),
     );
     const g = new Map<string, Root[]>();
     for (const r of list) (g.get(r.cat) ?? g.set(r.cat, []).get(r.cat)!).push(r);
     return [...g.entries()];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, chip, roots]);
+  }, [filter, chip, roots, flags]);
   const counts = useMemo(() => {
-    const c = { all: ROOTS.length, due: 0, learning: 0, memorized: 0, unmet: 0, tricky: 0 };
+    const c = {
+      all: ROOTS.length,
+      due: 0,
+      learning: 0,
+      memorized: 0,
+      unmet: 0,
+      tricky: 0,
+      flagged: 0,
+    };
     for (const r of ROOTS) {
       const st = roots[r.r];
       if (isDue(st, now)) c.due++;
@@ -73,10 +99,11 @@ export default function Bank() {
       if (memorized(st)) c.memorized++;
       if (!seen(st)) c.unmet++;
       if (isTricky(st)) c.tricky++;
+      if (isActiveFlag(flags[r.r])) c.flagged++;
     }
     return c;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roots]);
+  }, [roots, flags]);
   const dueCount = counts.due;
   const learned = ROOTS.length - counts.unmet;
 
@@ -88,6 +115,9 @@ export default function Bank() {
     { key: "unmet", label: "Not met", n: counts.unmet },
     ...(counts.tricky > 0
       ? [{ key: "tricky" as BankChip, label: "Tricky", n: counts.tricky }]
+      : []),
+    ...(counts.flagged > 0
+      ? [{ key: "flagged" as BankChip, label: "Flagged", n: counts.flagged }]
       : []),
   ];
 
@@ -161,6 +191,7 @@ export default function Bank() {
                 key={r.r}
                 root={r}
                 open={open === r.r}
+                cardRef={open === r.r ? openRef : undefined}
                 onToggle={() => setOpen(open === r.r ? null : r.r)}
               />
             ))}
@@ -174,13 +205,16 @@ export default function Bank() {
 const RootRow = memo(function RootRow({
   root,
   open,
+  cardRef,
   onToggle,
 }: {
   root: Root;
   open: boolean;
+  cardRef?: React.Ref<HTMLDivElement>;
   onToggle: () => void;
 }) {
   const st = useProgress((s) => s.p.roots[root.r]);
+  const flagged = isActiveFlag(useFlag(root.r));
   const m = mastery(st);
   const now = Date.now();
   const state = !seen(st)
@@ -191,7 +225,7 @@ const RootRow = memo(function RootRow({
         ? "due now"
         : `learning · ${Math.max(1, Math.ceil((st!.due - now) / DAY))}d`;
   return (
-    <div className="rcard">
+    <div className="rcard" ref={cardRef}>
       <button type="button" className="rrow" aria-expanded={open} onClick={onToggle}>
         <span className="tile">
           <Heb className="glyph">{rootDisplay(root)}</Heb>
@@ -201,10 +235,16 @@ const RootRow = memo(function RootRow({
           <div className="c">
             {unitTitle(COURSE.byId[root.unit])} · {root.words.length} words · {state}
             {isTricky(st) && (
-              <>
+              <span style={{ whiteSpace: "nowrap" }}>
                 {" · "}
                 <span className="tag tricky">tricky</span>
-              </>
+              </span>
+            )}
+            {flagged && (
+              <span style={{ whiteSpace: "nowrap" }}>
+                {" · "}
+                <span className="tag flagged">flagged</span>
+              </span>
             )}
           </div>
         </span>
@@ -224,25 +264,75 @@ function groupByForm(words: readonly Word[]): [string, Word[]][] {
 
 function RootDetail({ root }: { root: Root }) {
   const st = useProgress((s) => s.p.roots[root.r]);
+  const flagged = isActiveFlag(useFlag(root.r));
+  const flagRoot = useProgress((s) => s.flagRoot);
+  const unflagRoot = useProgress((s) => s.unflagRoot);
   const openUnit = useUi((s) => s.openUnit);
   const setView = useUi((s) => s.setView);
+  const confirm = useUi((s) => s.confirm);
+  // The reason just picked: while set, the note field is offered under the buttons.
+  const [noteFor, setNoteFor] = useState<FlagReason | null>(null);
+
+  const onFlag = async () => {
+    if (flagged) {
+      unflagRoot(root.r);
+      setNoteFor(null);
+      return;
+    }
+    const v = await confirm({
+      title: "What's wrong?",
+      body: `${rootDisplay(root)} · ${root.short}`,
+      actions: [
+        ...Object.entries(FLAG_LABEL).map(([value, label]) => ({ label, value })),
+        { label: "Cancel", value: "cancel", kind: "text" as const },
+      ],
+    });
+    if (!v || !(v in FLAG_LABEL)) return;
+    const why = v as FlagReason;
+    flagRoot(root.r, why);
+    setNoteFor(why);
+  };
+
   return (
     <div className="rdetail">
       <div className="row between" style={{ marginBottom: 8 }}>
         <span className="small muted">
           <b>{root.short}</b> · rank {root.rank} in {root.cat}
         </span>
-        <button
-          type="button"
-          className="btn sm"
-          onClick={() => {
-            setView("path");
-            openUnit(root.unit);
-          }}
-        >
-          Go to {unitTitle(COURSE.byId[root.unit])} →
-        </button>
+        <span className="row" style={{ gap: 8 }}>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              setView("path");
+              openUnit(root.unit);
+            }}
+          >
+            Go to {unitTitle(COURSE.byId[root.unit])} →
+          </button>
+          <button type="button" className="btn sm" onClick={onFlag}>
+            {flagged ? "Unflag" : "Flag"}
+          </button>
+        </span>
       </div>
+      {noteFor && (
+        <input
+          className="flag-note"
+          type="text"
+          autoFocus
+          maxLength={140}
+          placeholder="Add a note (optional)"
+          aria-label="Note for this flag"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+          }}
+          onBlur={(e) => {
+            const note = e.currentTarget.value.trim();
+            if (note) flagRoot(root.r, noteFor, note);
+            setNoteFor(null);
+          }}
+        />
+      )}
       {groupByForm(root.words).map(([form, ws]) => (
         <div key={form}>
           <div className="bh">

@@ -87,9 +87,13 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
             <b>{mem}</b> / {u.roots.length} memorized
           </span>
           <span className="small muted tnum">
-            {rec?.testBest !== undefined ? `Test ${rec.testBest}%` : ""}
-            {rec?.testBest !== undefined && rec?.matchBestMs !== undefined ? " · " : ""}
-            {rec?.matchBestMs !== undefined ? `Match ${formatMs(rec.matchBestMs)}` : ""}
+            {[
+              rec?.testBest !== undefined ? `Test ${rec.testBest}%` : "",
+              rec?.matchBestMs !== undefined ? `Match ${formatMs(rec.matchBestMs)}` : "",
+              rec?.sortBestMs !== undefined ? `Sort ${formatMs(rec.sortBestMs)}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
         </div>
         <div className="uroots">
@@ -141,6 +145,13 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
                 </button>
                 <button type="button" className="btn quiet" onClick={() => openTool("match", u.id)}>
                   Match{rec?.matchBestMs !== undefined ? ` · ${formatMs(rec.matchBestMs)}` : ""}
+                </button>
+                <button
+                  type="button"
+                  className="btn quiet"
+                  onClick={() => openTool("familysort", u.id)}
+                >
+                  Sort{rec?.sortBestMs !== undefined ? ` · ${formatMs(rec.sortBestMs)}` : ""}
                 </button>
                 <button
                   type="button"

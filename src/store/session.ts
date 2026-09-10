@@ -8,7 +8,10 @@ import { placementSample } from "../lib/placement";
 import { memorizedCount } from "../lib/course";
 import type { Receipt } from "../lib/rewards";
 import { speechAvailable } from "../lib/speech";
+import { buildSpeedQueue, SPEED_LEN, SPEED_MIN_ROOTS } from "../lib/speed";
+import { summaryExit } from "../lib/history";
 import { useProgress } from "./progress";
+import { useUi } from "./ui";
 import { COURSE } from "./course";
 
 export type Tick = "pending" | "good" | "bad" | "recovered";
@@ -17,7 +20,8 @@ export type Plan =
   | { kind: "lesson"; unit: UnitId }
   | { kind: "practice"; focus?: "tricky" }
   | { kind: "test"; unit: UnitId }
-  | { kind: "placement" };
+  | { kind: "placement" }
+  | { kind: "speed" };
 
 /** Behaviour flags derived from the plan. */
 export const planRules = (plan: Plan) => ({
@@ -76,6 +80,10 @@ export interface Session {
   /** XP totals when the session started, for level-up / daily-goal milestones. */
   xpBefore: number;
   todayXpBefore: number;
+  /** Wall-clock start, for the speed round timer. */
+  startedAt: number;
+  /** Speed round: this run set today's best. */
+  newBest?: boolean;
   done: boolean;
   /** Set when the session finished: test score, or placement handled. */
   score?: number;
@@ -95,6 +103,15 @@ interface SessionStore {
   submitTyped: () => void;
   next: () => void;
   end: () => void;
+  /** Speed round: the timer ran out — score it as a completed round. */
+  timeUp: () => void;
+  /**
+   * Leave a running session from the × button or the back gesture. Tests and placements ask
+   * first (they are discarded when left); everything else ends and shows its summary.
+   */
+  quit: () => Promise<void>;
+  /** Leave a finished session (the summary) to where it belongs on the path or Home. */
+  leave: () => void;
   claimChest: () => void;
   clear: () => void;
 }
@@ -162,6 +179,18 @@ function finish(s: Session, completed = true): Session {
   } else if (s.plan.kind === "placement") {
     out.rewards = prog.finishPlacement(s.results.map((r) => ({ root: s.slots[r.slot], ok: r.ok })));
     out.score = testScore(ok, s.slots.length);
+  } else if (s.plan.kind === "speed") {
+    // Best first, so the speed seal sees today's new score when rewards settle.
+    out.score = s.ok;
+    out.newBest = prog.recordSpeedBest(s.ok);
+    out.rewards = prog.recordSessionEnd({
+      kind: "speed",
+      ok: s.ok,
+      bad: s.bad,
+      best: s.best,
+      typedOk: s.typedOk,
+      completed,
+    });
   } else {
     out.rewards = prog.recordSessionEnd({
       kind: s.plan.kind,
@@ -189,6 +218,14 @@ function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[] } {
     case "test": {
       const t = buildTest(COURSE, plan.unit);
       return { slots: t.map((x) => x.root), modes: t.map((x) => x.mode) };
+    }
+    case "speed": {
+      if (ROOTS.filter((r) => seen(prog.roots[r.r])).length < SPEED_MIN_ROOTS) return { slots: [] };
+      const slots = buildSpeedQueue(ROOTS, prog, SPEED_LEN);
+      const modes = slots.map((r) =>
+        modeFor(r, mastery(prog.roots[r.r]), { audio: false, quick: true }),
+      );
+      return { slots, modes };
     }
     case "placement": {
       const sample = placementSample(COURSE);
@@ -238,6 +275,7 @@ export const useSession = create<SessionStore>((set, get) => ({
       memBefore: memorizedCount(ROOTS, prog.p),
       xpBefore: prog.p.xp,
       todayXpBefore: prog.p.history[dayKey()]?.xp ?? 0,
+      startedAt: Date.now(),
       done: false,
       chestClaimed: false,
     };
@@ -281,6 +319,46 @@ export const useSession = create<SessionStore>((set, get) => ({
     // Ending a test or placement early discards it rather than scoring a partial run.
     if (s.plan.kind === "test" || s.plan.kind === "placement") set({ s: null });
     else set({ s: finish(s, false) });
+  },
+  timeUp: () => {
+    const s = get().s;
+    if (!s || s.done || s.plan.kind !== "speed") return;
+    set({ s: finish(s, true) });
+  },
+  quit: async () => {
+    const s = get().s;
+    if (!s || s.done) return;
+    if (s.plan.kind === "test" || s.plan.kind === "placement") {
+      const v = await useUi.getState().confirm(
+        s.plan.kind === "test"
+          ? {
+              title: "Leave the test?",
+              body: "A test only counts when you finish it. Leaving throws this run away — the unit itself is untouched.",
+              actions: [
+                { label: "Keep going", value: "stay", kind: "plum" },
+                { label: "Leave the test", value: "leave", kind: "text" },
+              ],
+            }
+          : {
+              title: "Leave the placement test?",
+              body: "Nothing from a half-finished placement is saved. You can take it again from Home.",
+              actions: [
+                { label: "Keep going", value: "stay", kind: "plum" },
+                { label: "Leave", value: "leave", kind: "text" },
+              ],
+            },
+      );
+      if (v !== "leave") return;
+    }
+    get().end();
+  },
+  leave: () => {
+    const s = get().s;
+    const exit = summaryExit(s ? s.plan : { kind: "practice" });
+    set({ s: null });
+    const ui = useUi.getState();
+    ui.setView(exit.view);
+    if (exit.unit) ui.openUnit(exit.unit);
   },
   claimChest: () => {
     const s = get().s;

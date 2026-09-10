@@ -17,6 +17,8 @@ import Settings from "./views/Settings";
 import UnitSheet from "./views/Unit";
 import Flashcards from "./views/Flashcards";
 import Match from "./views/Match";
+import FamilySort from "./views/FamilySort";
+import { ScrollMemory } from "./components/ScrollMemory";
 import Welcome from "./views/Welcome";
 import { ConfirmSheet } from "./components/ConfirmSheet";
 
@@ -41,10 +43,6 @@ export default function App() {
   const onboardedAt = useProgress((s) => s.p.onboardedAt);
   const session = useSession((s) => s.s);
   const [, setAudioReady] = useState(false);
-
-  useEffect(() => {
-    window.scrollTo({ top: 0 });
-  }, [view]);
 
   useEffect(() => {
     if (theme === "system") delete document.documentElement.dataset.theme;
@@ -82,12 +80,14 @@ export default function App() {
     return (
       <>
         <Play />
+        <Toast />
         <ConfirmSheet />
       </>
     );
   if (onboardedAt === null) return <Welcome />;
   if (view === "flashcards" && toolUnit) return <Flashcards unitId={toolUnit} />;
   if (view === "match" && toolUnit) return <Match unitId={toolUnit} />;
+  if (view === "familysort" && toolUnit) return <FamilySort unitId={toolUnit} />;
   // A tool/play view with nothing to show (e.g. after a reload) falls back to the path.
   const shown: View = ["home", "path", "bank", "patterns", "progress"].includes(view)
     ? view
@@ -103,6 +103,7 @@ export default function App() {
           {shown === "progress" && <Progress />}
           {shown === "patterns" && <Patterns />}
         </main>
+        <ScrollMemory view={shown} />
       </div>
       <nav className="nav" aria-label="Sections">
         <div className="nav-inner">

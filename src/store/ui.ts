@@ -1,5 +1,8 @@
 import { create } from "zustand";
-import type { UnitId } from "../types";
+import type { UnitId, View } from "../types";
+import { pushTrail, scrollKey, type ShellView } from "../lib/history";
+
+export type { View } from "../types";
 
 export type ConfirmKind = "primary" | "plum" | "danger" | "quiet" | "text";
 export interface ConfirmAction {
@@ -12,14 +15,22 @@ export interface ConfirmSpec {
   body?: string;
   actions: ConfirmAction[];
 }
-export type BankChip = "all" | "due" | "learning" | "memorized" | "unmet" | "tricky";
-
-export type View =
-  "home" | "path" | "play" | "bank" | "patterns" | "progress" | "flashcards" | "match";
+export type BankChip = "all" | "due" | "learning" | "memorized" | "unmet" | "tricky" | "flagged";
+export type ToolView = "flashcards" | "match" | "familysort";
 
 interface UiStore {
   view: View;
   setView: (v: View) => void;
+  /** Deduplicated tab history, home first; Back walks it. */
+  trail: ShellView[];
+  /** Back on a tab: return to the previous one. */
+  popTab: () => void;
+  /** Leave a study tool back to its unit on the path. */
+  leaveTool: () => void;
+  /** Window scroll offsets per view key (see scrollKey). */
+  scrollMemory: Record<string, number>;
+  rememberScroll: (key: string, y: number) => void;
+  forgetScroll: (key: string) => void;
   toast: string;
   toastKey: number;
   showToast: (msg: string) => void;
@@ -29,9 +40,9 @@ interface UiStore {
   unitSheet: UnitId | null;
   openUnit: (id: UnitId) => void;
   closeUnit: () => void;
-  /** Unit a study tool (flashcards / match) is running on. */
+  /** Unit a study tool (flashcards / match / family sort) is running on. */
   toolUnit: UnitId | null;
-  openTool: (v: "flashcards" | "match", id: UnitId) => void;
+  openTool: (v: ToolView, id: UnitId) => void;
   bankFilter: string;
   setBankFilter: (s: string) => void;
   bankOpen: string | null;
@@ -52,7 +63,30 @@ let resolver: ((v: string | null) => void) | null = null;
 export const useUi = create<UiStore>((set) => ({
   view: "home",
   // Changing tab always closes the unit sheet (it floats over the path only).
-  setView: (view) => set({ view, unitSheet: null }),
+  setView: (view) => set((s) => ({ view, unitSheet: null, trail: pushTrail(s.trail, view) })),
+  trail: ["home"],
+  popTab: () =>
+    set((s) => {
+      const trail = s.trail.length > 1 ? s.trail.slice(0, -1) : s.trail;
+      return { trail, view: trail[trail.length - 1], unitSheet: null };
+    }),
+  leaveTool: () =>
+    set((s) => ({
+      view: "path",
+      trail: pushTrail(s.trail, "path"),
+      unitSheet: s.toolUnit,
+      toolUnit: null,
+    })),
+  scrollMemory: {},
+  rememberScroll: (key, y) =>
+    set((s) => (s.scrollMemory[key] === y ? s : { scrollMemory: { ...s.scrollMemory, [key]: y } })),
+  forgetScroll: (key) =>
+    set((s) => {
+      if (!(key in s.scrollMemory)) return s;
+      const scrollMemory = { ...s.scrollMemory };
+      delete scrollMemory[key];
+      return { scrollMemory };
+    }),
   toast: "",
   toastKey: 0,
   showToast: (toast) => set((s) => ({ toast, toastKey: s.toastKey + 1 })),
@@ -68,7 +102,19 @@ export const useUi = create<UiStore>((set) => ({
   bankOpen: null,
   setBankOpen: (bankOpen) => set({ bankOpen }),
   openRoot: (id) =>
-    set({ view: "bank", bankOpen: id, bankFilter: "", bankChip: "all", unitSheet: null }),
+    set((s) => {
+      const scrollMemory = { ...s.scrollMemory };
+      delete scrollMemory[scrollKey("bank", "", "all")];
+      return {
+        view: "bank",
+        trail: pushTrail(s.trail, "bank"),
+        bankOpen: id,
+        bankFilter: "",
+        bankChip: "all",
+        unitSheet: null,
+        scrollMemory,
+      };
+    }),
   bankChip: "all",
   setBankChip: (bankChip) => set({ bankChip }),
   confirmSpec: null,

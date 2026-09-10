@@ -1,18 +1,22 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
 import { planRules, useSession } from "../store/session";
-import { useProgress } from "../store/progress";
+import { useFlag, useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
 import { KEY_ROWS, PRAISE, FINALS, keyToHebrew, rootDisplay, stripNikud } from "../lib/hebrew";
 import { mastery } from "../lib/srs";
 import { unitTitle } from "../lib/course";
 import { COURSE } from "../store/course";
 import { speak } from "../lib/speech";
+import { formBadge } from "../lib/quiz";
+import { FLAG_LABEL, isActiveFlag } from "../lib/flags";
+import { SPEED_MISS_MS, SPEED_MS } from "../lib/speed";
 import { BINYAN_BY_ID } from "../data/binyanim";
 import { WordList } from "../components/WordList";
 import { SpeakButton } from "../components/SpeakButton";
 import { Heb } from "../components/Heb";
 import Summary from "./Summary";
+import type { FlagReason } from "../types";
 
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
@@ -21,35 +25,6 @@ export default function Play() {
   const { pickOption, typeKey, submitTyped, next, end, dismissLearn } = useSession.getState();
   const nikud = useProgress((st) => st.p.settings.nikud);
   const setView = useUi((st) => st.setView);
-
-  // Tests and placements are discarded when left early, so they ask first.
-  const quit = async () => {
-    const st = useSession.getState().s;
-    if (!st || st.done) return;
-    if (st.plan.kind === "test" || st.plan.kind === "placement") {
-      const v = await useUi.getState().confirm(
-        st.plan.kind === "test"
-          ? {
-              title: "Leave the test?",
-              body: "A test only counts when you finish it. Leaving throws this run away — the unit itself is untouched.",
-              actions: [
-                { label: "Keep going", value: "stay", kind: "plum" },
-                { label: "Leave the test", value: "leave", kind: "text" },
-              ],
-            }
-          : {
-              title: "Leave the placement test?",
-              body: "Nothing from a half-finished placement is saved. You can take it again from Home.",
-              actions: [
-                { label: "Keep going", value: "stay", kind: "plum" },
-                { label: "Leave", value: "leave", kind: "text" },
-              ],
-            },
-      );
-      if (v !== "leave") return;
-    }
-    end();
-  };
 
   // Physical keyboard: 1–4 pick, Enter/Space advance, Hebrew or QWERTY-positional typing.
   useEffect(() => {
@@ -87,15 +62,33 @@ export default function Play() {
     return () => document.removeEventListener("keydown", onKey);
   }, [pickOption, typeKey, submitTyped, next, dismissLearn]);
 
-  // Test / placement: no feedback sheet — tick, then move on.
+  // Speed round: a 60-second clock that scores the run when it hits zero.
+  const isSpeed = s0?.plan.kind === "speed";
+  const sessionDone = !!s0?.done;
+  const startedAt = s0?.startedAt ?? 0;
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!isSpeed || sessionDone) return;
+    const id = setInterval(() => {
+      setNow(Date.now());
+      if (startedAt + SPEED_MS - Date.now() <= 0) {
+        clearInterval(id);
+        useSession.getState().timeUp();
+      }
+    }, 100);
+    return () => clearInterval(id);
+  }, [isSpeed, sessionDone, startedAt]);
+
+  // Test / placement / speed: no feedback sheet — tick, then move on.
   const feedbackEach = s0 ? planRules(s0.plan).feedbackEach : true;
   const answered = !!s0?.answered;
   const qi = s0?.i ?? 0;
   useEffect(() => {
     if (!s0 || s0.done || !answered || feedbackEach) return;
-    const t = setTimeout(() => next(), 450);
+    // A miss in a speed round holds still long enough to read the right answer.
+    const t = setTimeout(() => next(), isSpeed && !s0.lastCorrect ? SPEED_MISS_MS : 450);
     return () => clearTimeout(t);
-  }, [answered, qi, feedbackEach, next]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [answered, qi, feedbackEach, isSpeed, next]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!s0) return null;
   const s = s0;
@@ -105,11 +98,36 @@ export default function Play() {
       ? `Test · ${unitTitle(COURSE.byId[s.plan.unit])} · `
       : s.plan.kind === "placement"
         ? "Placement · "
-        : "";
+        : s.plan.kind === "speed"
+          ? `Speed · ${s.ok} right · `
+          : "";
+  const left = Math.max(0, s.startedAt + SPEED_MS - Math.max(now, s.startedAt));
+  const clock = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
   const q = s.q!;
   const root = q.root;
   const wordText = (h: string) => (nikud ? h : stripNikud(h));
   const hot = s.combo >= 3;
+
+  /** Report (or un-report) the current root's content. */
+  const toggleFlag = async (flagged: boolean) => {
+    const ui = useUi.getState();
+    if (flagged) {
+      useProgress.getState().unflagRoot(root.r);
+      ui.showToast("Flag cleared");
+      return;
+    }
+    const v = await ui.confirm({
+      title: "What's wrong?",
+      body: `${rootDisplay(root)} · ${root.short}`,
+      actions: [
+        ...Object.entries(FLAG_LABEL).map(([value, label]) => ({ label, value })),
+        { label: "Cancel", value: "cancel", kind: "text" as const },
+      ],
+    });
+    if (!v || !(v in FLAG_LABEL)) return;
+    useProgress.getState().flagRoot(root.r, v as FlagReason);
+    ui.showToast("Flagged for review");
+  };
 
   return (
     <div className="play">
@@ -118,17 +136,37 @@ export default function Play() {
           type="button"
           className="x"
           aria-label={
-            s.plan.kind === "test" || s.plan.kind === "placement" ? "Leave the test" : "End session"
+            s.plan.kind === "test" || s.plan.kind === "placement"
+              ? "Leave the test"
+              : isSpeed
+                ? "End round"
+                : "End session"
           }
-          onClick={() => quit()}
+          onClick={() => useSession.getState().quit()}
         >
           ×
         </button>
-        <div className="ticks" aria-label={`Question ${s.i + 1}`}>
-          {s.ticks.map((t, i) => (
-            <i key={i} className={t === "pending" && i === s.slot ? "current" : t} />
-          ))}
-        </div>
+        {isSpeed ? (
+          <>
+            <div
+              className="ticks speed"
+              role="timer"
+              aria-label={`${Math.ceil(left / 1000)} seconds left`}
+            >
+              <i
+                className={"left" + (left < 10000 ? " low" : "")}
+                style={{ width: (left / SPEED_MS) * 100 + "%" }}
+              />
+            </div>
+            <span className="clock tnum">{clock}</span>
+          </>
+        ) : (
+          <div className="ticks" aria-label={`Question ${s.i + 1}`}>
+            {s.ticks.map((t, i) => (
+              <i key={i} className={t === "pending" && i === s.slot ? "current" : t} />
+            ))}
+          </div>
+        )}
         <span className={"combo tnum" + (hot ? " hot" : "")} key={hot ? s.combo : "cold"}>
           {s.combo > 1 ? `×${s.combo}` : ""}
         </span>
@@ -144,7 +182,7 @@ export default function Play() {
           <div className="title">
             {planLabel}
             {q.title}
-            {q.word && q.mode !== "whichBinyan" && q.mode !== "hearWord" && (
+            {q.word && (q.mode === "wordRoot" || q.mode === "typeRoot") && (
               <>
                 {" "}
                 · <b>{q.word.b}</b>
@@ -166,13 +204,11 @@ export default function Play() {
   function Prompt() {
     switch (q.mode) {
       case "rootMeaning":
-      case "oddOne":
         return (
           <>
             <div className="glyph hero" lang="he">
               {rootDisplay(root)}
             </div>
-            {q.mode === "oddOne" && <div className="gloss">{root.m}</div>}
           </>
         );
       case "meaningRoot":
@@ -184,6 +220,22 @@ export default function Play() {
         );
       case "hearWord":
         return <HearPrompt text={q.word!.h} />;
+      case "buildWord": {
+        const badge = formBadge(q.form!);
+        return (
+          <>
+            <div className="glyph hero" lang="he">
+              {rootDisplay(root)}
+            </div>
+            <div className="gloss">{root.m}</div>
+            <div className="form-badge">
+              {badge.he && <Heb>{badge.he}</Heb>}
+              <span className="id">{badge.id}</span>
+              <span className="g">{badge.gloss}</span>
+            </div>
+          </>
+        );
+      }
       case "wordRoot":
       case "whichBinyan":
       case "typeRoot":
@@ -205,7 +257,7 @@ export default function Play() {
     const kind =
       q.mode === "rootMeaning"
         ? "en"
-        : q.mode === "oddOne"
+        : q.mode === "buildWord"
           ? "word"
           : q.mode === "whichBinyan"
             ? "binyan"
@@ -298,19 +350,21 @@ export default function Play() {
   function Sheet() {
     const good = s.lastCorrect;
     const st = useProgress.getState().p.roots[root.r];
+    const flagged = isActiveFlag(useFlag(root.r));
     let head: React.ReactNode = pick(PRAISE);
     if (!good) {
-      if (q.mode === "oddOne" && q.odd) {
-        const ow = q.opts!.find((o) => o.ok)!.w!;
-        head = (
-          <span>
-            <Heb>{wordText(ow.h)}</Heb> is from <Heb>{rootDisplay(q.odd)}</Heb> ({q.odd.m})
-          </span>
-        );
-      } else if (q.mode === "whichBinyan" && q.binyan) {
+      if (q.mode === "whichBinyan" && q.binyan) {
         head = (
           <span>
             <Heb>{wordText(q.word!.h)}</Heb> is <Heb>{BINYAN_BY_ID[q.binyan].he}</Heb> ({q.binyan})
+          </span>
+        );
+      } else if (q.mode === "buildWord" && q.form) {
+        const badge = formBadge(q.form);
+        head = (
+          <span>
+            <Heb>{badge.he ?? badge.gloss}</Heb> of <Heb>{rootDisplay(root)}</Heb> is{" "}
+            <Heb>{wordText(q.word!.h)}</Heb> ({q.word!.g})
           </span>
         );
       } else {
@@ -344,6 +398,9 @@ export default function Play() {
         </div>
         <WordList words={root.words.slice(0, 6)} compact />
         {root.note && <div className="note">{root.note}</div>}
+        <button type="button" className="btn text flag" onClick={() => toggleFlag(flagged)}>
+          {flagged ? "Flagged ✓ · tap to clear" : "Something wrong with this root?"}
+        </button>
         <button type="button" className="btn primary block" onClick={() => next()} autoFocus>
           {last ? "Finish" : "Next"}
         </button>

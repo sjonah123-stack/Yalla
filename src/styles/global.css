@@ -1068,6 +1068,66 @@ button.chip {
   margin-top: 12px;
 }
 
+/* Theme index: a `.chips.scroll` rail that sticks while the theme cards scroll under it.
+   `.view.pad`'s 52px top padding belongs to the header, which scrolls away — so the rail
+   sticks flush to the safe area instead of below that padding. */
+.idx {
+  position: sticky;
+  top: env(safe-area-inset-top);
+  z-index: 5;
+  background: var(--ground);
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+/* `.chips.scroll` sets the padding shorthand at the same specificity — restate the rail's
+   vertical padding so it wins wherever the classes are combined. */
+.chips.scroll.idx {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.chip.idx {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 8px;
+  background: var(--stone);
+  color: var(--ink-2);
+}
+.chip.idx .dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--c, var(--plum));
+}
+.chip.idx .he {
+  font-family: var(--font-heb);
+  font-weight: 900;
+  font-size: 15px;
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+.chip.idx .n {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.chip.idx.locked {
+  opacity: 0.55;
+}
+.chip.idx.done .dot {
+  background: var(--gold);
+}
+.chip.idx.current {
+  box-shadow:
+    0 0 0 2px var(--coral),
+    0 3px 0 var(--coral-deep);
+}
+.chip.idx.open {
+  background: var(--paper);
+}
+
 /* Sections as cards; the open one shows its units as chips. */
 .secs {
   display: grid;
@@ -1361,6 +1421,33 @@ button.chip {
   animation: pop 0.4s;
 }
 
+/* Speed round: the tick strip becomes one draining bar with a clock beside it.
+   The width transition is dropped by the reduced-motion block at the foot of this file. */
+.rail .ticks.speed {
+  display: block;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--stone);
+  overflow: hidden;
+}
+.rail .ticks.speed i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--coral);
+  transition: width 100ms linear;
+}
+.rail .ticks.speed i.low {
+  background: var(--bad);
+}
+.rail .clock {
+  min-width: 44px;
+  text-align: right;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
 .stage {
   position: relative;
   display: flex;
@@ -1417,6 +1504,37 @@ button.chip {
   font-size: var(--t-small);
   color: var(--ink-3);
   margin-top: var(--s3);
+}
+
+/* Word builder: the form (binyan / pattern) as an inline paper chip under the hero glyph.
+   The Play stage sits on `--ground`, not a dark ground, so it takes the stage inks. */
+.form-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: var(--s3);
+  padding: 0 14px;
+  border-radius: var(--r-full);
+  background: var(--paper);
+  box-shadow: var(--drop-sm);
+}
+.form-badge .heb {
+  font-family: var(--font-heb);
+  font-size: var(--t-lead);
+  font-weight: 900;
+  color: var(--plum);
+}
+.form-badge .id {
+  font-size: var(--t-micro);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.form-badge .g {
+  font-size: var(--t-small);
+  color: var(--ink-2);
 }
 .q-in {
   animation: rise 0.35s var(--ease-out);
@@ -1665,6 +1783,29 @@ button.chip {
 .sheet .btn {
   margin-top: 18px;
 }
+/* The flag control is a quiet afterthought under the primary button. */
+.sheet .btn.text.flag {
+  margin-top: 8px;
+  font-size: var(--t-small);
+  opacity: 0.85;
+}
+.flag-note {
+  width: 100%;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font: inherit;
+  /* 16px keeps iOS from zooming the field on focus. */
+  font-size: var(--t-body);
+  background: var(--stone);
+  color: var(--ink);
+  box-shadow: inset 0 2px 0 var(--stone-2);
+  outline: none;
+}
+.flag-note::placeholder {
+  color: var(--ink-3);
+}
 .sheet.good .btn.primary {
   background: var(--good);
   color: var(--good-ink);
@@ -1756,6 +1897,14 @@ button.chip {
 }
 .summary .stats .n {
   font-size: 36px;
+}
+.summary .speedbig {
+  margin: 10px 0;
+  font-family: var(--font-heb);
+  font-size: 64px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
 }
 .summary .sec {
   margin-top: 26px;
@@ -2159,6 +2308,10 @@ button.chip {
   background: var(--coral-soft);
   color: var(--coral-deep);
 }
+.tag.flagged {
+  background: var(--gold-soft);
+  color: var(--ink);
+}
 
 /* ---------- Progress ---------- */
 .progress .stats {
@@ -2547,6 +2700,23 @@ button.chip {
 .settings h2 {
   font-size: 30px;
 }
+/* A copyable dump (flag reports, exported progress). */
+.copybox {
+  width: 100%;
+  min-height: 120px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font:
+    13px/1.4 ui-monospace,
+    Menlo,
+    monospace;
+  background: var(--stone);
+  color: var(--ink);
+  resize: vertical;
+  outline: none;
+}
 
 /* Confirm sheet: sits above the settings modal it is raised from. */
 .modal.confirm {
@@ -2865,7 +3035,8 @@ button.chip {
 }
 /* Keyboard shortcuts only exist where there is a keyboard. */
 .mtile .k,
-.mhint {
+.mhint,
+.sort-hint {
   display: none;
 }
 @media (hover: hover) and (pointer: fine) {
@@ -2878,7 +3049,8 @@ button.chip {
     color: var(--ink-4);
     font-weight: 800;
   }
-  .mhint {
+  .mhint,
+  .sort-hint {
     display: block;
     margin-top: var(--s3);
     text-align: center;
@@ -2917,6 +3089,98 @@ button.chip {
 }
 .mtile:disabled {
   cursor: default;
+}
+
+/* ---------- Family sort ---------- */
+/* The word tiles reuse `.mgrid` / `.mtile`; `.word` carries a vocalized word, not a root.
+   A vocalized word plus its gloss needs far more width than a three-letter skeleton, so the
+   sort grid halves its columns and the tile stops being square. */
+.mgrid:has(.mtile.word) {
+  grid-template-columns: 1fr 1fr;
+}
+.mtile.word {
+  aspect-ratio: auto;
+  min-height: 76px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px;
+  font-family: var(--font-heb);
+  font-size: 22px;
+  font-weight: 700;
+  direction: rtl;
+  unicode-bidi: isolate;
+  line-height: 1.35;
+}
+.mtile.word .sub {
+  font-family: var(--font-ui);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  direction: ltr;
+  color: var(--ink-3);
+}
+.mtile.word.sel .sub,
+.mtile.word.wrong .sub {
+  color: inherit;
+  opacity: 0.75;
+}
+.buckets {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 8px 0 14px;
+}
+/* A bucket is a button: the global button reset already drops the border and font. */
+.bucket {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 88px;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: var(--drop-sm);
+  text-align: center;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    background var(--dur-fast),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.bucket .glyph {
+  font-size: 22px;
+  letter-spacing: 0.08em;
+  padding-left: 0.08em;
+}
+.bucket .s {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.bucket.sel {
+  box-shadow:
+    0 0 0 2.5px var(--coral),
+    var(--drop-sm);
+}
+.bucket.wrong {
+  animation: shake var(--dur-slow);
+}
+.bucket .placed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 8px;
+}
+.bucket .placed span {
+  font-family: var(--font-heb);
+  font-size: 14px;
+  direction: rtl;
+  unicode-bidi: isolate;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  background: var(--stone);
 }
 
 /* ---------- Focus rings ---------- */
@@ -2959,6 +3223,7 @@ button.chip {
 .btn.inert:focus-visible,
 .seg button:focus-visible,
 .chip.toggle:focus-visible,
+.chip.idx:focus-visible,
 .sec-h:focus-visible,
 .pill.icon:focus-visible {
   box-shadow: var(--ring);
@@ -2986,8 +3251,17 @@ button.chip {
 .fcpiles button:focus-visible {
   box-shadow: var(--ring), var(--drop);
 }
-.mtile:focus-visible {
+.mtile:focus-visible,
+.bucket:focus-visible {
   box-shadow: var(--ring), var(--drop-sm);
+}
+.flag-note:focus-visible {
+  box-shadow:
+    var(--ring),
+    inset 0 2px 0 var(--stone-2);
+}
+.copybox:focus-visible {
+  box-shadow: var(--ring);
 }
 .spk.big:focus-visible {
   box-shadow:

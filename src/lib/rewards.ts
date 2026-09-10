@@ -10,6 +10,8 @@ export const GEM_PERFECT = 20;
 export const GEM_UNIT_CHEST = 50;
 export const GEM_SECTION_CHEST = 50;
 export const GEM_PLACEMENT = 40;
+/** A speed round pays per correct answer up to this many. */
+export const GEM_SPEED_CAP = 20;
 
 // ---------- Seals ----------
 export interface Seal {
@@ -114,6 +116,13 @@ export const SEALS: readonly Seal[] = [
     hint: "Reach level 5 (1600 XP).",
     test: (p) => level(p.xp) >= 5,
   },
+  {
+    id: "speed-20",
+    letter: "מ",
+    name: "Speed demon",
+    hint: "Get 20 right in one speed round.",
+    test: (p) => Object.values(p.history).some((h) => (h.speedBest ?? 0) >= 20),
+  },
 ];
 
 export const SEAL_IDS: readonly SealId[] = SEALS.map((s) => s.id);
@@ -123,7 +132,7 @@ export const SEAL_BY_ID: Record<SealId, Seal> = Object.fromEntries(
 
 // ---------- Session end ----------
 export interface SessionEnd {
-  kind: "lesson" | "practice" | "test";
+  kind: "lesson" | "practice" | "test" | "speed";
   ok: number;
   bad: number;
   /** Best combo this session. */
@@ -155,6 +164,13 @@ export const isPerfect = (end: SessionEnd): boolean => end.completed && end.ok >
 /** Gems for the session itself (tests pay nothing; chests are separate). */
 export function sessionGems(end: SessionEnd): { base: number; correct: number; perfect: number } {
   if (end.kind === "test" || end.ok + end.bad === 0) return { base: 0, correct: 0, perfect: 0 };
+  // Speed: the base only if the timer ran out, per-correct capped, never a perfect bonus.
+  if (end.kind === "speed")
+    return {
+      base: end.completed ? GEM_BASE : 0,
+      correct: GEM_PER_CORRECT * Math.min(end.ok, GEM_SPEED_CAP),
+      perfect: 0,
+    };
   return {
     base: GEM_BASE,
     correct: GEM_PER_CORRECT * end.ok,
@@ -267,7 +283,7 @@ export function applySessionEnd(
   end: SessionEnd,
   now: number,
 ): { p: Progress; receipt: Receipt } {
-  const perfect = isPerfect(end) && end.kind !== "test";
+  const perfect = isPerfect(end) && (end.kind === "lesson" || end.kind === "practice");
   const next: Progress = {
     ...p,
     bestCombo: Math.max(p.bestCombo, end.best),

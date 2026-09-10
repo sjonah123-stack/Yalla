@@ -64,7 +64,8 @@ device has no progress or syncs to an account; otherwise Home shows a move banne
 
 Gems: 15 + 3×correct (+20 perfect) per lesson/practice; +50 unit chest (once, `chestAt`);
 +50 section chest (once, only if no unit in the section was placed); +40 for the first
-placement. Twelve seals with ASCII ids in `SEALS`. All settled by `applySessionEnd` at
+placement; a speed round pays 15 only if the timer ran out + 3×min(right, 20), never perfect.
+Thirteen seals with ASCII ids in `SEALS`. All settled by `applySessionEnd` at
 session end — never sprinkle rewards into `recordAnswer`.
 
 ## UI conventions (v0.7)
@@ -76,6 +77,11 @@ session end — never sprinkle rewards into `recordAnswer`.
 - View headers: `.view-h` with `div.actions` holding `<HeaderGear />` (Home has its own gear).
 - Tricky roots (`isTricky`, `trickyRoots`, `trickyQueue` in `srs.ts`) and session milestones
   (`crossings`) are pure and tested; `Plan` = `{ kind: "practice", focus?: "tricky" }`.
+- Back / Escape close the top layer; layers come from `layerStack` in `src/lib/history.ts`;
+  never call `history.*` outside `src/store/nav.ts`. Session exits go through `session.quit()`
+  (running) and `session.leave()` (summary); tools leave via `ui.leaveTool()`.
+- Question modes: no odd-one-out (removed in v0.8); `buildWord` is root + form → word.
+- Content flags live in `Progress.flags` (tombstoned on clear); text export via `flagsToText`.
 - Tap targets are 44px (hit expanders via `::after` on small controls); focus ring = `--ring`.
 
 ## Verifying UI changes

@@ -17,7 +17,6 @@ const SWIPE = 80;
 export default function Flashcards({ unitId }: { unitId: UnitId }) {
   const u = COURSE.byId[unitId];
   const setView = useUi((s) => s.setView);
-  const openUnit = useUi((s) => s.openUnit);
   const showToast = useUi((s) => s.showToast);
   const openTool = useUi((s) => s.openTool);
   const start = useSession((s) => s.start);
@@ -80,10 +79,7 @@ export default function Flashcards({ unitId }: { unitId: UnitId }) {
   });
 
   if (!u) return null;
-  const leave = () => {
-    setView("path");
-    openUnit(u.id);
-  };
+  const leave = () => useUi.getState().leaveTool();
 
   const onDown = (e: React.PointerEvent) => {
     startX.current = e.clientX;

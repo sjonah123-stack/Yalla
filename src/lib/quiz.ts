@@ -1,4 +1,4 @@
-import type { Binyan, Mode, Option, Question, Root, Word } from "../types";
+import type { Binyan, Form, Mode, Option, Question, Root, Word } from "../types";
 import { BINYAN_IDS, BINYAN_BY_ID, isBinyan } from "../data/binyanim";
 import { rootDisplay, rootLetters } from "./hebrew";
 
@@ -18,6 +18,28 @@ export const verbForms = (root: Root): Word[] => root.words.filter((w) => isBiny
 export interface ModeContext {
   /** A Hebrew voice is available. */
   audio: boolean;
+  /** Timed play: no typing, no audio latency. */
+  quick?: boolean;
+}
+
+export const distinctForms = (root: Root): number => new Set(root.words.map((w) => w.b)).size;
+/** A word-builder question needs at least two forms to tell apart. */
+export const canBuildWord = (root: Root): boolean => distinctForms(root) >= 2;
+
+const FORM_LABEL: Record<Exclude<Form, Binyan>, string> = {
+  noun: "noun",
+  adj: "adjective",
+  adv: "adverb",
+  prep: "preposition",
+  phrase: "phrase",
+  interj: "interjection",
+};
+
+/** How a form is shown on the word-builder prompt: binyan name in Hebrew + id + gloss, or the part of speech. */
+export function formBadge(form: Form): { he?: string; id: string; gloss: string } {
+  if (isBinyan(form))
+    return { he: BINYAN_BY_ID[form].he, id: form, gloss: BINYAN_BY_ID[form].gloss };
+  return { id: form, gloss: FORM_LABEL[form] };
 }
 
 /** Pick a question mode for a root, gated by mastery: recognition → production. */
@@ -26,10 +48,11 @@ export function modeFor(root: Root, m: number, ctx: ModeContext): Mode {
     m === 0
       ? ["rootMeaning", "rootMeaning", "meaningRoot"]
       : m <= 2
-        ? ["wordRoot", "meaningRoot", "rootMeaning", "oddOne", "hearWord"]
-        : ["wordRoot", "oddOne", "typeRoot", "typeRoot", "hearWord", "whichBinyan"];
-  if (root.words.length < 3) opts = opts.filter((o) => o !== "oddOne");
-  if (!ctx.audio) opts = opts.filter((o) => o !== "hearWord");
+        ? ["wordRoot", "meaningRoot", "rootMeaning", "buildWord", "hearWord"]
+        : ["wordRoot", "buildWord", "typeRoot", "typeRoot", "hearWord", "whichBinyan"];
+  if (!canBuildWord(root)) opts = opts.filter((o) => o !== "buildWord");
+  if (!ctx.audio || ctx.quick) opts = opts.filter((o) => o !== "hearWord");
+  if (ctx.quick) opts = opts.filter((o) => o !== "typeRoot");
   if (new Set(verbForms(root).map((w) => w.b)).size < 2)
     opts = opts.filter((o) => o !== "whichBinyan");
   return opts.length ? pick(opts) : "rootMeaning";
@@ -67,7 +90,7 @@ export const MODE_TITLE: Record<Mode, string> = {
   rootMeaning: "What does this root mean?",
   meaningRoot: "Which root carries this meaning?",
   wordRoot: "Find the root",
-  oddOne: "Which word is not from this root?",
+  buildWord: "Build the word",
   typeRoot: "Type the root",
   hearWord: "Listen. Which root is it?",
   whichBinyan: "Which binyan is this?",
@@ -92,15 +115,27 @@ export function makeQuestion(root: Root, all: readonly Root[], mode: Mode): Ques
       return { mode, root, title, word: pick(root.words), opts: rootOpts() };
     case "hearWord":
       return { mode, root, title, word: pick(root.words), opts: rootOpts() };
-    case "oddOne": {
-      const mine = shuffle(root.words).slice(0, 3);
-      const other = sim[0];
-      const ow = pick(other.words);
+    case "buildWord": {
+      // The root + a form; the answer is the family member in that form. Distractors are the
+      // root's own words in other forms first (pattern recognition), then look-alike roots.
+      const w = pick(root.words);
+      const own = shuffle(root.words.filter((x) => x.b !== w.b)).slice(0, 3);
+      const fill: Word[] = [];
+      const seenH = new Set([w.h, ...own.map((x) => x.h)]);
+      for (const r of similarRoots(root, all, 8)) {
+        if (own.length + fill.length >= 3) break;
+        const same = r.words.filter((x) => x.b === w.b && !seenH.has(x.h));
+        const any = r.words.filter((x) => !seenH.has(x.h));
+        const x = same[0] ?? any[0];
+        if (!x) continue;
+        seenH.add(x.h);
+        fill.push(x);
+      }
       const opts = shuffle<Option>([
-        ...mine.map((w) => ({ label: w.h, sub: w.g, ok: false, w })),
-        { label: ow.h, sub: ow.g, ok: true, w: ow, from: other },
+        { label: w.h, sub: w.g, ok: true, w },
+        ...[...own, ...fill].map((x) => ({ label: x.h, sub: x.g, ok: false, w: x })),
       ]);
-      return { mode, root, title, opts, odd: other };
+      return { mode, root, title, word: w, form: w.b, opts };
     }
     case "whichBinyan": {
       const verbs = verbForms(root);
@@ -127,9 +162,9 @@ export function makeQuestion(root: Root, all: readonly Root[], mode: Mode): Ques
 /** XP for a correct answer. Production modes pay more; combos add; retries pay half. */
 export function xpFor(mode: Mode, combo: number, first: boolean): number {
   let x =
-    mode === "typeRoot" || mode === "whichBinyan"
+    mode === "typeRoot" || mode === "whichBinyan" || mode === "buildWord"
       ? 20
-      : mode === "oddOne" || mode === "hearWord"
+      : mode === "hearWord"
         ? 15
         : 10;
   if (combo >= 3) x += 5;

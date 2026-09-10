@@ -1,4 +1,13 @@
-import type { DayStats, Progress, RootState, SealId, Settings, UnitRecord } from "../types";
+import type {
+  DayStats,
+  Progress,
+  RootState,
+  SealId,
+  Settings,
+  UnitRecord,
+  FlagReason,
+  RootFlag,
+} from "../types";
 import { SECTIONS, UNIT_IDS } from "../data/course";
 import { SEAL_IDS } from "./rewards";
 
@@ -37,7 +46,37 @@ export const defaultProgress = (): Progress => ({
   sectionChests: {},
   onboardedAt: null,
   resetAt: 0,
+  flags: {},
 });
+
+const FLAG_REASONS = new Set(["gloss", "nikud", "translit", "root", "other"]);
+export const FLAG_NOTE_MAX = 140;
+
+/** Keep only well-formed flags: numeric `at`, known reason, clamped note, optional cleared. */
+function flagMap(raw: unknown): Record<string, RootFlag> {
+  const out: Record<string, RootFlag> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const f = v as Partial<RootFlag>;
+    if (typeof f.at !== "number" || !FLAG_REASONS.has(f.why as string)) continue;
+    const flag: RootFlag = { at: f.at, why: f.why as FlagReason };
+    if (typeof f.note === "string" && f.note.trim())
+      flag.note = f.note.trim().slice(0, FLAG_NOTE_MAX);
+    if (typeof f.cleared === "number") flag.cleared = f.cleared;
+    out[id] = flag;
+  }
+  return out;
+}
+
+/** The flag whose latest event (flag or clear) is newer wins. */
+export function mergeFlag(a: RootFlag | undefined, b: RootFlag | undefined): RootFlag | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  const ta = Math.max(a.at, a.cleared ?? 0);
+  const tb = Math.max(b.at, b.cleared ?? 0);
+  return ta >= tb ? a : b;
+}
 
 const KNOWN_UNITS = new Set<string>(UNIT_IDS);
 const KNOWN_SECTIONS = new Set<string>(SECTIONS.map((s) => s.id));
@@ -106,6 +145,7 @@ export function normalize(raw: unknown): Progress {
     sectionChests: numericMap(r.sectionChests, KNOWN_SECTIONS),
     onboardedAt,
     resetAt: count(r.resetAt),
+    flags: flagMap(r.flags),
   };
 }
 
@@ -128,6 +168,8 @@ const maxDay = (a: DayStats | undefined, b: DayStats | undefined): DayStats => {
   };
   const mem = Math.max(a?.mem ?? -1, b?.mem ?? -1);
   if (mem >= 0) out.mem = mem;
+  const sb = Math.max(a?.speedBest ?? -1, b?.speedBest ?? -1);
+  if (sb >= 0) out.speedBest = sb;
   return out;
 };
 
@@ -147,6 +189,8 @@ export function mergeUnit(a: UnitRecord | undefined, b: UnitRecord | undefined):
   if (testPassedAt !== undefined) out.testPassedAt = testPassedAt;
   const matchBestMs = minDef(a?.matchBestMs, b?.matchBestMs);
   if (matchBestMs !== undefined) out.matchBestMs = matchBestMs;
+  const sortBestMs = minDef(a?.sortBestMs, b?.sortBestMs);
+  if (sortBestMs !== undefined) out.sortBestMs = sortBestMs;
   const chestAt = minDef(a?.chestAt, b?.chestAt);
   if (chestAt !== undefined) out.chestAt = chestAt;
   return out;
@@ -193,6 +237,11 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
         : b.placement
       : (a.placement ?? b.placement);
   const laterPlay = (a.lastPlay ?? "") >= (b.lastPlay ?? "") ? a : b;
+  const flags: Record<string, RootFlag> = {};
+  for (const id of new Set([...Object.keys(a.flags), ...Object.keys(b.flags)])) {
+    const f = mergeFlag(a.flags[id], b.flags[id]);
+    if (f) flags[id] = { ...f };
+  }
   return {
     v: 3,
     xp: Math.max(a.xp, b.xp),
@@ -218,6 +267,7 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
           ? a.onboardedAt
           : Math.min(a.onboardedAt, b.onboardedAt),
     resetAt: a.resetAt,
+    flags,
   };
 }
 

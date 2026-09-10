@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Progress, RootState, Settings, UnitId } from "../types";
+import type { FlagReason, Progress, RootState, Settings, UnitId } from "../types";
 import { ROOTS } from "../data/roots";
 import { applyAnswer, dayKey, touchStreak } from "../lib/srs";
 import { GOLD_SCORE, memorizedCount, newlyCompleted } from "../lib/course";
@@ -36,6 +36,14 @@ interface ProgressStore {
   recordTest: (unit: UnitId, score: number) => boolean;
   /** Best Match time for a unit; returns true on a new record (XP awarded). */
   recordMatch: (unit: UnitId, ms: number) => boolean;
+  /** Best Family sort time for a unit; returns true on a new record (XP awarded). */
+  recordFamilySort: (unit: UnitId, ms: number) => boolean;
+  /** Today's best speed-round score; returns true when this run set it. Pays nothing. */
+  recordSpeedBest: (score: number) => boolean;
+  /** Flag a root for content review (content feedback). */
+  flagRoot: (id: string, why: FlagReason, note?: string) => void;
+  /** Clear a flag (kept as a tombstone so the clear survives a merge). */
+  unflagRoot: (id: string) => void;
   /** Apply a finished placement; pays skipped-section chests and (first time) the placement bonus. */
   finishPlacement: (answers: readonly PlacementAnswer[]) => Receipt;
   /** Fold a finished or abandoned session into counters, gems and seals. */
@@ -54,6 +62,36 @@ function persist(p: Progress, set: (s: Partial<ProgressStore>) => void): Progres
   saveLocal(next);
   pushRemote(next).then((s) => set({ sync: s }));
   return next;
+}
+
+/** Min-wins best time for a unit tool; a new record pays a little XP (no gems, no seals). */
+function bestTime(
+  get: () => ProgressStore,
+  set: (s: Partial<ProgressStore>) => void,
+  unit: UnitId,
+  key: "matchBestMs" | "sortBestMs",
+  ms: number,
+): boolean {
+  const p = get().p;
+  const rec = { ...(p.units[unit] ?? {}) };
+  const prev = rec[key];
+  if (prev !== undefined && ms >= prev) return false;
+  rec[key] = ms;
+  const day = dayKey();
+  const h = { ...(p.history[day] ?? { ok: 0, bad: 0, xp: 0 }) };
+  h.xp += MATCH_RECORD_XP;
+  set({
+    p: persist(
+      {
+        ...p,
+        xp: p.xp + MATCH_RECORD_XP,
+        units: { ...p.units, [unit]: rec },
+        history: { ...p.history, [day]: h },
+      },
+      set,
+    ),
+  });
+  return true;
 }
 
 /** Stamp completedAt on units that just became all-memorized, and today's memorized count. */
@@ -121,27 +159,28 @@ export const useProgress = create<ProgressStore>((set, get) => ({
     set({ p: persist({ ...p, units: { ...p.units, [unit]: rec } }, set) });
     return !wasGold && score >= GOLD_SCORE;
   },
-  recordMatch: (unit, ms) => {
+  recordMatch: (unit, ms) => bestTime(get, set, unit, "matchBestMs", ms),
+  recordFamilySort: (unit, ms) => bestTime(get, set, unit, "sortBestMs", ms),
+  recordSpeedBest: (score) => {
+    if (score <= 0) return false;
     const p = get().p;
-    const rec = { ...(p.units[unit] ?? {}) };
-    const record = rec.matchBestMs === undefined || ms < rec.matchBestMs;
-    if (!record) return false;
-    rec.matchBestMs = ms;
     const day = dayKey();
     const h = { ...(p.history[day] ?? { ok: 0, bad: 0, xp: 0 }) };
-    h.xp += MATCH_RECORD_XP;
-    set({
-      p: persist(
-        {
-          ...p,
-          xp: p.xp + MATCH_RECORD_XP,
-          units: { ...p.units, [unit]: rec },
-          history: { ...p.history, [day]: h },
-        },
-        set,
-      ),
-    });
+    if ((h.speedBest ?? 0) >= score) return false;
+    h.speedBest = score;
+    set({ p: persist({ ...p, history: { ...p.history, [day]: h } }, set) });
     return true;
+  },
+  flagRoot: (id, why, note) => {
+    const p = get().p;
+    const flag = { at: Date.now(), why, ...(note?.trim() ? { note: note.trim() } : {}) };
+    set({ p: persist({ ...p, flags: { ...p.flags, [id]: flag } }, set) });
+  },
+  unflagRoot: (id) => {
+    const p = get().p;
+    const f = p.flags[id];
+    if (!f) return;
+    set({ p: persist({ ...p, flags: { ...p.flags, [id]: { ...f, cleared: Date.now() } } }, set) });
   },
   finishPlacement: (answers) => {
     const prev = get().p;
@@ -178,3 +217,4 @@ export const useProgress = create<ProgressStore>((set, get) => ({
 /** Selector helpers. */
 export const useSettings = () => useProgress((s) => s.p.settings);
 export const useRootState = (id: string) => useProgress((s) => s.p.roots[id]);
+export const useFlag = (id: string) => useProgress((s) => s.p.flags[id]);

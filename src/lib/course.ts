@@ -120,6 +120,42 @@ export function nextLockedUnit(course: Course, p: Progress): Unit | undefined {
 export const memorizedCount = (roots: readonly Root[], p: Progress): number =>
   roots.filter((r) => memorized(p.roots[r.r])).length;
 
+export type SectionState = "locked" | "open" | "done";
+export interface SectionSummary {
+  section: SectionDef;
+  units: Unit[];
+  roots: Root[];
+  memorized: number;
+  /** 0–100 */
+  pct: number;
+  state: SectionState;
+  isCurrent: boolean;
+  chestPaid: boolean;
+}
+
+/** One theme's standing on the path (drives both the theme card and the index chip). */
+export function sectionSummary(sec: SectionDef, course: Course, p: Progress): SectionSummary {
+  const units = course.units.filter((u) => u.section.id === sec.id);
+  const roots = units.flatMap((u) => u.roots);
+  const k = memorizedCount(roots, p);
+  const sts = units.map((u) => unitStatus(u, course, p));
+  const state: SectionState = sts.every((s) => s === "complete" || s === "gold")
+    ? "done"
+    : sts.every((s) => s === "locked")
+      ? "locked"
+      : "open";
+  return {
+    section: sec,
+    units,
+    roots,
+    memorized: k,
+    pct: roots.length ? Math.round((k / roots.length) * 100) : 0,
+    state,
+    isCurrent: currentUnit(course, p).section.id === sec.id,
+    chestPaid: !!p.sectionChests[sec.id],
+  };
+}
+
 /** Units whose roots are all memorized but have no completedAt yet (to be stamped lazily). */
 export function newlyCompleted(course: Course, p: Progress): Unit[] {
   return course.units.filter(

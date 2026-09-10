@@ -61,6 +61,8 @@ export interface DayStats {
   xp: number;
   /** Roots memorized at end of day (recorded from v3 on). */
   mem?: number;
+  /** Best speed-round score that day. */
+  speedBest?: number;
 }
 
 export type DailyGoal = 20 | 50 | 100;
@@ -85,6 +87,8 @@ export interface UnitRecord {
   testPassedAt?: number;
   /** Best Match time in ms. */
   matchBestMs?: number;
+  /** Best Family sort time in ms. */
+  sortBestMs?: number;
   /** When the unit's completion chest was paid out (gems). */
   chestAt?: number;
 }
@@ -108,7 +112,30 @@ export type SealId =
   | "typist"
   | "movement-done"
   | "gems-300"
-  | "level-5";
+  | "level-5"
+  | "speed-20";
+
+/** Why a learner flagged a root for review. */
+export type FlagReason = "gloss" | "nikud" | "translit" | "root" | "other";
+export interface RootFlag {
+  at: number;
+  why: FlagReason;
+  note?: string;
+  /** Set when the flag was cleared; a tombstone so the clear survives a merge. */
+  cleared?: number;
+}
+
+/** App views. Shell views have a tab; the rest are full-screen layers. */
+export type View =
+  | "home"
+  | "path"
+  | "play"
+  | "bank"
+  | "patterns"
+  | "progress"
+  | "flashcards"
+  | "match"
+  | "familysort";
 
 export interface Progress {
   v: 3;
@@ -138,20 +165,26 @@ export interface Progress {
   onboardedAt: number | null;
   /** Reset epoch (ms). A record with a newer resetAt replaces an older one wholesale on merge; 0 = never. */
   resetAt: number;
+  /** Root id → review flag (content feedback). Cleared flags stay as tombstones. */
+  flags: Record<string, RootFlag>;
 }
 
 export type Mode =
-  "rootMeaning" | "meaningRoot" | "wordRoot" | "oddOne" | "typeRoot" | "hearWord" | "whichBinyan";
+  | "rootMeaning"
+  | "meaningRoot"
+  | "wordRoot"
+  | "buildWord"
+  | "typeRoot"
+  | "hearWord"
+  | "whichBinyan";
 
 export interface Option {
   /** Display label: English gloss, root display string, or vocalized word. */
   label: string;
   sub?: string;
   ok: boolean;
-  /** For oddOne: the word shown. */
+  /** Word tiles (buildWord): the word shown. */
   w?: Word;
-  /** For oddOne: the root the intruder came from. */
-  from?: Root;
 }
 
 export interface Question {
@@ -164,8 +197,8 @@ export interface Question {
   opts?: Option[];
   /** For typeRoot: the expected letters. */
   answer?: string;
-  /** For oddOne: the root of the intruder. */
-  odd?: Root;
   /** For whichBinyan: the correct binyan. */
   binyan?: Binyan;
+  /** For buildWord: the form asked for. */
+  form?: Form;
 }

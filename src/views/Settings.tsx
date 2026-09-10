@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type React from "react";
 import { useProgress } from "../store/progress";
 import { useSession } from "../store/session";
@@ -8,6 +8,8 @@ import { loadCloud } from "../lib/cloud-loader";
 import { speechAvailable } from "../lib/speech";
 import { lastSyncedAt } from "../lib/storage";
 import { accountLine } from "../lib/labels";
+import { activeFlags, flagsToText } from "../lib/flags";
+import { ROOTS } from "../data/roots";
 import type { Settings as S } from "../types";
 
 function Seg<T extends string | number | boolean>({
@@ -41,11 +43,17 @@ const ON_OFF = [
 ] as const;
 
 export default function Settings({ onClose }: { onClose: () => void }) {
-  const st = useProgress((s) => s.p.settings);
+  const p = useProgress((s) => s.p);
+  const st = p.settings;
   const set = useProgress((s) => s.setSettings);
   const sync = useProgress((s) => s.sync);
   const reset = useProgress((s) => s.reset);
+  const unflagRoot = useProgress((s) => s.unflagRoot);
+  const showToast = useUi((s) => s.showToast);
   const cloud = useCloud();
+  const flags = activeFlags(p);
+  const nFlags = flags.length;
+  const [copyText, setCopyText] = useState("");
   useEffect(() => useCloud.getState().warm(), []);
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -175,6 +183,70 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               </button>
             ),
           )}
+        {row(
+          "Flagged roots",
+          nFlags ? `${nFlags} waiting for review` : "Flag a root from a lesson or the Roots list",
+          <button
+            type="button"
+            className="btn sm"
+            disabled={nFlags === 0}
+            onClick={async () => {
+              const text = flagsToText(p, ROOTS);
+              if (typeof navigator !== "undefined" && navigator.share) {
+                try {
+                  await navigator.share({ title: "Yalla flags", text });
+                  return;
+                } catch (e) {
+                  // A cancelled share sheet is not an error; anything else falls back below.
+                  if ((e as { name?: string }).name === "AbortError") return;
+                }
+              }
+              if (navigator.clipboard?.writeText) {
+                try {
+                  await navigator.clipboard.writeText(text);
+                  showToast(`Copied ${nFlags} flag${nFlags === 1 ? "" : "s"}`);
+                  return;
+                } catch {
+                  // Fall through to the visible box.
+                }
+              }
+              setCopyText(text);
+            }}
+          >
+            Copy
+          </button>,
+        )}
+        {copyText && (
+          <textarea
+            className="copybox"
+            readOnly
+            value={copyText}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        )}
+        {nFlags > 0 && (
+          <button
+            type="button"
+            className="btn text"
+            style={{ padding: "8px 0" }}
+            onClick={async () => {
+              const v = await useUi.getState().confirm({
+                title: "Clear all flags?",
+                body: `${nFlags} flagged root${nFlags === 1 ? "" : "s"} will be marked reviewed. Copy them first if you still need the list.`,
+                actions: [
+                  { label: "Clear", value: "clear", kind: "danger" },
+                  { label: "Keep", value: "keep", kind: "text" },
+                ],
+              });
+              if (v !== "clear") return;
+              for (const [id] of activeFlags(useProgress.getState().p)) unflagRoot(id);
+              setCopyText("");
+              showToast("Flags cleared.");
+            }}
+          >
+            Clear all flags
+          </button>
+        )}
         <p className="small muted" style={{ marginTop: 16 }}>
           Progress is saved on this device
           {sync === "synced"

@@ -5,6 +5,7 @@ import { COURSE } from "../store/course";
 import { ROOTS, ROOT_BY_ID } from "../data/roots";
 import { rootDisplay } from "../lib/hebrew";
 import { crossings, dayKey, levelCeil } from "../lib/srs";
+import { speedBestToday } from "../lib/speed";
 import { Heb } from "../components/Heb";
 import { GOLD_SCORE, memorizedCount, unitTitle } from "../lib/course";
 import { MODE_TITLE } from "../lib/quiz";
@@ -24,6 +25,7 @@ export default function Summary() {
   const s = useSession((st) => st.s)!;
   if (s.plan.kind === "test") return <TestResult s={s} />;
   if (s.plan.kind === "placement") return <PlacementResult s={s} />;
+  if (s.plan.kind === "speed") return <SpeedResult s={s} />;
   return <LessonSummary s={s} />;
 }
 
@@ -58,7 +60,9 @@ function Chest({ s, receipt }: { s: Session; receipt: Receipt }) {
     parts.push(`Unit chest +${GEM_UNIT_CHEST * receipt.unitChests.length}`);
   if (receipt.sectionChests.length)
     parts.push(`Section chest +${GEM_SECTION_CHEST * receipt.sectionChests.length}`);
-  if (receipt.parts.correct) parts.push(`${s.ok} right × ${GEM_PER_CORRECT}`);
+  // Derived, not `s.ok`: a speed round's per-correct gems are capped.
+  if (receipt.parts.correct)
+    parts.push(`${receipt.parts.correct / GEM_PER_CORRECT} right × ${GEM_PER_CORRECT}`);
   return (
     <div className="chestwrap">
       {open ? (
@@ -110,9 +114,7 @@ function NewSeals({ receipt }: { receipt?: Receipt }) {
 }
 
 function LessonSummary({ s }: { s: Session }) {
-  const { start, clear } = useSession.getState();
-  const setView = useUi((st) => st.setView);
-  const openUnit = useUi((st) => st.openUnit);
+  const { start } = useSession.getState();
   const showToast = useUi((st) => st.showToast);
   const p = useProgress((st) => st.p);
   const total = s.ok + s.bad;
@@ -138,11 +140,7 @@ function LessonSummary({ s }: { s: Session }) {
         : "Every miss is a root coming back.";
   const hasChest = !!receipt && receipt.gems > 0;
   const claimed = !hasChest || s.chestClaimed;
-  const home = () => {
-    clear();
-    setView("path");
-    if (unit) openUnit(unit.id);
-  };
+  const home = () => useSession.getState().leave();
 
   return (
     <div className="shell view summary">
@@ -214,8 +212,79 @@ function LessonSummary({ s }: { s: Session }) {
 }
 
 /** The answer a question wanted, as a short label. */
-function correctLabel(q: Pick<Question, "mode" | "root">): string {
+function correctLabel(q: Pick<Question, "mode" | "root" | "word">): string {
+  // Results don't keep the word, so the word builder falls back to the root.
+  if (q.mode === "buildWord") return q.word?.h ?? rootDisplay(q.root);
   return q.mode === "rootMeaning" ? q.root.short : rootDisplay(q.root);
+}
+
+/** A finished 60-second round. */
+function SpeedResult({ s }: { s: Session }) {
+  const { start } = useSession.getState();
+  const showToast = useUi((st) => st.showToast);
+  const p = useProgress((st) => st.p);
+  const score = s.score ?? s.ok;
+  const bestToday = speedBestToday(p.history, dayKey());
+  const missed = [...new Set(s.missed)].map((id) => ROOT_BY_ID[id]);
+  const receipt = s.rewards;
+  const hasChest = !!receipt && receipt.gems > 0;
+  const claimed = !hasChest || s.chestClaimed;
+  return (
+    <div className="shell view summary">
+      <div className="eyebrow sum-eyebrow">Speed round · 60 seconds</div>
+      <div className="headline">{s.newBest ? "New best today!" : `${score} right`}</div>
+      <div className="speedbig tnum">{score}</div>
+      <div className="stats center">
+        <div>
+          <div className="l">Score</div>
+          <div className="n tnum">{score}</div>
+        </div>
+        <div>
+          <div className="l">Best today</div>
+          <div className="n tnum">{bestToday}</div>
+        </div>
+        <div>
+          <div className="l">XP</div>
+          <div className="n coral tnum">+{s.xp}</div>
+        </div>
+      </div>
+      {hasChest && <Chest s={s} receipt={receipt} />}
+      {claimed && <NewSeals receipt={receipt} />}
+      {claimed && <Milestones s={s} />}
+
+      {missed.length > 0 && (
+        <div className="sec">
+          <div className="eyebrow">Back soon</div>
+          <div className="chips">
+            {missed.map((r) => (
+              <span className="chip" key={r.r}>
+                <Heb>{rootDisplay(r)}</Heb> · {r.short}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        className={"btn block big " + (claimed ? "plum" : "inert")}
+        onClick={() => {
+          if (!start({ kind: "speed" })) showToast("Nothing to study here right now.");
+        }}
+        disabled={!claimed}
+      >
+        Again
+      </button>
+      <button
+        type="button"
+        className="btn text block"
+        style={{ marginTop: 8 }}
+        onClick={() => useSession.getState().leave()}
+      >
+        Home
+      </button>
+    </div>
+  );
 }
 
 /** Level-up and daily-goal cards for milestones this session crossed. */
@@ -254,18 +323,12 @@ function Milestones({ s }: { s: Session }) {
 }
 
 function TestResult({ s }: { s: Session }) {
-  const { start, clear } = useSession.getState();
-  const setView = useUi((st) => st.setView);
-  const openUnit = useUi((st) => st.openUnit);
+  const { start } = useSession.getState();
   const showToast = useUi((st) => st.showToast);
   const unit = s.plan.kind === "test" ? COURSE.byId[s.plan.unit] : COURSE.units[0];
   const score = s.score ?? 0;
   const gold = score >= GOLD_SCORE;
-  const back = () => {
-    clear();
-    setView("path");
-    openUnit(unit.id);
-  };
+  const back = () => useSession.getState().leave();
   return (
     <div className="shell view summary">
       <div className="eyebrow sum-eyebrow">
@@ -348,7 +411,7 @@ function TestResult({ s }: { s: Session }) {
 }
 
 function PlacementResult({ s }: { s: Session }) {
-  const { start, clear } = useSession.getState();
+  const { start } = useSession.getState();
   const setView = useUi((st) => st.setView);
   const placement = useProgress((st) => st.p.placement);
   const unit = placement ? COURSE.byId[placement.startUnit] : COURSE.units[0];
@@ -381,10 +444,7 @@ function PlacementResult({ s }: { s: Session }) {
         className="btn primary block big"
         onClick={() => {
           if (start({ kind: "lesson", unit: unit.id })) setView("play");
-          else {
-            clear();
-            setView("path");
-          }
+          else useSession.getState().leave();
         }}
       >
         Begin the journey
@@ -392,10 +452,7 @@ function PlacementResult({ s }: { s: Session }) {
       <button
         type="button"
         className="btn ghost block"
-        onClick={() => {
-          clear();
-          setView("path");
-        }}
+        onClick={() => useSession.getState().leave()}
       >
         See the path
       </button>
