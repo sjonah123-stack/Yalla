@@ -50,6 +50,7 @@
   --good-deep: #35704f;
   --good-soft: #ddefe4;
   --good-ink: #fff;
+  --hilite: var(--coral-deep);
   --bad: #d2483f;
   --bad-deep: #9e3229;
   --bad-soft: #f8dcd6;
@@ -108,6 +109,9 @@
     --bad: #f07565;
     --bad-deep: #9e3229;
     --bad-soft: #43231f;
+    --good-ink: #1c0f20;
+    --hilite: #ffa38e;
+    --bad-ink: #1c0f20;
     --hero: linear-gradient(180deg, #120810 0%, #2a1630 100%);
     --scrim: rgba(0, 0, 0, 0.6);
     --hairline: rgba(248, 238, 223, 0.1);
@@ -135,6 +139,7 @@
   --good-deep: #35704f;
   --good-soft: #1f3a2c;
   --good-ink: #1c0f20;
+  --hilite: #ffa38e;
   --bad: #f07565;
   --bad-deep: #9e3229;
   --bad-soft: #43231f;

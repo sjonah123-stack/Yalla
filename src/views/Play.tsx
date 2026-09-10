@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type React from "react";
 import { planRules, useSession } from "../store/session";
 import { useFlag, useProgress } from "../store/progress";
@@ -8,6 +8,7 @@ import { mastery } from "../lib/srs";
 import { unitTitle } from "../lib/course";
 import { COURSE } from "../store/course";
 import { speak } from "../lib/speech";
+import { buzz, playCue } from "../lib/sound";
 import { formBadge } from "../lib/quiz";
 import { FLAG_LABEL, isActiveFlag } from "../lib/flags";
 import { SPEED_MISS_MS, SPEED_MS } from "../lib/speed";
@@ -47,7 +48,7 @@ export default function Play() {
         }
         return;
       }
-      if (st.q?.mode === "typeRoot") {
+      if (st.q?.mode === "typeRoot" || st.q?.mode === "typeWord") {
         if (e.key === "Backspace") {
           e.preventDefault();
           typeKey("⌫");
@@ -89,6 +90,16 @@ export default function Play() {
     const t = setTimeout(() => next(), isSpeed && !s0.lastCorrect ? SPEED_MISS_MS : 450);
     return () => clearTimeout(t);
   }, [answered, qi, feedbackEach, isSpeed, next]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // One blip (and a buzz) per answer, right / wrong.
+  const slotIdx = s0?.slot ?? 0;
+  useEffect(() => {
+    if (!answered) return;
+    if (!useProgress.getState().p.settings.sounds) return;
+    const ok = !!useSession.getState().s?.lastCorrect;
+    playCue(ok ? "good" : "bad");
+    buzz(ok ? 12 : [20, 30, 20]);
+  }, [qi, slotIdx, answered]);
 
   if (!s0) return null;
   const s = s0;
@@ -194,7 +205,7 @@ export default function Play() {
       </div>
 
       <div className="answer">
-        {q.mode === "typeRoot" ? <Typing /> : <Tiles />}
+        {q.mode === "typeRoot" || q.mode === "typeWord" ? <Typing /> : <Tiles />}
         {s.answered && feedbackEach && <Sheet />}
       </div>
       {s.learning && <Learn />}
@@ -220,6 +231,29 @@ export default function Play() {
         );
       case "hearWord":
         return <HearPrompt text={q.word!.h} />;
+      case "typeWord":
+        return (
+          <>
+            <HearPrompt text={q.word!.h} />
+            <div className="gloss">{q.word!.g}</div>
+          </>
+        );
+      case "cloze": {
+        const parts = q.sentence!.he.split(q.word!.h);
+        return (
+          <>
+            <div className="cloze" lang="he" dir="rtl">
+              {parts.map((part, i) => (
+                <Fragment key={i}>
+                  {i > 0 && <span className="blank">…</span>}
+                  {wordText(part)}
+                </Fragment>
+              ))}
+            </div>
+            <div className="gloss">{q.sentence!.en}</div>
+          </>
+        );
+      }
       case "buildWord": {
         const badge = formBadge(q.form!);
         return (
@@ -257,7 +291,7 @@ export default function Play() {
     const kind =
       q.mode === "rootMeaning"
         ? "en"
-        : q.mode === "buildWord"
+        : q.mode === "buildWord" || q.mode === "cloze"
           ? "word"
           : q.mode === "whichBinyan"
             ? "binyan"
@@ -367,6 +401,12 @@ export default function Play() {
             <Heb>{wordText(q.word!.h)}</Heb> ({q.word!.g})
           </span>
         );
+      } else if (q.mode === "typeWord" && q.word) {
+        head = (
+          <span>
+            The word is <Heb>{wordText(q.word.h)}</Heb> ({q.word.g})
+          </span>
+        );
       } else {
         head = (
           <span>
@@ -396,6 +436,7 @@ export default function Play() {
           )}
           {root.cat} · mastery {mastery(st)}/5
         </div>
+        {q.mode === "cloze" && q.sentence && q.word && <Example />}
         <WordList words={root.words.slice(0, 6)} compact />
         {root.note && <div className="note">{root.note}</div>}
         <button type="button" className="btn text flag" onClick={() => toggleFlag(flagged)}>
@@ -404,6 +445,25 @@ export default function Play() {
         <button type="button" className="btn primary block" onClick={() => next()} autoFocus>
           {last ? "Finish" : "Next"}
         </button>
+      </div>
+    );
+  }
+
+  /** The cloze sentence in full, the blanked word filled back in. */
+  function Example() {
+    const w = q.word!.h;
+    const parts = q.sentence!.he.split(w);
+    return (
+      <div className="example">
+        <span lang="he" dir="rtl">
+          {parts.map((part, i) => (
+            <Fragment key={i}>
+              {i > 0 && <b>{wordText(w)}</b>}
+              {wordText(part)}
+            </Fragment>
+          ))}
+        </span>
+        <span className="en">{q.sentence!.en}</span>
       </div>
     );
   }

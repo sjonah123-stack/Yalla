@@ -6,6 +6,7 @@ export const FLAG_LABEL: Record<FlagReason, string> = {
   gloss: "Wrong meaning",
   nikud: "Nikud or spelling",
   translit: "Transliteration",
+  audio: "Pronunciation",
   root: "Doesn't belong here",
   other: "Something else",
 };

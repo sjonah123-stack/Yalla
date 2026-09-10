@@ -17,6 +17,7 @@ export interface ConfirmSpec {
 }
 export type BankChip = "all" | "due" | "learning" | "memorized" | "unmet" | "tricky" | "flagged";
 export type ToolView = "flashcards" | "match" | "familysort";
+export type DrillBinyan = "pa'al" | "pi'el" | "hif'il";
 
 interface UiStore {
   view: View;
@@ -25,8 +26,11 @@ interface UiStore {
   trail: ShellView[];
   /** Back on a tab: return to the previous one. */
   popTab: () => void;
-  /** Leave a study tool back to its unit on the path. */
+  /** Leave a study tool back to its unit on the path (the conjugation drill → Patterns). */
   leaveTool: () => void;
+  /** Binyan the conjugation drill is running on. */
+  conjBinyan: DrillBinyan | null;
+  openConjugate: (b: DrillBinyan) => void;
   /** Window scroll offsets per view key (see scrollKey). */
   scrollMemory: Record<string, number>;
   rememberScroll: (key: string, y: number) => void;
@@ -71,12 +75,18 @@ export const useUi = create<UiStore>((set) => ({
       return { trail, view: trail[trail.length - 1], unitSheet: null };
     }),
   leaveTool: () =>
-    set((s) => ({
-      view: "path",
-      trail: pushTrail(s.trail, "path"),
-      unitSheet: s.toolUnit,
-      toolUnit: null,
-    })),
+    set((s) =>
+      s.view === "conjugate"
+        ? { view: "patterns", trail: pushTrail(s.trail, "patterns"), toolUnit: null }
+        : {
+            view: "path",
+            trail: pushTrail(s.trail, "path"),
+            unitSheet: s.toolUnit,
+            toolUnit: null,
+          },
+    ),
+  conjBinyan: null,
+  openConjugate: (conjBinyan) => set({ view: "conjugate", conjBinyan, unitSheet: null }),
   scrollMemory: {},
   rememberScroll: (key, y) =>
     set((s) => (s.scrollMemory[key] === y ? s : { scrollMemory: { ...s.scrollMemory, [key]: y } })),

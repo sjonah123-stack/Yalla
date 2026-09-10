@@ -44,6 +44,10 @@ interface ProgressStore {
   flagRoot: (id: string, why: FlagReason, note?: string) => void;
   /** Clear a flag (kept as a tombstone so the clear survives a merge). */
   unflagRoot: (id: string) => void;
+  /** Word-level exposure from a word-based question. */
+  recordWord: (h: string, correct: boolean) => void;
+  /** The first-run tour was dismissed. */
+  markTour: () => void;
   /** Apply a finished placement; pays skipped-section chests and (first time) the placement bonus. */
   finishPlacement: (answers: readonly PlacementAnswer[]) => Receipt;
   /** Fold a finished or abandoned session into counters, gems and seals. */
@@ -175,6 +179,16 @@ export const useProgress = create<ProgressStore>((set, get) => ({
     const p = get().p;
     const flag = { at: Date.now(), why, ...(note?.trim() ? { note: note.trim() } : {}) };
     set({ p: persist({ ...p, flags: { ...p.flags, [id]: flag } }, set) });
+  },
+  recordWord: (h, correct) => {
+    const p = get().p;
+    const w = p.words[h] ?? { ok: 0, bad: 0 };
+    const next = correct ? { ...w, ok: w.ok + 1 } : { ...w, bad: w.bad + 1 };
+    set({ p: persist({ ...p, words: { ...p.words, [h]: next } }, set) });
+  },
+  markTour: () => {
+    const p = get().p;
+    if (p.tourAt === null) set({ p: persist({ ...p, tourAt: Date.now() }, set) });
   },
   unflagRoot: (id) => {
     const p = get().p;

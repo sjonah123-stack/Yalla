@@ -446,3 +446,24 @@ describe("flags", () => {
     expect(mergeProgress(a, b).history["2026-02-01"].speedBest).toBe(20);
   });
 });
+
+describe("words and tour", () => {
+  it("normalize fills and sanitises word stats, sounds and tourAt", () => {
+    const n = normalize({ v: 3, words: { א: { ok: 2, bad: 1 }, ב: { ok: "x" } }, tourAt: 5 });
+    expect(n.words).toEqual({ א: { ok: 2, bad: 1 } });
+    expect(n.tourAt).toBe(5);
+    expect(n.settings.sounds).toBe(true);
+    expect(normalize({ v: 3 }).tourAt).toBeNull();
+  });
+  it("merges word stats by max and keeps the earliest tour", () => {
+    const a = defaultProgress();
+    const b = defaultProgress();
+    a.words["א"] = { ok: 3, bad: 0 };
+    b.words["א"] = { ok: 1, bad: 2 };
+    b.words["ב"] = { ok: 1, bad: 0 };
+    a.tourAt = 9;
+    const m = mergeProgress(a, b);
+    expect(m.words).toEqual({ א: { ok: 3, bad: 2 }, ב: { ok: 1, bad: 0 } });
+    expect(m.tourAt).toBe(9);
+  });
+});

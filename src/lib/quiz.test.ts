@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { canBuildWord, makeQuestion, modeFor, similarRoots, xpFor, verbForms } from "./quiz";
+import {
+  canBuildWord,
+  canCloze,
+  makeQuestion,
+  modeFor,
+  pickWord,
+  similarRoots,
+  xpFor,
+  verbForms,
+} from "./quiz";
+import { normLetters } from "./hebrew";
 import type { Root } from "../types";
 import { rootLetters } from "./hebrew";
 import { ROOTS } from "../data/roots";
@@ -107,5 +117,39 @@ describe("xpFor", () => {
     expect(xpFor("rootMeaning", 6, true)).toBe(20);
     expect(xpFor("typeRoot", 0, false)).toBe(10);
     expect(xpFor("buildWord", 0, true)).toBe(20);
+  });
+});
+
+describe("typeWord, cloze and known words", () => {
+  it("typeWord asks for the word's letters with finals normalised", () => {
+    const q = makeQuestion(byId("כתב"), ROOTS, "typeWord");
+    expect(q.answer).toBe(normLetters(q.word!.h));
+    expect(q.answer).not.toMatch(/[ְ-ׇ]/);
+  });
+  it("cloze only when a sentence exists, and then the sentence contains the word", () => {
+    const r = ROOTS.find(canCloze);
+    for (let i = 0; i < 50; i++) {
+      const m = modeFor(byId("כתב"), 5, { audio: true });
+      if (!canCloze(byId("כתב"))) expect(m).not.toBe("cloze");
+    }
+    if (r) {
+      const q = makeQuestion(r, ROOTS, "cloze");
+      expect(q.sentence!.he).toContain(q.word!.h);
+      expect(q.opts!.filter((o) => o.ok)).toHaveLength(1);
+      expect(q.opts).toHaveLength(4);
+    }
+  });
+  it("pickWord prefers words not yet known", () => {
+    const r = byId("כתב");
+    const known = new Set(r.words.slice(1).map((w) => w.h));
+    for (let i = 0; i < 20; i++) expect(pickWord(r, known)).toBe(r.words[0]);
+    const all = new Set(r.words.map((w) => w.h));
+    expect(r.words).toContain(pickWord(r, all));
+  });
+  it("quick and no-audio contexts never offer typeWord", () => {
+    for (let i = 0; i < 50; i++) {
+      expect(modeFor(byId("כתב"), 5, { audio: false })).not.toBe("typeWord");
+      expect(modeFor(byId("כתב"), 5, { audio: true, quick: true })).not.toBe("typeWord");
+    }
   });
 });

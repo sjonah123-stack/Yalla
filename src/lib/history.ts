@@ -35,7 +35,7 @@ export type Layer =
   | { kind: "play" }
   | { kind: "confirm" };
 
-export const TOOL_VIEWS: readonly View[] = ["flashcards", "match", "familysort"];
+export const TOOL_VIEWS: readonly View[] = ["flashcards", "match", "familysort", "conjugate"];
 
 /**
  * Everything the back gesture can close, bottom to top. Mirrors App.tsx's render order:
@@ -48,7 +48,8 @@ export function layerStack(s: NavState): Layer[] {
   if (!s.onboarded && !play) return s.confirmOpen ? [{ kind: "confirm" }] : [];
   for (const v of s.trail.slice(1)) out.push({ kind: "tab", view: v });
   if (play) out.push({ kind: "play" });
-  else if (TOOL_VIEWS.includes(s.view) && s.toolUnit) out.push({ kind: "tool", view: s.view });
+  else if (TOOL_VIEWS.includes(s.view) && (s.toolUnit || s.view === "conjugate"))
+    out.push({ kind: "tool", view: s.view });
   else if (isShellView(s.view)) {
     if (s.unitSheet) out.push({ kind: "unit" });
     if (s.settingsOpen) out.push({ kind: "settings" });

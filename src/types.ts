@@ -29,6 +29,12 @@ export interface Word {
   b: Form;
 }
 
+/** An example sentence for one vocalized word; `he` contains the word verbatim. */
+export interface Sentence {
+  he: string;
+  en: string;
+}
+
 export interface Root {
   /** Root letters; a trailing digit distinguishes homographs (שכר2). */
   r: string;
@@ -75,6 +81,14 @@ export interface Settings {
   learnFirst: boolean;
   theme: "system" | "light" | "dark";
   dailyGoal: DailyGoal;
+  /** Answer blips and chest jingle (and vibration where the platform allows). */
+  sounds: boolean;
+}
+
+/** Per-word exposure, keyed by the vocalized word. */
+export interface WordStat {
+  ok: number;
+  bad: number;
 }
 
 /** Sticky per-unit facts that cannot be derived from root state. */
@@ -116,7 +130,7 @@ export type SealId =
   | "speed-20";
 
 /** Why a learner flagged a root for review. */
-export type FlagReason = "gloss" | "nikud" | "translit" | "root" | "other";
+export type FlagReason = "gloss" | "nikud" | "translit" | "audio" | "root" | "other";
 export interface RootFlag {
   at: number;
   why: FlagReason;
@@ -135,7 +149,8 @@ export type View =
   | "progress"
   | "flashcards"
   | "match"
-  | "familysort";
+  | "familysort"
+  | "conjugate";
 
 export interface Progress {
   v: 3;
@@ -167,6 +182,10 @@ export interface Progress {
   resetAt: number;
   /** Root id → review flag (content feedback). Cleared flags stay as tombstones. */
   flags: Record<string, RootFlag>;
+  /** Vocalized word → how it fared in word-based questions. */
+  words: Record<string, WordStat>;
+  /** When the first-run tour was dismissed (null = not yet). */
+  tourAt: number | null;
 }
 
 export type Mode =
@@ -175,6 +194,8 @@ export type Mode =
   | "wordRoot"
   | "buildWord"
   | "typeRoot"
+  | "typeWord"
+  | "cloze"
   | "hearWord"
   | "whichBinyan";
 
@@ -201,4 +222,6 @@ export interface Question {
   binyan?: Binyan;
   /** For buildWord: the form asked for. */
   form?: Form;
+  /** For cloze: the example sentence the word was blanked from. */
+  sentence?: Sentence;
 }

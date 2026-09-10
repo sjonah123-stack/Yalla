@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useSession, type Session } from "../store/session";
 import { useUi } from "../store/ui";
 import { useProgress } from "../store/progress";
@@ -6,6 +7,8 @@ import { ROOTS, ROOT_BY_ID } from "../data/roots";
 import { rootDisplay } from "../lib/hebrew";
 import { crossings, dayKey, levelCeil } from "../lib/srs";
 import { speedBestToday } from "../lib/speed";
+import { planLabel } from "../lib/plan";
+import { playCue } from "../lib/sound";
 import { Heb } from "../components/Heb";
 import { GOLD_SCORE, memorizedCount, unitTitle } from "../lib/course";
 import { MODE_TITLE } from "../lib/quiz";
@@ -21,8 +24,42 @@ import {
 import { useCountUp } from "../components/useCountUp";
 import type { Question } from "../types";
 
+/** The little fanfare when a summary appears — once per mount, never twice. */
+function useDoneCue() {
+  const played = useRef(false);
+  useEffect(() => {
+    if (played.current) return;
+    played.current = true;
+    if (useProgress.getState().p.settings.sounds) playCue("done");
+  }, []);
+}
+
+/**
+ * The primary exit: when today's session has more steps, it starts the next one instead of
+ * going home.
+ */
+function useChainExit(fallback: string) {
+  const chain = useSession((st) => st.chain);
+  const go = () => {
+    if (chain.length > 0 && useSession.getState().nextInChain()) return;
+    useSession.getState().leave();
+  };
+  return { chain, label: chain.length > 0 ? `Next: ${planLabel(chain[0])}` : fallback, go };
+}
+
+/** "Today's session · 2 steps to go", under the headline of a chained summary. */
+function ChainNote({ chain }: { chain: readonly unknown[] }) {
+  if (!chain.length) return null;
+  return (
+    <div className="small muted">
+      Today's session · {chain.length} step{chain.length === 1 ? "" : "s"} to go
+    </div>
+  );
+}
+
 export default function Summary() {
   const s = useSession((st) => st.s)!;
+  useDoneCue();
   if (s.plan.kind === "test") return <TestResult s={s} />;
   if (s.plan.kind === "placement") return <PlacementResult s={s} />;
   if (s.plan.kind === "speed") return <SpeedResult s={s} />;
@@ -53,6 +90,10 @@ function Stats({ xp, acc, best }: { xp: number; acc: number; best: number }) {
 function Chest({ s, receipt }: { s: Session; receipt: Receipt }) {
   const claimChest = useSession((st) => st.claimChest);
   const open = s.chestClaimed;
+  const openChest = () => {
+    if (useProgress.getState().p.settings.sounds) playCue("chest");
+    claimChest();
+  };
   const parts: string[] = [];
   if (receipt.parts.base) parts.push(`Session +${receipt.parts.base}`);
   if (receipt.parts.perfect) parts.push(`Perfect bonus +${GEM_PERFECT}`);
@@ -75,7 +116,7 @@ function Chest({ s, receipt }: { s: Session; receipt: Receipt }) {
         <button
           type="button"
           className="chest3d closed"
-          onClick={claimChest}
+          onClick={openChest}
           aria-label="Open the chest"
           autoFocus
         >
@@ -140,7 +181,7 @@ function LessonSummary({ s }: { s: Session }) {
         : "Every miss is a root coming back.";
   const hasChest = !!receipt && receipt.gems > 0;
   const claimed = !hasChest || s.chestClaimed;
-  const home = () => useSession.getState().leave();
+  const exit = useChainExit("Continue");
 
   return (
     <div className="shell view summary">
@@ -152,6 +193,7 @@ function LessonSummary({ s }: { s: Session }) {
             : "Practice complete"}
       </div>
       <div className="headline">{headline}</div>
+      <ChainNote chain={exit.chain} />
       <Stats xp={s.xp} acc={acc} best={s.best} />
       {hasChest && <Chest s={s} receipt={receipt} />}
       {claimed && <NewSeals receipt={receipt} />}
@@ -192,10 +234,10 @@ function LessonSummary({ s }: { s: Session }) {
       <button
         type="button"
         className={"btn block big " + (claimed ? "plum" : "inert")}
-        onClick={home}
+        onClick={exit.go}
         disabled={!claimed}
       >
-        Continue
+        {exit.label}
       </button>
       <button
         type="button"
@@ -213,8 +255,9 @@ function LessonSummary({ s }: { s: Session }) {
 
 /** The answer a question wanted, as a short label. */
 function correctLabel(q: Pick<Question, "mode" | "root" | "word">): string {
-  // Results don't keep the word, so the word builder falls back to the root.
-  if (q.mode === "buildWord") return q.word?.h ?? rootDisplay(q.root);
+  // Results don't keep the word, so the word-based modes fall back to the root.
+  if (q.mode === "buildWord" || q.mode === "typeWord" || q.mode === "cloze")
+    return q.word?.h ?? rootDisplay(q.root);
   return q.mode === "rootMeaning" ? q.root.short : rootDisplay(q.root);
 }
 
@@ -229,10 +272,12 @@ function SpeedResult({ s }: { s: Session }) {
   const receipt = s.rewards;
   const hasChest = !!receipt && receipt.gems > 0;
   const claimed = !hasChest || s.chestClaimed;
+  const exit = useChainExit("Home");
   return (
     <div className="shell view summary">
       <div className="eyebrow sum-eyebrow">Speed round · 60 seconds</div>
       <div className="headline">{s.newBest ? "New best today!" : `${score} right`}</div>
+      <ChainNote chain={exit.chain} />
       <div className="speedbig tnum">{score}</div>
       <div className="stats center">
         <div>
@@ -275,13 +320,8 @@ function SpeedResult({ s }: { s: Session }) {
       >
         Again
       </button>
-      <button
-        type="button"
-        className="btn text block"
-        style={{ marginTop: 8 }}
-        onClick={() => useSession.getState().leave()}
-      >
-        Home
+      <button type="button" className="btn text block" style={{ marginTop: 8 }} onClick={exit.go}>
+        {exit.label}
       </button>
     </div>
   );
@@ -328,7 +368,7 @@ function TestResult({ s }: { s: Session }) {
   const unit = s.plan.kind === "test" ? COURSE.byId[s.plan.unit] : COURSE.units[0];
   const score = s.score ?? 0;
   const gold = score >= GOLD_SCORE;
-  const back = () => useSession.getState().leave();
+  const exit = useChainExit("Back to unit");
   return (
     <div className="shell view summary">
       <div className="eyebrow sum-eyebrow">
@@ -341,6 +381,7 @@ function TestResult({ s }: { s: Session }) {
             : "Still gold. יופי!"
           : `${GOLD_SCORE}% turns it gold.`}
       </div>
+      <ChainNote chain={exit.chain} />
       <div className="stats center">
         <div>
           <div className="l">Score</div>
@@ -393,8 +434,8 @@ function TestResult({ s }: { s: Session }) {
           })}
         </ul>
       </div>
-      <button type="button" className="btn block big plum" onClick={back}>
-        Back to unit
+      <button type="button" className="btn block big plum" onClick={exit.go}>
+        {exit.label}
       </button>
       <button
         type="button"

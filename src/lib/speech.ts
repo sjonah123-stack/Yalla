@@ -1,5 +1,3 @@
-import { stripNikud } from "./hebrew";
-
 let voice: SpeechSynthesisVoice | null = null;
 let ready: Promise<boolean> | null = null;
 
@@ -41,12 +39,17 @@ export function initSpeech(): Promise<boolean> {
 
 export const speechAvailable = (): boolean => !!voice;
 
-/** Speak vocalized Hebrew. Nikud is stripped — diacritics confuse most engines. */
+/**
+ * Speak vocalized Hebrew. The nikud is kept: unpointed Hebrew is ambiguous and the system
+ * voices (Apple's Carmit, Google's) read the vowel points when present. Cantillation marks
+ * would only confuse them, so those are dropped.
+ */
+const CANTILLATION = /[\u0591-\u05AF\u05BD\u05BF\u05C0\u05C3-\u05C6]/g;
 export function speak(text: string, rate = 0.85): void {
   if (!voice) return;
   const synth = window.speechSynthesis;
   synth.cancel();
-  const u = new SpeechSynthesisUtterance(stripNikud(text));
+  const u = new SpeechSynthesisUtterance(text.replace(CANTILLATION, ""));
   u.voice = voice;
   u.lang = voice.lang;
   u.rate = rate;

@@ -15,12 +15,13 @@ import {
   trickyRoots,
 } from "../lib/srs";
 import { speedBestToday } from "../lib/speed";
-import { rootDisplay, rootLetters } from "../lib/hebrew";
+import { rootLetters } from "../lib/hebrew";
+import { dailyPlan, planLabel } from "../lib/plan";
 import { SECTION_BY_CAT } from "../data/course";
 import { SEALS } from "../lib/rewards";
 import { GoalRing } from "../components/GoalRing";
-import { Heb } from "../components/Heb";
 import { IconGear } from "../components/Icons";
+import { Tour } from "../components/Tour";
 import { streakNudge } from "../lib/labels";
 import { CANONICAL_HOST, LEGACY_HOSTS, movedUrl } from "../lib/site";
 import { useCloud } from "../store/cloud";
@@ -36,6 +37,7 @@ export default function Home() {
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const openUnit = useUi((s) => s.openUnit);
   const start = useSession((s) => s.start);
+  const startChain = useSession((s) => s.startChain);
   const now = Date.now();
   const mem = memorizedCount(ROOTS, p);
   const cur = currentUnit(COURSE, p);
@@ -56,6 +58,8 @@ export default function Home() {
   const tricky = trickyRoots(ROOTS, p);
   const speedBest = speedBestToday(p.history, dayKey());
   const cats = p.settings.cats;
+  const plan = dailyPlan(ROOTS, COURSE, p, now);
+  const tourDue = p.onboardedAt !== null && p.tourAt === null;
 
   const go = (plan: Plan) => {
     if (start(plan)) setView("play");
@@ -157,6 +161,18 @@ export default function Home() {
             ›
           </span>
         </button>
+        {plan.length > 1 && (
+          <button
+            type="button"
+            className="btn plum block big plan"
+            onClick={() => {
+              if (startChain(plan)) setView("play");
+              else showToast("Nothing to study right now.");
+            }}
+          >
+            Today's session · {plan.map(planLabel).join(" → ")}
+          </button>
+        )}
         <div className="quick">
           <button type="button" onClick={() => go({ kind: "practice" })}>
             <span className="ic coral" aria-hidden="true">
@@ -184,51 +200,39 @@ export default function Home() {
             </span>
           </button>
         </div>
-        {tricky.length > 0 && (
-          <section className="block" style={{ marginTop: 12 }}>
-            <div className="row between">
-              <div className="eyebrow">Tricky roots</div>
-              <span className="small muted tnum">{tricky.length}</span>
-            </div>
-            <div className="chips">
-              {tricky.slice(0, 6).map((r) => (
-                <span className="chip" key={r.r}>
-                  <Heb>{rootDisplay(r)}</Heb> · {r.short}
+        {(tricky.length > 0 || anySeen) && (
+          <div className="extras">
+            {tricky.length > 0 && (
+              <button
+                type="button"
+                className="extra"
+                onClick={() => go({ kind: "practice", focus: "tricky" })}
+              >
+                <span className="ic coral" aria-hidden="true">
+                  !
                 </span>
-              ))}
-              {tricky.length > 6 && <span className="chip">+{tricky.length - 6} more</span>}
-            </div>
-            <button
-              type="button"
-              className="btn plum block"
-              style={{ marginTop: 12 }}
-              onClick={() => go({ kind: "practice", focus: "tricky" })}
-            >
-              Drill them
-            </button>
-          </section>
-        )}
-        {anySeen && (
-          <section className="block" style={{ marginTop: 12 }}>
-            <div className="eyebrow">Speed round</div>
-            <p className="small muted" style={{ marginTop: 6 }}>
-              {speedBest > 0 ? (
-                <>
-                  best today <span className="tnum">{speedBest}</span>
-                </>
-              ) : (
-                "no round yet today"
-              )}
-            </p>
-            <button
-              type="button"
-              className="btn plum block"
-              style={{ marginTop: 12 }}
-              onClick={() => go({ kind: "speed" })}
-            >
-              Go · 60 seconds
-            </button>
-          </section>
+                Tricky roots
+                <span className="s tnum">{tricky.length} to drill</span>
+              </button>
+            )}
+            {anySeen && (
+              <button type="button" className="extra" onClick={() => go({ kind: "speed" })}>
+                <span className="ic gold" aria-hidden="true">
+                  ⚡
+                </span>
+                Speed round
+                <span className="s">
+                  {speedBest > 0 ? (
+                    <>
+                      best today <span className="tnum">{speedBest}</span>
+                    </>
+                  ) : (
+                    "60 seconds"
+                  )}
+                </span>
+              </button>
+            )}
+          </div>
         )}
         {fresh && (
           <section className="block gold placepitch">
@@ -297,6 +301,7 @@ export default function Home() {
           </section>
         )}
       </div>
+      {tourDue && <Tour />}
     </>
   );
 }

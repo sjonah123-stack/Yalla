@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { Mode, Question, Root, UnitId } from "../types";
 import { ROOTS } from "../data/roots";
 import { buildQueue, dayKey, mastery, seen, trickyQueue } from "../lib/srs";
+import { knownWords } from "../lib/words";
 import { makeQuestion, modeFor, xpFor } from "../lib/quiz";
 import { buildLesson, buildTest, testScore } from "../lib/lesson";
 import { placementSample } from "../lib/placement";
@@ -96,7 +97,13 @@ export interface Session {
 
 interface SessionStore {
   s: Session | null;
+  /** Plans still to run after the current one (the daily plan). */
+  chain: Plan[];
   start: (plan: Plan) => boolean;
+  /** Run several plans back to back; the summary's Continue starts the next. */
+  startChain: (plans: Plan[]) => boolean;
+  /** Start the next plan in the chain; false when the chain is empty or nothing can start. */
+  nextInChain: () => boolean;
   dismissLearn: () => void;
   pickOption: (i: number) => void;
   typeKey: (k: string) => void;
@@ -126,8 +133,9 @@ function question(s: Session, root: Root, slot: number): Question {
   else
     mode = modeFor(root, mastery(prog.roots[root.r]), {
       audio: speechAvailable() && prog.settings.audio,
+      known: knownWords(prog),
     });
-  return makeQuestion(root, ROOTS, mode);
+  return makeQuestion(root, ROOTS, mode, knownWords(prog));
 }
 
 function load(s: Session): Session {
@@ -241,6 +249,22 @@ function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[] } {
 
 export const useSession = create<SessionStore>((set, get) => ({
   s: null,
+  chain: [],
+  startChain: (plans) => {
+    const [first, ...rest] = plans;
+    if (!first) return false;
+    set({ chain: rest });
+    if (get().start(first)) return true;
+    return get().nextInChain();
+  },
+  nextInChain: () => {
+    for (;;) {
+      const [next, ...rest] = get().chain;
+      if (!next) return false;
+      set({ chain: rest });
+      if (get().start(next)) return true;
+    }
+  },
   start: (plan) => {
     const { slots, modes } = buildSlots(plan);
     if (!slots.length) return false;
@@ -293,7 +317,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
   typeKey: (k) => {
     const s = get().s;
-    if (!s || s.q?.mode !== "typeRoot" || s.answered) return;
+    if (!s || (s.q?.mode !== "typeRoot" && s.q?.mode !== "typeWord") || s.answered) return;
     const L = s.q.answer!.length;
     if (k === "⌫") return set({ s: { ...s, typed: s.typed.slice(0, -1) } });
     if (s.typed.length >= L) return;
@@ -304,7 +328,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
   submitTyped: () => {
     const s = get().s;
-    if (!s || s.q?.mode !== "typeRoot" || s.answered) return;
+    if (!s || (s.q?.mode !== "typeRoot" && s.q?.mode !== "typeWord") || s.answered) return;
     if (s.typed.length === s.q.answer!.length)
       answer(s, s.typed.join("") === s.q.answer, null, s.typed.join(""), set);
   },
@@ -355,7 +379,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   leave: () => {
     const s = get().s;
     const exit = summaryExit(s ? s.plan : { kind: "practice" });
-    set({ s: null });
+    set({ s: null, chain: [] });
     const ui = useUi.getState();
     ui.setView(exit.view);
     if (exit.unit) ui.openUnit(exit.unit);
@@ -364,7 +388,7 @@ export const useSession = create<SessionStore>((set, get) => ({
     const s = get().s;
     if (s && s.done && !s.chestClaimed) set({ s: { ...s, chestClaimed: true } });
   },
-  clear: () => set({ s: null }),
+  clear: () => set({ s: null, chain: [] }),
 }));
 
 function answer(
@@ -385,6 +409,7 @@ function answer(
   const combo = correct ? s.combo + 1 : 0;
   const xp = correct && rules.xp ? xpFor(q.mode, combo, srsFirst) : 0;
   if (rules.writesSrs) prog.recordAnswer(id, correct, srsFirst, xp);
+  if (rules.writesSrs && q.word && q.mode !== "typeRoot") prog.recordWord(q.word.h, correct);
 
   const ticks = s.ticks.slice();
   const queue = s.queue.slice();

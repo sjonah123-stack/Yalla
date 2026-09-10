@@ -18,6 +18,7 @@ import UnitSheet from "./views/Unit";
 import Flashcards from "./views/Flashcards";
 import Match from "./views/Match";
 import FamilySort from "./views/FamilySort";
+import Conjugate from "./views/Conjugate";
 import { ScrollMemory } from "./components/ScrollMemory";
 import Welcome from "./views/Welcome";
 import { ConfirmSheet } from "./components/ConfirmSheet";
@@ -39,6 +40,7 @@ export default function App() {
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const unitSheet = useUi((s) => s.unitSheet);
   const toolUnit = useUi((s) => s.toolUnit);
+  const conjBinyan = useUi((s) => s.conjBinyan);
   const theme = useProgress((s) => s.p.settings.theme);
   const onboardedAt = useProgress((s) => s.p.onboardedAt);
   const session = useSession((s) => s.s);
@@ -88,6 +90,7 @@ export default function App() {
   if (view === "flashcards" && toolUnit) return <Flashcards unitId={toolUnit} />;
   if (view === "match" && toolUnit) return <Match unitId={toolUnit} />;
   if (view === "familysort" && toolUnit) return <FamilySort unitId={toolUnit} />;
+  if (view === "conjugate" && conjBinyan) return <Conjugate binyan={conjBinyan} />;
   // A tool/play view with nothing to show (e.g. after a reload) falls back to the path.
   const shown: View = ["home", "path", "bank", "patterns", "progress"].includes(view)
     ? view

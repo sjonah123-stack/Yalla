@@ -7,6 +7,7 @@ import type {
   UnitRecord,
   FlagReason,
   RootFlag,
+  WordStat,
 } from "../types";
 import { SECTIONS, UNIT_IDS } from "../data/course";
 import { SEAL_IDS } from "./rewards";
@@ -24,6 +25,7 @@ export const defaultSettings = (): Settings => ({
   learnFirst: true,
   theme: "system",
   dailyGoal: 50,
+  sounds: true,
 });
 
 export const defaultProgress = (): Progress => ({
@@ -47,9 +49,24 @@ export const defaultProgress = (): Progress => ({
   onboardedAt: null,
   resetAt: 0,
   flags: {},
+  words: {},
+  tourAt: null,
 });
 
-const FLAG_REASONS = new Set(["gloss", "nikud", "translit", "root", "other"]);
+/** Keep only word stats with numeric counts. */
+function wordMap(raw: unknown): Record<string, WordStat> {
+  const out: Record<string, WordStat> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [h, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!v || typeof v !== "object") continue;
+    const w = v as Partial<WordStat>;
+    if (typeof w.ok !== "number" || typeof w.bad !== "number") continue;
+    out[h] = { ok: count(w.ok), bad: count(w.bad) };
+  }
+  return out;
+}
+
+const FLAG_REASONS = new Set(["gloss", "nikud", "translit", "audio", "root", "other"]);
 export const FLAG_NOTE_MAX = 140;
 
 /** Keep only well-formed flags: numeric `at`, known reason, clamped note, optional cleared. */
@@ -106,6 +123,7 @@ export function normalize(raw: unknown): Progress {
   };
   delete settings.newPerSession;
   if (![20, 50, 100].includes(settings.dailyGoal)) settings.dailyGoal = 50;
+  if (typeof settings.sounds !== "boolean") settings.sounds = true;
   const units: Record<string, UnitRecord> = {};
   if (r.units && typeof r.units === "object")
     for (const [id, rec] of Object.entries(r.units))
@@ -146,6 +164,8 @@ export function normalize(raw: unknown): Progress {
     onboardedAt,
     resetAt: count(r.resetAt),
     flags: flagMap(r.flags),
+    words: wordMap(r.words),
+    tourAt: typeof r.tourAt === "number" ? r.tourAt : null,
   };
 }
 
@@ -242,6 +262,12 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     const f = mergeFlag(a.flags[id], b.flags[id]);
     if (f) flags[id] = { ...f };
   }
+  const words: Record<string, WordStat> = {};
+  for (const h of new Set([...Object.keys(a.words), ...Object.keys(b.words)])) {
+    const x = a.words[h];
+    const y = b.words[h];
+    words[h] = { ok: Math.max(x?.ok ?? 0, y?.ok ?? 0), bad: Math.max(x?.bad ?? 0, y?.bad ?? 0) };
+  }
   return {
     v: 3,
     xp: Math.max(a.xp, b.xp),
@@ -268,6 +294,8 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
           : Math.min(a.onboardedAt, b.onboardedAt),
     resetAt: a.resetAt,
     flags,
+    words,
+    tourAt: minDef(a.tourAt ?? undefined, b.tourAt ?? undefined) ?? null,
   };
 }
 

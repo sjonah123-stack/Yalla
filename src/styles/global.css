@@ -716,6 +716,41 @@ button.chip {
   font-size: 24px;
 }
 
+/* Example sentence: one usage line for a word — in the feedback sheet, in the unit sheet,
+   or tucked under a word row. Stone tile, vocalized Hebrew over its English, target in coral.
+   Left unscoped so it reads the same wherever a view drops it. */
+.example {
+  margin: 8px 0 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--stone);
+  font-size: 15px;
+  line-height: 1.5;
+}
+/* `.words .w` is a two-column grid (Hebrew | gloss); the example spans both and sits under
+   the row it belongs to. A `.words > .example` sibling spans the single-column list the same way. */
+.words .example {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.example span[lang="he"] {
+  display: block;
+  font-family: var(--font-heb);
+  font-size: 18px;
+  direction: rtl;
+  unicode-bidi: isolate;
+  text-align: right;
+}
+.example span[lang="he"] b {
+  color: var(--hilite);
+}
+.example .en {
+  display: block;
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 2px;
+}
+
 /* Speaker button */
 .spk {
   position: relative;
@@ -1046,20 +1081,72 @@ button.chip {
   transform: translateY(3px);
   box-shadow: 0 2px 0 var(--clay);
 }
-.quick button .ic {
+.quick button .ic,
+.extras .extra .ic {
   font-size: 18px;
   line-height: 1;
 }
-.quick button .ic.coral {
+.quick button .ic.coral,
+.extras .extra .ic.coral {
   color: var(--coral-deep);
 }
-.quick button .ic.gold {
+.quick button .ic.gold,
+.extras .extra .ic.gold {
   color: var(--gold-deep);
 }
-.quick button .ic.plum {
+.quick button .ic.plum,
+.extras .extra .ic.plum {
   color: var(--plum);
 }
 .quick button .s {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+/* Today's session: one wide button under the CTA. Its label spells the whole plan
+   ("Review → Tricky roots → Lesson"), so it wraps instead of riding on one line. */
+.btn.plan {
+  margin-top: 10px;
+  font-size: 15px;
+  white-space: normal;
+  line-height: 1.25;
+  padding: 14px 16px;
+  text-align: center;
+}
+/* The optional extras under the plan: two cards across, one full width when it is alone.
+   Same paper-and-drop card as `.quick`, but left-aligned with a title over a caption. */
+.extras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 12px;
+}
+.extras > :only-child {
+  grid-column: 1 / -1;
+}
+.extras .extra {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  background: var(--paper);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: 0 5px 0 var(--clay);
+  font-weight: 800;
+  font-size: 15px;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.extras .extra:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--clay);
+}
+.extras .extra .t {
+  font-weight: 800;
+}
+.extras .extra .s {
   font-size: 12px;
   font-weight: 600;
   color: var(--ink-3);
@@ -1363,6 +1450,9 @@ button.chip {
   width: 100%;
   max-width: var(--shell-w);
   margin: 0 auto;
+  /* Grid items default to min-width: auto, which lets a wide answer row (seven dictation
+     slots) push the column past the screen. Let the row shrink instead. */
+  min-width: 0;
 }
 .rail {
   display: flex;
@@ -1504,6 +1594,28 @@ button.chip {
   font-size: var(--t-small);
   color: var(--ink-3);
   margin-top: var(--s3);
+}
+
+/* Cloze prompt: a vocalized sentence with one word knocked out. The blank's coral underline
+   is drawn as an inset shadow — the look stays borderless. */
+.cloze {
+  font-family: var(--font-heb);
+  font-size: 26px;
+  line-height: 1.5;
+  text-align: center;
+  direction: rtl;
+  unicode-bidi: isolate;
+  padding: 0 8px;
+}
+.cloze .blank {
+  display: inline-block;
+  min-width: 3.2em;
+  vertical-align: baseline;
+  margin: 0 0.25em;
+  box-shadow: inset 0 -3px 0 var(--coral);
+}
+.stage .cloze + .gloss {
+  margin-top: 10px;
 }
 
 /* Word builder: the form (binyan / pattern) as an inline paper chip under the hero glyph.
@@ -1665,6 +1777,24 @@ button.chip {
   background: var(--bad);
   color: var(--bad-ink);
   box-shadow: none;
+}
+/* Dictation types whole words, not just three-letter roots. Three and four slots keep the
+   64px tile; from five on the row flexes down so seven letters still fit a 402px screen
+   (7 × 46 + 6 × 8 = 370, and `flex: 1 1 0` trims the last few px on narrower phones). */
+.slots:has(.slot:nth-child(5)) {
+  gap: 8px;
+}
+.slots:has(.slot:nth-child(5)) .slot {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 56px;
+  height: 68px;
+  font-size: 34px;
+}
+.slots:has(.slot:nth-child(7)) .slot {
+  max-width: 46px;
+  height: 62px;
+  font-size: 28px;
 }
 .kb {
   display: grid;
@@ -2737,6 +2867,57 @@ button.chip {
   margin-top: 20px;
 }
 
+/* Tour: the same sheet, carrying one step at a time. It sits above the settings modal (40)
+   and below the confirm sheet (50), so a confirm raised from the tour still lands on top. */
+.modal.tour {
+  z-index: 45;
+}
+.panel.tour .step-icon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.panel.tour h2 {
+  font-size: 26px;
+  margin-top: 4px;
+}
+.panel.tour p {
+  margin-top: 10px;
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+/* Progress pips: the current step stretches into a plum lozenge. */
+.panel.tour .dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 18px 0;
+}
+.panel.tour .dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--stone-2);
+  transition:
+    width var(--dur) var(--ease),
+    background var(--dur);
+}
+.panel.tour .dots i.on {
+  width: 22px;
+  border-radius: var(--r-full);
+  background: var(--plum);
+}
+.panel.tour .actions {
+  display: grid;
+  gap: 10px;
+}
+/* Same rhythm when the step stacks its buttons straight into the panel. */
+.panel.tour > .btn {
+  width: 100%;
+  margin-top: 10px;
+}
+
 /* Unit sheet */
 .usheet h2 {
   font-size: 32px;
@@ -3235,7 +3416,8 @@ button.chip {
     var(--ring),
     0 8px 0 var(--coral-deep);
 }
-.quick button:focus-visible {
+.quick button:focus-visible,
+.extras .extra:focus-visible {
   box-shadow:
     var(--ring),
     0 5px 0 var(--clay);
@@ -3289,4 +3471,40 @@ button.chip {
   .xpfloat {
     display: none;
   }
+}
+
+/* ---------- Known words + conjugation drill ---------- */
+.words .known {
+  display: inline-block;
+  margin-inline-start: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--gold);
+  vertical-align: middle;
+}
+.conj-q {
+  text-align: center;
+  padding: 18px 0 8px;
+}
+.conj-q .glyph.hero {
+  margin: 8px auto 4px;
+}
+.conj-who {
+  margin-top: 10px;
+  font-family: var(--font-heb);
+  font-size: 22px;
+  color: var(--plum);
+}
+.conj-opts {
+  margin-top: 14px;
+}
+.conj-after {
+  margin-top: 14px;
+}
+.conj-after .heb.big {
+  font-family: var(--font-heb);
+  font-size: 28px;
+}
+.conj-after .btn {
+  margin-top: 12px;
 }

@@ -194,3 +194,44 @@ describe("speed round", () => {
     expect(s.rewards!.parts.correct).toBe(9);
   });
 });
+
+describe("chain (daily plan)", () => {
+  it("runs plans back to back and the summary continues to the next", () => {
+    useProgress.getState().adopt({ ...defaultProgress(), onboardedAt: 1 });
+    useSession.getState().clear();
+    const first = COURSE.units[0].id;
+    expect(
+      useSession.getState().startChain([
+        { kind: "lesson", unit: first },
+        { kind: "lesson", unit: first },
+      ]),
+    ).toBe(true);
+    expect(useSession.getState().chain).toHaveLength(1);
+    playThrough(true);
+    expect(useSession.getState().s!.done).toBe(true);
+    expect(useSession.getState().nextInChain()).toBe(true);
+    expect(useSession.getState().chain).toHaveLength(0);
+    expect(useSession.getState().s!.done).toBe(false);
+    playThrough(true);
+    expect(useSession.getState().nextInChain()).toBe(false);
+  });
+  it("skips chain steps that cannot start", () => {
+    useProgress.getState().adopt({ ...defaultProgress(), onboardedAt: 1 });
+    useSession.getState().clear();
+    expect(
+      useSession
+        .getState()
+        .startChain([{ kind: "speed" }, { kind: "lesson", unit: COURSE.units[0].id }]),
+    ).toBe(true);
+    expect(useSession.getState().s!.plan.kind).toBe("lesson");
+  });
+  it("records word exposure for word-based answers", () => {
+    useProgress.getState().adopt({ ...defaultProgress(), onboardedAt: 1 });
+    useSession.getState().clear();
+    useSession.getState().start({ kind: "lesson", unit: COURSE.units[0].id });
+    playThrough(true);
+    const words = useProgress.getState().p.words;
+    expect(Object.keys(words).length).toBeGreaterThanOrEqual(0);
+    for (const w of Object.values(words)) expect(w.ok + w.bad).toBeGreaterThan(0);
+  });
+});

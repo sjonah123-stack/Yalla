@@ -131,6 +131,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
             <Seg value={st.audio} options={ON_OFF} onChange={(v) => bool("audio", v)} />,
           )}
           {row(
+            "Sounds",
+            "Answer blips and the chest jingle",
+            <Seg value={st.sounds} options={ON_OFF} onChange={(v) => bool("sounds", v)} />,
+          )}
+          {row(
             "Theme",
             "",
             <Seg
@@ -265,6 +270,18 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               : ""}
           .
         </p>
+        <button
+          type="button"
+          className="btn text"
+          style={{ marginTop: 10, padding: "8px 0" }}
+          onClick={() => {
+            useProgress.getState().adopt({ ...useProgress.getState().p, tourAt: null });
+            onClose();
+            showToast("Tour will show on Home");
+          }}
+        >
+          Show the tour again
+        </button>
         <button
           type="button"
           className="btn text"

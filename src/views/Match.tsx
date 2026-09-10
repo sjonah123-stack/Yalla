@@ -6,11 +6,14 @@ import { useUi } from "../store/ui";
 import { unitTitle } from "../lib/course";
 import { formatMs, matchRoots, matchTiles, type MatchTile } from "../lib/match";
 import { rootDisplay } from "../lib/hebrew";
+import { buzz, playCue } from "../lib/sound";
 import { useCountUp } from "../components/useCountUp";
 import { Heb } from "../components/Heb";
 
 const KEYS = "1234567890qwerty";
 const PENALTY = 500;
+
+const sounds = () => useProgress.getState().p.settings.sounds;
 
 export default function Match({ unitId }: { unitId: UnitId }) {
   const u = COURSE.byId[unitId];
@@ -70,6 +73,7 @@ export default function Match({ unitId }: { unitId: UnitId }) {
       next.add(t.id);
       setCleared(next);
       setSel(null);
+      if (sounds()) playCue(next.size === tiles.length ? "done" : "tick");
       if (next.size === tiles.length) {
         const ms = Math.round(performance.now() - (startedAt ?? performance.now()) + penalty);
         setFinal(ms);
@@ -79,6 +83,10 @@ export default function Match({ unitId }: { unitId: UnitId }) {
       }
     } else {
       lock.current = true;
+      if (sounds()) {
+        playCue("bad");
+        buzz([20, 30, 20]);
+      }
       setWrong(new Set([a.id, t.id]));
       setPenalty((p) => p + PENALTY);
       setSel(null);

@@ -7,11 +7,14 @@ import { unitTitle } from "../lib/course";
 import { formatMs } from "../lib/match";
 import { familySortRoots, familySortTiles, type SortTile } from "../lib/familysort";
 import { rootDisplay, stripNikud } from "../lib/hebrew";
+import { buzz, playCue } from "../lib/sound";
 import { useCountUp } from "../components/useCountUp";
 import { Heb } from "../components/Heb";
 
 const KEYS = "12345678";
 const PENALTY = 500;
+
+const sounds = () => useProgress.getState().p.settings.sounds;
 
 export default function FamilySort({ unitId }: { unitId: UnitId }) {
   const u = COURSE.byId[unitId];
@@ -78,6 +81,7 @@ export default function FamilySort({ unitId }: { unitId: UnitId }) {
       const next = [...placed, tile.id];
       setPlaced(next);
       setSelTile(null);
+      if (sounds()) playCue(next.length === tiles.length ? "done" : "tick");
       if (next.length === tiles.length) {
         const ms = Math.round(performance.now() - (startedAt ?? performance.now()) + penalty);
         setFinal(ms);
@@ -87,6 +91,10 @@ export default function FamilySort({ unitId }: { unitId: UnitId }) {
       }
     } else {
       lock.current = true;
+      if (sounds()) {
+        playCue("bad");
+        buzz([20, 30, 20]);
+      }
       setWrongTile(tile.id);
       setWrongBucket(bi);
       setPenalty((p) => p + PENALTY);

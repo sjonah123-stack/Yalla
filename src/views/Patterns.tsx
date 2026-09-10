@@ -8,6 +8,7 @@ import { Heb } from "../components/Heb";
 
 export default function Patterns() {
   const openRoot = useUi((s) => s.openRoot);
+  const openConjugate = useUi((s) => s.openConjugate);
   return (
     <>
       <div className="view-h">
@@ -39,6 +40,16 @@ export default function Patterns() {
                   <span className="g">{ex?.g ?? b.example.gloss}</span>
                   <SpeakButton text={b.example.word} />
                 </div>
+                {(b.id === "pa'al" || b.id === "pi'el" || b.id === "hif'il") && (
+                  <button
+                    type="button"
+                    className="btn sm plum"
+                    style={{ marginTop: 10 }}
+                    onClick={() => openConjugate(b.id as "pa'al" | "pi'el" | "hif'il")}
+                  >
+                    Drill {b.id}
+                  </button>
+                )}
                 <div className="roots-inline">
                   {roots.map((r) => (
                     <button type="button" key={r.r} onClick={() => openRoot(r.r)} title={r.m}>
