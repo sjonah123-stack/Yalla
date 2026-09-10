@@ -18,6 +18,7 @@ export default function Flashcards({ unitId }: { unitId: UnitId }) {
   const u = COURSE.byId[unitId];
   const setView = useUi((s) => s.setView);
   const openUnit = useUi((s) => s.openUnit);
+  const showToast = useUi((s) => s.showToast);
   const openTool = useUi((s) => s.openTool);
   const start = useSession((s) => s.start);
   const { recordAnswer } = useProgress.getState();
@@ -134,6 +135,7 @@ export default function Flashcards({ unitId }: { unitId: UnitId }) {
               className="btn primary"
               onClick={() => {
                 if (start({ kind: "lesson", unit: u.id })) setView("play");
+                else showToast("Nothing to study here right now.");
               }}
             >
               Lesson
@@ -167,15 +169,20 @@ export default function Flashcards({ unitId }: { unitId: UnitId }) {
                   : undefined
               }
               role="button"
+              tabIndex={0}
               aria-label={flipped ? "Card back" : "Card front, tap to flip"}
             >
               <div className="face front">
-                <span className="glyph">{rootDisplay(card)}</span>
+                <span className="glyph" lang="he">
+                  {rootDisplay(card)}
+                </span>
                 <span className="hint">Tap to flip · swipe → know · ← again</span>
               </div>
               <div className="face back">
                 <div className="row between">
-                  <span className="glyph">{rootDisplay(card)}</span>
+                  <span className="glyph" lang="he">
+                    {rootDisplay(card)}
+                  </span>
                   <SpeakButton text={card.words[0].h} />
                 </div>
                 <div className="m">{card.m}</div>

@@ -18,8 +18,8 @@ export default defineConfig({
               name: "Yalla — Hebrew roots",
               short_name: "Yalla",
               description: "A gamified trainer for Hebrew roots (shorashim).",
-              theme_color: "#1B3FD1",
-              background_color: "#F4F1E8",
+              theme_color: "#f4ecdf",
+              background_color: "#f4ecdf",
               display: "standalone",
               start_url: "/",
               icons: [

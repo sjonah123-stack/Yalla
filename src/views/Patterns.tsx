@@ -3,12 +3,19 @@ import { ROOTS } from "../data/roots";
 import { rootLetters } from "../lib/hebrew";
 import { useUi } from "../store/ui";
 import { SpeakButton } from "../components/SpeakButton";
+import { HeaderGear } from "../components/HeaderGear";
+import { Heb } from "../components/Heb";
 
 export default function Patterns() {
   const openRoot = useUi((s) => s.openRoot);
   return (
     <>
-      <h2>Patterns</h2>
+      <div className="view-h">
+        <h2>Patterns</h2>
+        <div className="actions">
+          <HeaderGear />
+        </div>
+      </div>
       <p>
         A Hebrew verb is a root poured into a pattern. The root gives the meaning; the binyan gives
         the voice. Seven moulds — learn them and every new verb becomes two things you already know.
@@ -35,7 +42,7 @@ export default function Patterns() {
                 <div className="roots-inline">
                   {roots.map((r) => (
                     <button type="button" key={r.r} onClick={() => openRoot(r.r)} title={r.m}>
-                      {rootLetters(r)}
+                      <Heb>{rootLetters(r)}</Heb>
                     </button>
                   ))}
                 </div>

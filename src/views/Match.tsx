@@ -7,6 +7,7 @@ import { unitTitle } from "../lib/course";
 import { formatMs, matchRoots, matchTiles, type MatchTile } from "../lib/match";
 import { rootDisplay } from "../lib/hebrew";
 import { useCountUp } from "../components/useCountUp";
+import { Heb } from "../components/Heb";
 
 const KEYS = "1234567890qwerty";
 const PENALTY = 500;
@@ -170,7 +171,7 @@ export default function Match({ unitId }: { unitId: UnitId }) {
                   {KEYS[i]}
                 </span>
                 {t.kind === "root" ? (
-                  <span className="glyph">{rootDisplay(t.root)}</span>
+                  <Heb className="glyph">{rootDisplay(t.root)}</Heb>
                 ) : (
                   <span>{t.root.short}</span>
                 )}
@@ -178,7 +179,10 @@ export default function Match({ unitId }: { unitId: UnitId }) {
             ))}
           </div>
           <p className="micro muted" style={{ textAlign: "center", marginTop: 12 }}>
-            Wrong pair: +0.5s. Keys 1–0 and q–y pick tiles.
+            Wrong pair: +0.5s.
+          </p>
+          <p className="micro muted mhint" style={{ textAlign: "center", marginTop: 4 }}>
+            Keys 1–0 and q–y pick tiles.
           </p>
         </>
       )}

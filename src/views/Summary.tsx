@@ -4,6 +4,8 @@ import { useProgress } from "../store/progress";
 import { COURSE } from "../store/course";
 import { ROOTS, ROOT_BY_ID } from "../data/roots";
 import { rootDisplay } from "../lib/hebrew";
+import { crossings, dayKey, levelCeil } from "../lib/srs";
+import { Heb } from "../components/Heb";
 import { GOLD_SCORE, memorizedCount, unitTitle } from "../lib/course";
 import { MODE_TITLE } from "../lib/quiz";
 import {
@@ -50,6 +52,7 @@ function Chest({ s, receipt }: { s: Session; receipt: Receipt }) {
   const claimChest = useSession((st) => st.claimChest);
   const open = s.chestClaimed;
   const parts: string[] = [];
+  if (receipt.parts.base) parts.push(`Session +${receipt.parts.base}`);
   if (receipt.parts.perfect) parts.push(`Perfect bonus +${GEM_PERFECT}`);
   if (receipt.unitChests.length)
     parts.push(`Unit chest +${GEM_UNIT_CHEST * receipt.unitChests.length}`);
@@ -110,6 +113,7 @@ function LessonSummary({ s }: { s: Session }) {
   const { start, clear } = useSession.getState();
   const setView = useUi((st) => st.setView);
   const openUnit = useUi((st) => st.openUnit);
+  const showToast = useUi((st) => st.showToast);
   const p = useProgress((st) => st.p);
   const total = s.ok + s.bad;
   const acc = total ? Math.round((s.ok / total) * 100) : 0;
@@ -143,12 +147,17 @@ function LessonSummary({ s }: { s: Session }) {
   return (
     <div className="shell view summary">
       <div className="eyebrow sum-eyebrow">
-        {unit ? `${unitTitle(unit)} · lesson complete` : "Practice complete"}
+        {unit
+          ? `${unitTitle(unit)} · lesson complete`
+          : s.plan.kind === "practice" && s.plan.focus === "tricky"
+            ? "Tricky roots · round complete"
+            : "Practice complete"}
       </div>
       <div className="headline">{headline}</div>
       <Stats xp={s.xp} acc={acc} best={s.best} />
       {hasChest && <Chest s={s} receipt={receipt} />}
       {claimed && <NewSeals receipt={receipt} />}
+      {claimed && <Milestones s={s} />}
 
       {(gained > 0 || pending > 0) && (
         <p className="note">
@@ -175,7 +184,7 @@ function LessonSummary({ s }: { s: Session }) {
           <div className="chips">
             {missed.map((r) => (
               <span className="chip" key={r.r}>
-                <span className="heb">{rootDisplay(r)}</span> · {r.short}
+                <Heb>{rootDisplay(r)}</Heb> · {r.short}
               </span>
             ))}
           </div>
@@ -194,7 +203,9 @@ function LessonSummary({ s }: { s: Session }) {
         type="button"
         className="btn text block"
         style={{ marginTop: 8 }}
-        onClick={() => start(s.plan)}
+        onClick={() => {
+          if (!start(s.plan)) showToast("Nothing to study here right now.");
+        }}
       >
         {unit ? "Another lesson" : "Another round"}
       </button>
@@ -207,10 +218,46 @@ function correctLabel(q: Pick<Question, "mode" | "root">): string {
   return q.mode === "rootMeaning" ? q.root.short : rootDisplay(q.root);
 }
 
+/** Level-up and daily-goal cards for milestones this session crossed. */
+function Milestones({ s }: { s: Session }) {
+  const p = useProgress((st) => st.p);
+  const c = crossings(
+    { xp: s.xpBefore, todayXp: s.todayXpBefore },
+    { xp: p.xp, todayXp: p.history[dayKey()]?.xp ?? 0 },
+    p.settings.dailyGoal,
+  );
+  if (c.level === null && !c.goal) return null;
+  return (
+    <>
+      {c.level !== null && (
+        <div className="sealcard milestone">
+          <span className="seal tnum">{c.level}</span>
+          <div>
+            <div className="eyebrow">Level up</div>
+            <div className="t">
+              Level {c.level} · {levelCeil(c.level) - p.xp} XP to the next
+            </div>
+          </div>
+        </div>
+      )}
+      {c.goal && (
+        <div className="sealcard milestone">
+          <span className="seal">✓</span>
+          <div>
+            <div className="eyebrow">Daily goal</div>
+            <div className="t">Goal done · {p.settings.dailyGoal} XP today</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function TestResult({ s }: { s: Session }) {
   const { start, clear } = useSession.getState();
   const setView = useUi((st) => st.setView);
   const openUnit = useUi((st) => st.openUnit);
+  const showToast = useUi((st) => st.showToast);
   const unit = s.plan.kind === "test" ? COURSE.byId[s.plan.unit] : COURSE.units[0];
   const score = s.score ?? 0;
   const gold = score >= GOLD_SCORE;
@@ -250,6 +297,7 @@ function TestResult({ s }: { s: Session }) {
       </div>
       {gold && s.wentGold && <p className="note">Next unit unlocked.</p>}
       <NewSeals receipt={s.rewards} />
+      <Milestones s={s} />
       <div className="sec">
         <div className="eyebrow">Question by question</div>
         <ul className="results">
@@ -289,7 +337,9 @@ function TestResult({ s }: { s: Session }) {
         type="button"
         className="btn text block"
         style={{ marginTop: 8 }}
-        onClick={() => start(s.plan)}
+        onClick={() => {
+          if (!start(s.plan)) showToast("Nothing to study here right now.");
+        }}
       >
         Retake
       </button>

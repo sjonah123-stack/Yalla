@@ -99,6 +99,68 @@ export function streakAlive(lastPlay: string | null, today: Date = new Date()): 
 }
 
 export const level = (xp: number): number => Math.floor(Math.sqrt(xp / 100)) + 1;
+
+// ---------- Tricky roots: the ones that keep slipping ----------
+
+/** Lapses before a root counts as tricky. */
+export const TRICKY_LAPSES = 2;
+/** Mastery at which a tricky root has proven itself again (interval ≥ 7 days). */
+export const TRICKY_CLEAR = 3;
+
+/** Missed at least twice and not yet re-proven. Unseen and placement-prescheduled roots never are. */
+export const isTricky = (st?: RootState): boolean =>
+  !!st && st.lapses >= TRICKY_LAPSES && mastery(st) < TRICKY_CLEAR;
+
+/** Tricky roots, most troubled first (lapses desc, then soonest due). */
+export function trickyRoots(roots: readonly Root[], p: Pick<Progress, "roots">): Root[] {
+  const st = (r: Root) => p.roots[r.r];
+  return roots
+    .filter((r) => isTricky(st(r)))
+    .sort((a, b) => st(b)!.lapses - st(a)!.lapses || st(a)!.due - st(b)!.due);
+}
+
+/**
+ * A practice restricted to tricky roots. When the set fits twice in `len` every root gets a
+ * first try and a later drill (two shuffled passes, no adjacent repeat); otherwise one pass
+ * capped at `len`. Ignores the theme filter on purpose: what Home counts, the round drills.
+ */
+export function trickyQueue(
+  roots: readonly Root[],
+  p: Pick<Progress, "roots">,
+  len: number,
+): Root[] {
+  const t = trickyRoots(roots, p);
+  if (!t.length) return [];
+  if (t.length * 2 > len) return shuffle(t).slice(0, len);
+  const first = shuffle(t);
+  let second = shuffle(t);
+  for (let tries = 0; tries < 10 && second[0] === first[first.length - 1]; tries++)
+    second = shuffle(t);
+  if (second[0] === first[first.length - 1] && second.length > 1)
+    [second[0], second[1]] = [second[1], second[0]];
+  return [...first, ...second];
+}
+
+// ---------- Milestones crossed by a session ----------
+
+export interface XpSnapshot {
+  xp: number;
+  /** XP earned today (local day). */
+  todayXp: number;
+}
+export interface Crossings {
+  /** New level reached during the span, or null. */
+  level: number | null;
+  /** Today's goal was met during the span. */
+  goal: boolean;
+}
+export function crossings(before: XpSnapshot, after: XpSnapshot, goal: number): Crossings {
+  const la = level(after.xp);
+  return {
+    level: la > level(before.xp) ? la : null,
+    goal: before.todayXp < goal && after.todayXp >= goal,
+  };
+}
 export const levelFloor = (l: number): number => 100 * (l - 1) * (l - 1);
 export const levelCeil = (l: number): number => 100 * l * l;
 

@@ -107,10 +107,7 @@ function fail(cloud: Cloud | null, e: unknown, set: (s: Partial<CloudStore>) => 
   useUi.getState().showToast(msg);
 }
 
-async function watch(
-  set: (s: Partial<CloudStore>) => void,
-  get: () => CloudStore,
-): Promise<void> {
+async function watch(set: (s: Partial<CloudStore>) => void, get: () => CloudStore): Promise<void> {
   const cloud = await sdk();
   if (!cloud || watching) return;
   watching = true;

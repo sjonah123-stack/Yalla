@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Mode, Question, Root, UnitId } from "../types";
 import { ROOTS } from "../data/roots";
-import { buildQueue, mastery, seen } from "../lib/srs";
+import { buildQueue, dayKey, mastery, seen, trickyQueue } from "../lib/srs";
 import { makeQuestion, modeFor, xpFor } from "../lib/quiz";
 import { buildLesson, buildTest, testScore } from "../lib/lesson";
 import { placementSample } from "../lib/placement";
@@ -15,7 +15,7 @@ export type Tick = "pending" | "good" | "bad" | "recovered";
 
 export type Plan =
   | { kind: "lesson"; unit: UnitId }
-  | { kind: "practice" }
+  | { kind: "practice"; focus?: "tricky" }
   | { kind: "test"; unit: UnitId }
   | { kind: "placement" };
 
@@ -73,6 +73,9 @@ export interface Session {
   results: Result[];
   /** Memorized count when the session started, for the summary strip. */
   memBefore: number;
+  /** XP totals when the session started, for level-up / daily-goal milestones. */
+  xpBefore: number;
+  todayXpBefore: number;
   done: boolean;
   /** Set when the session finished: test score, or placement handled. */
   score?: number;
@@ -178,6 +181,8 @@ function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[] } {
     case "lesson":
       return { slots: buildLesson(COURSE, plan.unit, prog) };
     case "practice": {
+      if (plan.focus === "tricky")
+        return { slots: trickyQueue(ROOTS, prog, prog.settings.sessionLen) };
       const seenRoots = ROOTS.filter((r) => seen(prog.roots[r.r]));
       return { slots: buildQueue(seenRoots, prog, prog.settings.sessionLen, 0) };
     }
@@ -231,6 +236,8 @@ export const useSession = create<SessionStore>((set, get) => ({
       missed: [],
       results: [],
       memBefore: memorizedCount(ROOTS, prog.p),
+      xpBefore: prog.p.xp,
+      todayXpBefore: prog.p.history[dayKey()]?.xp ?? 0,
       done: false,
       chestClaimed: false,
     };

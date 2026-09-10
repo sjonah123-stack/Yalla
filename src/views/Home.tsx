@@ -4,10 +4,21 @@ import { useProgress } from "../store/progress";
 import { useSession, type Plan } from "../store/session";
 import { useUi } from "../store/ui";
 import { currentUnit, memorizedCount, unitMemorized, unitTitle } from "../lib/course";
-import { dayKey, isDue, level, levelCeil, levelFloor, seen, streakAlive } from "../lib/srs";
-import { rootLetters } from "../lib/hebrew";
+import {
+  dayKey,
+  isDue,
+  level,
+  levelCeil,
+  levelFloor,
+  seen,
+  streakAlive,
+  trickyRoots,
+} from "../lib/srs";
+import { rootDisplay, rootLetters } from "../lib/hebrew";
+import { SECTION_BY_CAT } from "../data/course";
 import { SEALS } from "../lib/rewards";
 import { GoalRing } from "../components/GoalRing";
+import { Heb } from "../components/Heb";
 import { IconGear } from "../components/Icons";
 import { streakNudge } from "../lib/labels";
 import { CANONICAL_HOST, LEGACY_HOSTS, movedUrl } from "../lib/site";
@@ -28,7 +39,8 @@ export default function Home() {
   const mem = memorizedCount(ROOTS, p);
   const cur = currentUnit(COURSE, p);
   const due = ROOTS.filter((r) => isDue(p.roots[r.r], now)).length;
-  const fresh = !p.placement && !ROOTS.some((r) => seen(p.roots[r.r]));
+  const anySeen = ROOTS.some((r) => seen(p.roots[r.r]));
+  const fresh = !p.placement && !anySeen;
   const today = p.history[dayKey()] ?? { ok: 0, bad: 0, xp: 0 };
   const l = level(p.xp);
   const lo = levelFloor(l);
@@ -40,15 +52,24 @@ export default function Home() {
   const signIn = useCloud((s) => s.signIn);
   const curMem = unitMemorized(cur, p);
   const curGlyph = cur.roots[0] ? rootLetters(cur.roots[0]) : "?";
+  const tricky = trickyRoots(ROOTS, p);
+  const cats = p.settings.cats;
 
   const go = (plan: Plan) => {
     if (start(plan)) setView("play");
     else
       showToast(
         plan.kind === "practice"
-          ? "Nothing due yet — keep going on the path."
+          ? plan.focus === "tricky"
+            ? "No tricky roots right now — nice."
+            : "Nothing due yet — keep going on the path."
           : "Nothing to study here.",
       );
+  };
+
+  const clearFocus = () => {
+    useProgress.getState().setSettings({ cats: [] });
+    showToast("Practice covers every theme again.");
   };
 
   return (
@@ -62,10 +83,14 @@ export default function Home() {
             יאללה<span className="dot">.</span>
           </span>
           <div className="pills">
-            <span className={"pill" + (alive ? "" : " dim")} title="Day streak">
+            <span
+              className={"pill" + (alive ? "" : " dim")}
+              title="Day streak"
+              aria-label={`Day streak: ${alive ? p.streak : 0}`}
+            >
               🔥 <span className="tnum">{alive ? p.streak : 0}</span>
             </span>
-            <span className="pill gems" title="Gems">
+            <span className="pill gems" title="Gems" aria-label={`Gems: ${p.gems}`}>
               ✦ <span className="tnum">{p.gems}</span>
             </span>
             <button
@@ -134,7 +159,9 @@ export default function Home() {
               ◔
             </span>
             Practice
-            <span className="s tnum">{due ? `${due} due` : "nothing due"}</span>
+            <span className="s tnum">
+              {due ? `${due} due` : anySeen ? "review weakest" : "after your first lesson"}
+            </span>
           </button>
           <button type="button" onClick={() => openUnit(cur.id)}>
             <span className="ic gold" aria-hidden="true">
@@ -153,6 +180,30 @@ export default function Home() {
             </span>
           </button>
         </div>
+        {tricky.length > 0 && (
+          <section className="block" style={{ marginTop: 12 }}>
+            <div className="row between">
+              <div className="eyebrow">Tricky roots</div>
+              <span className="small muted tnum">{tricky.length}</span>
+            </div>
+            <div className="chips">
+              {tricky.slice(0, 6).map((r) => (
+                <span className="chip" key={r.r}>
+                  <Heb>{rootDisplay(r)}</Heb> · {r.short}
+                </span>
+              ))}
+              {tricky.length > 6 && <span className="chip">+{tricky.length - 6} more</span>}
+            </div>
+            <button
+              type="button"
+              className="btn plum block"
+              style={{ marginTop: 12 }}
+              onClick={() => go({ kind: "practice", focus: "tricky" })}
+            >
+              Drill them
+            </button>
+          </section>
+        )}
         {fresh && (
           <section className="block gold placepitch">
             <div className="eyebrow">Already know some Hebrew?</div>
@@ -168,6 +219,18 @@ export default function Home() {
               Take the placement test
             </button>
           </section>
+        )}
+        {cats.length > 0 && (
+          <button
+            type="button"
+            className="chip toggle"
+            aria-pressed={true}
+            style={{ marginTop: 12 }}
+            onClick={clearFocus}
+          >
+            Focus: {cats.map((c) => SECTION_BY_CAT[c]?.title ?? c).join(", ")}
+            <span className="x">×</span>
+          </button>
         )}
         <section className="block" style={{ marginTop: 12 }}>
           <div className="row between">

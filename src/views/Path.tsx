@@ -16,6 +16,8 @@ import {
   type UnitStatus,
 } from "../lib/course";
 import { rootLetters } from "../lib/hebrew";
+import { SECTION_BY_CAT } from "../data/course";
+import { HeaderGear } from "../components/HeaderGear";
 
 type SectionState = "locked" | "open" | "done";
 
@@ -23,7 +25,9 @@ type SectionState = "locked" | "open" | "done";
 export default function Path() {
   const p = useProgress((s) => s.p);
   const openUnit = useUi((s) => s.openUnit);
+  const showToast = useUi((s) => s.showToast);
   const cur = currentUnit(COURSE, p);
+  const cats = p.settings.cats;
   const mem = memorizedCount(ROOTS, p);
   const [open, setOpen] = useState<string>(cur.section.id);
   const curRef = useRef<HTMLElement | null>(null);
@@ -41,14 +45,41 @@ export default function Path() {
     <>
       <div className="view-h">
         <h2>Path</h2>
-        <span className="k tnum">
-          {mem} / {ROOTS.length} memorized
-        </span>
+        <div className="actions">
+          <span className="k tnum">
+            {mem} / {ROOTS.length} memorized
+          </span>
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              setOpen(cur.section.id);
+              curRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+            }}
+          >
+            Current ↓
+          </button>
+          <HeaderGear />
+        </div>
       </div>
       <p>
         {COURSE.sections.length} themes, {COURSE.units.length} units. Finish a unit to unlock the
         next; finish a theme to open its chest.
       </p>
+      {cats.length > 0 && (
+        <button
+          type="button"
+          className="chip toggle"
+          aria-pressed={true}
+          onClick={() => {
+            useProgress.getState().setSettings({ cats: [] });
+            showToast("Practice covers every theme again.");
+          }}
+        >
+          Focus: {cats.map((c) => SECTION_BY_CAT[c]?.title ?? c).join(", ")}
+          <span className="x">×</span>
+        </button>
+      )}
       <div className="secs">
         {COURSE.sections.map((sec) => {
           const units = COURSE.units.filter((u) => u.section.id === sec.id);

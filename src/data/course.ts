@@ -39,7 +39,13 @@ export const SECTIONS: readonly SectionDef[] = [
   },
   { id: "people", cat: "people", title: "People", he: "אנשים", units: ["people-1", "people-2"] },
   { id: "time", cat: "time", title: "Time", he: "זמן", units: ["time-1", "time-2"] },
-  { id: "feelings", cat: "feelings", title: "Feelings", he: "רגשות", units: ["feelings-1", "feelings-2"] },
+  {
+    id: "feelings",
+    cat: "feelings",
+    title: "Feelings",
+    he: "רגשות",
+    units: ["feelings-1", "feelings-2"],
+  },
   {
     id: "work",
     cat: "work & money",
@@ -47,7 +53,13 @@ export const SECTIONS: readonly SectionDef[] = [
     he: "עבודה וכסף",
     units: ["work-1", "work-2"],
   },
-  { id: "food", cat: "food & body", title: "Food & body", he: "אוכל וגוף", units: ["food-1", "food-2"] },
+  {
+    id: "food",
+    cat: "food & body",
+    title: "Food & body",
+    he: "אוכל וגוף",
+    units: ["food-1", "food-2"],
+  },
   {
     id: "size",
     cat: "size & change",
@@ -55,7 +67,13 @@ export const SECTIONS: readonly SectionDef[] = [
     he: "גודל ושינוי",
     units: ["size-1", "size-2", "size-3"],
   },
-  { id: "nature", cat: "nature", title: "Nature", he: "טבע", units: ["nature-1", "nature-2", "nature-3"] },
+  {
+    id: "nature",
+    cat: "nature",
+    title: "Nature",
+    he: "טבע",
+    units: ["nature-1", "nature-2", "nature-3"],
+  },
   {
     id: "law",
     cat: "law & state",
@@ -70,7 +88,13 @@ export const SECTIONS: readonly SectionDef[] = [
     he: "חיים יהודיים",
     units: ["jewish-1", "jewish-2"],
   },
-  { id: "culture", cat: "culture", title: "Culture", he: "תרבות", units: ["culture-1", "culture-2"] },
+  {
+    id: "culture",
+    cat: "culture",
+    title: "Culture",
+    he: "תרבות",
+    units: ["culture-1", "culture-2"],
+  },
   // Batch 2 (v0.5): appended so every earlier unit keeps its place on the path.
   {
     id: "body",

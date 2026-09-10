@@ -38,9 +38,12 @@ button:disabled {
 button:active {
   filter: brightness(0.97);
 }
+/* Focus: a hard double ring instead of an outline — it reads on gold and coral and is not
+   clipped by outline-offset on the chunky radii. Elements with their own drop shadow compose
+   the ring with it in the "Focus rings" section at the foot of this file. */
 :focus-visible {
-  outline: 3px solid var(--gold);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: var(--ring);
 }
 h1,
 h2,
@@ -289,6 +292,18 @@ a {
   color: var(--ink-3);
   white-space: nowrap;
 }
+.view-h .actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+/* The hero pills are built for the plum ground; on cream they take the stone tile. */
+.view-h .pill.icon {
+  width: 44px;
+  height: 44px;
+  background: var(--stone);
+  color: var(--plum);
+}
 
 /* Nav */
 .nav {
@@ -360,15 +375,22 @@ a {
   font-weight: 700;
   z-index: 60;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   white-space: nowrap;
   transition:
     opacity var(--dur),
-    transform var(--dur) var(--ease-out);
+    transform var(--dur) var(--ease-out),
+    visibility 0s linear var(--dur);
 }
 .toast.show {
   opacity: 1;
+  visibility: visible;
   transform: translate(-50%, 0);
+  transition:
+    opacity var(--dur),
+    transform var(--dur) var(--ease-out),
+    visibility 0s;
 }
 
 /* ---------- Primitives ---------- */
@@ -456,6 +478,14 @@ a {
 .btn.gold:active {
   box-shadow: 0 2px 0 var(--gold-deep);
 }
+.btn.danger {
+  background: var(--bad);
+  color: var(--bad-ink);
+  box-shadow: 0 7px 0 var(--bad-deep);
+}
+.btn.danger:active {
+  box-shadow: 0 2px 0 var(--bad-deep);
+}
 .btn.ghost {
   box-shadow: none;
   background: var(--on-dark-soft);
@@ -491,10 +521,20 @@ a {
   padding: 18px 24px;
 }
 .btn.sm {
+  position: relative;
   padding: 8px 14px;
   font-size: var(--t-small);
   border-radius: 14px;
   box-shadow: var(--drop-xs);
+}
+/* Small buttons stay visually small but keep a 44px tap target. */
+.btn.sm::after {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  translate: 0 -50%;
+  block-size: 44px;
+  min-inline-size: 44px;
 }
 .btn.sm.plum {
   box-shadow: 0 3px 0 var(--plum-deep);
@@ -525,12 +565,41 @@ a {
 }
 .chip .heb {
   font-weight: 900;
-  letter-spacing: 0.1em;
+}
+.chip .x {
+  margin-left: 6px;
+  opacity: 0.7;
 }
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s2);
+}
+/* Edge-to-edge horizontal chip rail inside .view.pad (20px side padding). */
+.chips.scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin: 10px -20px 0;
+  padding: 0 20px;
+}
+.chips.scroll > * {
+  flex: none;
+}
+button.chip {
+  font-family: var(--font-ui);
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+.chip.toggle {
+  background: var(--stone);
+  color: var(--ink-2);
+}
+.chip.toggle[aria-pressed="true"] {
+  background: var(--coral);
+  color: var(--coral-ink);
+  box-shadow: 0 3px 0 var(--coral-deep);
 }
 
 /* Stat cards: three across */
@@ -580,6 +649,7 @@ a {
 .glyph.hero {
   font-size: var(--t-hero);
   letter-spacing: 0.16em;
+  padding-left: 0.16em;
 }
 .glyph.display {
   font-size: var(--t-display);
@@ -648,6 +718,7 @@ a {
 
 /* Speaker button */
 .spk {
+  position: relative;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -660,6 +731,15 @@ a {
   transition:
     background var(--dur-fast),
     transform var(--dur-fast);
+}
+/* 32px disc, 44px tap target. */
+.spk::after {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  translate: 0 -50%;
+  block-size: 44px;
+  min-inline-size: 44px;
 }
 .spk svg {
   width: 16px;
@@ -764,8 +844,8 @@ a {
   opacity: 0.55;
 }
 .pill.icon {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   justify-content: center;
   border-radius: 50%;
@@ -838,7 +918,8 @@ a {
 .goal svg {
   width: 100%;
   height: 100%;
-  transform: rotate(-90deg);
+  /* the independent rotate property, so a scale animation can compose with it */
+  rotate: -90deg;
 }
 .goal circle {
   fill: none;
@@ -871,6 +952,12 @@ a {
   opacity: 0.7;
   margin-top: 3px;
   letter-spacing: 0.08em;
+}
+.goal.done .txt b {
+  color: var(--gold);
+}
+.goal.done svg {
+  animation: pop 0.5s var(--ease-out);
 }
 
 .home {
@@ -987,17 +1074,19 @@ a {
   gap: 10px;
   margin-top: 18px;
 }
-.sec {
+/* Only the Path theme cards clip their contents; Progress and Summary reuse a bare
+   `.sec` as a grouping block and must not be scoped here. */
+.secs .sec {
   background: var(--paper);
   border-radius: 22px;
   box-shadow: var(--drop-sm);
   overflow: hidden;
   transition: opacity var(--dur);
 }
-.sec.locked {
+.secs .sec.locked {
   opacity: 0.6;
 }
-.sec.current {
+.secs .sec.current {
   box-shadow:
     0 0 0 2.5px var(--coral),
     var(--drop-sm);
@@ -1149,7 +1238,11 @@ a {
 }
 .uchip.complete .disc,
 .uchip.gold .disc {
-  background: linear-gradient(180deg, #5a2e5e, var(--plum));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--plum-light) 25%, var(--plum)),
+    var(--plum)
+  );
   color: var(--plum-ink);
   box-shadow: 0 5px 0 var(--plum-deep);
 }
@@ -1218,8 +1311,8 @@ a {
   padding: 14px 20px 8px;
 }
 .rail .x {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex: none;
   border-radius: 14px;
   background: var(--paper);
@@ -1402,13 +1495,13 @@ a {
 }
 .tile.correct {
   background: var(--good);
-  color: #fff;
+  color: var(--good-ink);
   box-shadow: 0 6px 0 var(--good-deep);
   animation: pop 0.45s;
 }
 .tile.wrong {
   background: var(--bad);
-  color: #fff;
+  color: var(--bad-ink);
   box-shadow: 0 6px 0 var(--bad-deep);
   animation: shake 0.45s;
 }
@@ -1441,18 +1534,18 @@ a {
   transition: background var(--dur);
 }
 .slot.empty {
-  border: 2px dashed #c9b896;
+  border: 2px dashed var(--stone-2);
   background: transparent;
   box-shadow: none;
 }
 .slot.correct {
   background: var(--good);
-  color: #fff;
+  color: var(--good-ink);
   box-shadow: none;
 }
 .slot.wrong {
   background: var(--bad);
-  color: #fff;
+  color: var(--bad-ink);
   box-shadow: none;
 }
 .kb {
@@ -1518,6 +1611,7 @@ a {
   bottom: 0;
   max-height: 62dvh;
   overflow: auto;
+  overscroll-behavior: contain;
   border-radius: 30px 30px 0 0;
   padding: 22px 22px calc(28px + env(safe-area-inset-bottom));
   animation: sheetin 0.45s var(--ease-out);
@@ -1538,10 +1632,8 @@ a {
   font-family: var(--font-heb);
   font-weight: 900;
   font-size: 26px;
-  line-height: 1.1;
-}
-.sheet .head .heb {
-  letter-spacing: 0.1em;
+  /* room for nikud above and below */
+  line-height: 1.3;
 }
 .sheet .xp {
   font-family: var(--font-ui);
@@ -1550,12 +1642,13 @@ a {
   border-radius: var(--r-full);
   padding: 6px 12px;
   background: var(--good);
-  color: #fff;
+  color: var(--good-ink);
   white-space: nowrap;
   animation: pop 0.45s;
 }
 .sheet.bad .xp {
   background: var(--bad);
+  color: var(--bad-ink);
 }
 .sheet .meta {
   font-size: 14px;
@@ -1574,12 +1667,12 @@ a {
 }
 .sheet.good .btn.primary {
   background: var(--good);
-  color: #fff;
+  color: var(--good-ink);
   box-shadow: 0 6px 0 var(--good-deep);
 }
 .sheet.bad .btn.primary {
   background: var(--bad);
-  color: #fff;
+  color: var(--bad-ink);
   box-shadow: 0 6px 0 var(--bad-deep);
 }
 
@@ -1595,6 +1688,7 @@ a {
   padding: calc(48px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
   animation: rise 0.4s var(--ease-out);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .learn .eyebrow {
   color: var(--gold);
@@ -1735,7 +1829,11 @@ a {
   bottom: 10px;
   height: 80px;
   border-radius: 14px 14px 22px 22px;
-  background: linear-gradient(180deg, #5a2e5e, var(--plum));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--plum-light) 25%, var(--plum)),
+    var(--plum)
+  );
   box-shadow: 0 8px 0 var(--plum-deep);
 }
 .chest3d .lid {
@@ -1745,7 +1843,11 @@ a {
   top: 22px;
   height: 52px;
   border-radius: 26px 26px 8px 8px;
-  background: linear-gradient(180deg, var(--coral), #d4563e);
+  background: linear-gradient(
+    180deg,
+    var(--coral),
+    color-mix(in srgb, var(--coral-deep) 60%, var(--coral))
+  );
   box-shadow: 0 5px 0 var(--coral-deep);
   transform-origin: left bottom;
 }
@@ -1817,6 +1919,11 @@ a {
 .sealcard .t {
   font-weight: 800;
 }
+.sealcard.milestone .seal {
+  background: var(--coral);
+  color: var(--coral-ink);
+  box-shadow: inset 0 -3px 0 var(--coral-deep);
+}
 
 /* Placed / onboarding screens */
 .dark-screen {
@@ -1829,6 +1936,7 @@ a {
   color: var(--plum-ink);
   padding: calc(72px + env(safe-area-inset-top)) 28px calc(28px + env(safe-area-inset-bottom));
   overflow: auto;
+  overscroll-behavior: contain;
   animation: fadein 0.4s;
 }
 .dark-screen > * {
@@ -1958,7 +2066,7 @@ a {
   outline: none;
 }
 .search:focus-visible {
-  outline: 3px solid var(--gold);
+  box-shadow: var(--ring), var(--drop-sm);
 }
 .search::placeholder {
   color: var(--ink-3);
@@ -2037,18 +2145,32 @@ a {
 .rdetail .bh:first-child {
   margin-top: 0;
 }
-.due-badge {
+.due-badge,
+.tag {
   font-size: var(--t-micro);
   font-weight: 800;
   color: var(--coral-deep);
   background: var(--coral-soft);
   border-radius: var(--r-full);
   padding: 2px 8px;
+  white-space: nowrap;
+}
+.tag.tricky {
+  background: var(--coral-soft);
+  color: var(--coral-deep);
 }
 
 /* ---------- Progress ---------- */
 .progress .stats {
   margin-top: 16px;
+}
+/* Outside the Path, `.sec` is a plain grouping block: give it the padded card look. */
+.progress .sec,
+.summary .sec {
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  box-shadow: var(--drop-sm);
+  padding: 18px;
 }
 .progress .sec {
   margin-top: 22px;
@@ -2094,6 +2216,13 @@ a {
   color: var(--ink-2);
   text-align: center;
   line-height: 1.2;
+}
+.seals .hint {
+  font-size: 11px;
+  color: var(--ink-3);
+  text-align: center;
+  line-height: 1.2;
+  margin-top: 2px;
 }
 .dist {
   display: flex;
@@ -2210,6 +2339,7 @@ a {
   gap: 6px;
 }
 .bars .bar {
+  position: relative;
   display: grid;
   grid-template-columns: 110px 1fr 40px;
   gap: 10px;
@@ -2217,6 +2347,15 @@ a {
   font-size: 13px;
   padding: 0;
   text-align: left;
+}
+/* A 10px track is a 44px tap target. */
+.bars .bar::after {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  translate: 0 -50%;
+  block-size: 44px;
+  min-inline-size: 44px;
 }
 .bars .bar .l {
   font-weight: 700;
@@ -2343,6 +2482,7 @@ a {
   max-width: var(--shell-w);
   max-height: 88dvh;
   overflow: auto;
+  overscroll-behavior: contain;
   background: var(--ground);
   color: var(--ink);
   border-radius: 32px 32px 0 0;
@@ -2381,6 +2521,7 @@ a {
   padding: 3px;
 }
 .seg button {
+  position: relative;
   padding: 6px 12px;
   border-radius: 10px;
   font-size: 13px;
@@ -2390,6 +2531,14 @@ a {
     background var(--dur-fast),
     color var(--dur-fast);
 }
+.seg button::after {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  translate: 0 -50%;
+  block-size: 44px;
+  min-inline-size: 44px;
+}
 .seg button[aria-pressed="true"] {
   background: var(--paper);
   color: var(--ink);
@@ -2397,6 +2546,23 @@ a {
 }
 .settings h2 {
   font-size: 30px;
+}
+
+/* Confirm sheet: sits above the settings modal it is raised from. */
+.modal.confirm {
+  z-index: 50;
+}
+.panel.confirm h2 {
+  font-size: 24px;
+}
+.panel.confirm p {
+  margin-top: 8px;
+  color: var(--ink-2);
+}
+.panel.confirm .actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 /* Unit sheet */
@@ -2573,6 +2739,7 @@ a {
 .fc .face.front .glyph {
   font-size: clamp(64px, 20vw, 110px);
   letter-spacing: 0.12em;
+  padding-left: 0.12em;
   line-height: 1;
 }
 .fc .face.front .hint {
@@ -2696,17 +2863,36 @@ a {
     background var(--dur-fast),
     opacity var(--dur);
 }
-.mtile .k {
-  position: absolute;
-  top: 4px;
-  left: 8px;
-  font-size: 9px;
-  color: var(--ink-4);
-  font-weight: 800;
+/* Keyboard shortcuts only exist where there is a keyboard. */
+.mtile .k,
+.mhint {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .mtile .k {
+    display: block;
+    position: absolute;
+    top: 4px;
+    left: 8px;
+    font-size: 9px;
+    color: var(--ink-4);
+    font-weight: 800;
+  }
+  .mhint {
+    display: block;
+    margin-top: var(--s3);
+    text-align: center;
+    font-size: var(--t-micro);
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
 }
 .mtile .glyph {
   font-size: 26px;
   letter-spacing: 0.08em;
+  padding-left: 0.08em;
 }
 .mtile.sel {
   background: var(--plum);
@@ -2720,7 +2906,7 @@ a {
 }
 .mtile.wrong {
   background: var(--bad);
-  color: #fff;
+  color: var(--bad-ink);
   box-shadow: 0 4px 0 var(--bad-deep);
   animation: shake var(--dur-slow);
 }
@@ -2731,6 +2917,82 @@ a {
 }
 .mtile:disabled {
   cursor: default;
+}
+
+/* ---------- Focus rings ---------- */
+/* The base :focus-visible ring is a box-shadow, so anything that carries a hard drop has to
+   restate the drop alongside it. Last in the file so the ring wins over component states. */
+.btn:focus-visible {
+  box-shadow: var(--ring), var(--drop-sm);
+}
+.btn.primary:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 7px 0 var(--coral-deep);
+}
+.btn.plum:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 7px 0 var(--plum-deep);
+}
+.btn.gold:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 7px 0 var(--gold-deep);
+}
+.btn.danger:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 7px 0 var(--bad-deep);
+}
+.btn.quiet:focus-visible,
+.btn.sm:focus-visible {
+  box-shadow: var(--ring), var(--drop-xs);
+}
+.btn.sm.plum:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 3px 0 var(--plum-deep);
+}
+.btn.ghost:focus-visible,
+.btn.text:focus-visible,
+.btn.inert:focus-visible,
+.seg button:focus-visible,
+.chip.toggle:focus-visible,
+.sec-h:focus-visible,
+.pill.icon:focus-visible {
+  box-shadow: var(--ring);
+}
+.cta:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 8px 0 var(--coral-deep);
+}
+.quick button:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 5px 0 var(--clay);
+}
+.rail .x:focus-visible,
+.kb button:focus-visible {
+  box-shadow: var(--ring), var(--drop-xs);
+}
+.kb button.go:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 3px 0 var(--plum-deep);
+}
+.tile:focus-visible,
+.fcpiles button:focus-visible {
+  box-shadow: var(--ring), var(--drop);
+}
+.mtile:focus-visible {
+  box-shadow: var(--ring), var(--drop-sm);
+}
+.spk.big:focus-visible {
+  box-shadow:
+    var(--ring),
+    0 7px 0 var(--gold-deep);
 }
 
 /* ---------- Motion preferences ---------- */

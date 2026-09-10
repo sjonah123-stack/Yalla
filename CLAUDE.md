@@ -67,6 +67,17 @@ Gems: 15 + 3×correct (+20 perfect) per lesson/practice; +50 unit chest (once, `
 placement. Twelve seals with ASCII ids in `SEALS`. All settled by `applySessionEnd` at
 session end — never sprinkle rewards into `recordAnswer`.
 
+## UI conventions (v0.7)
+
+- Never call `confirm()`/`alert()`: use `useUi.getState().confirm({ title, body, actions })`
+  (resolves to the tapped action's value, null on Escape/backdrop). `ConfirmSheet` is mounted on
+  both App branches (Play and the shell).
+- Hebrew text goes through `<Heb>` (adds `lang="he"`); root glyph divs carry `lang="he"`.
+- View headers: `.view-h` with `div.actions` holding `<HeaderGear />` (Home has its own gear).
+- Tricky roots (`isTricky`, `trickyRoots`, `trickyQueue` in `srs.ts`) and session milestones
+  (`crossings`) are pure and tested; `Plan` = `{ kind: "practice", focus?: "tricky" }`.
+- Tap targets are 44px (hit expanders via `::after` on small controls); focus ring = `--ring`.
+
 ## Verifying UI changes
 
 The in-app browser pane is often hidden (screenshots come back blank). A reliable

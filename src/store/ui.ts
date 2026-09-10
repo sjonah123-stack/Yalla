@@ -1,6 +1,19 @@
 import { create } from "zustand";
 import type { UnitId } from "../types";
 
+export type ConfirmKind = "primary" | "plum" | "danger" | "quiet" | "text";
+export interface ConfirmAction {
+  label: string;
+  value: string;
+  kind?: ConfirmKind;
+}
+export interface ConfirmSpec {
+  title: string;
+  body?: string;
+  actions: ConfirmAction[];
+}
+export type BankChip = "all" | "due" | "learning" | "memorized" | "unmet" | "tricky";
+
 export type View =
   "home" | "path" | "play" | "bank" | "patterns" | "progress" | "flashcards" | "match";
 
@@ -25,11 +38,21 @@ interface UiStore {
   setBankOpen: (id: string | null) => void;
   /** Jump to the bank with a root expanded. */
   openRoot: (id: string) => void;
+  bankChip: BankChip;
+  setBankChip: (c: BankChip) => void;
+  /** The in-app confirm sheet; null when closed. */
+  confirmSpec: ConfirmSpec | null;
+  /** Ask; resolves with the tapped action's value, or null on Escape / backdrop. */
+  confirm: (spec: ConfirmSpec) => Promise<string | null>;
+  resolveConfirm: (value: string | null) => void;
 }
+
+let resolver: ((v: string | null) => void) | null = null;
 
 export const useUi = create<UiStore>((set) => ({
   view: "home",
-  setView: (view) => set({ view }),
+  // Changing tab always closes the unit sheet (it floats over the path only).
+  setView: (view) => set({ view, unitSheet: null }),
   toast: "",
   toastKey: 0,
   showToast: (toast) => set((s) => ({ toast, toastKey: s.toastKey + 1 })),
@@ -44,5 +67,22 @@ export const useUi = create<UiStore>((set) => ({
   setBankFilter: (bankFilter) => set({ bankFilter }),
   bankOpen: null,
   setBankOpen: (bankOpen) => set({ bankOpen }),
-  openRoot: (id) => set({ view: "bank", bankOpen: id, bankFilter: "", unitSheet: null }),
+  openRoot: (id) =>
+    set({ view: "bank", bankOpen: id, bankFilter: "", bankChip: "all", unitSheet: null }),
+  bankChip: "all",
+  setBankChip: (bankChip) => set({ bankChip }),
+  confirmSpec: null,
+  confirm: (spec) => {
+    resolver?.(null);
+    return new Promise<string | null>((resolve) => {
+      resolver = resolve;
+      set({ confirmSpec: spec });
+    });
+  },
+  resolveConfirm: (value) => {
+    const r = resolver;
+    resolver = null;
+    set({ confirmSpec: null });
+    r?.(value);
+  },
 }));

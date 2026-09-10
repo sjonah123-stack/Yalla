@@ -26,7 +26,9 @@ export function WordList({
             </div>
           </div>
           <div className="h">
-            <span className="word">{nikud ? w.h : stripNikud(w.h)}</span>
+            <span className="word" lang="he">
+              {nikud ? w.h : stripNikud(w.h)}
+            </span>
             <SpeakButton text={w.h} />
           </div>
         </div>

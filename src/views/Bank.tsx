@@ -1,22 +1,44 @@
 import { memo, useMemo } from "react";
-import type { Root, Word } from "../types";
+import type { Root, RootState, Word } from "../types";
 import { ROOTS } from "../data/roots";
 import { BINYAN_BY_ID, isBinyan } from "../data/binyanim";
 import { normLetters, rootDisplay, rootLetters, stripNikud } from "../lib/hebrew";
-import { DAY, isDue, mastery, seen } from "../lib/srs";
+import { DAY, isDue, isTricky, mastery, seen } from "../lib/srs";
 import { useProgress } from "../store/progress";
-import { useUi } from "../store/ui";
+import { useUi, type BankChip } from "../store/ui";
 import { MasteryDots } from "../components/MasteryDots";
+import { HeaderGear } from "../components/HeaderGear";
+import { Heb } from "../components/Heb";
 import { WordList } from "../components/WordList";
-import { unitTitle } from "../lib/course";
+import { memorized, unitTitle } from "../lib/course";
 import { COURSE } from "../store/course";
 import { SECTION_BY_CAT } from "../data/course";
+
+/** Does a root's state pass the selected filter chip? */
+function matchesChip(chip: BankChip, st: RootState | undefined, now: number): boolean {
+  switch (chip) {
+    case "due":
+      return isDue(st, now);
+    case "learning":
+      return seen(st) && !memorized(st);
+    case "memorized":
+      return memorized(st);
+    case "unmet":
+      return !seen(st);
+    case "tricky":
+      return isTricky(st);
+    default:
+      return true;
+  }
+}
 
 export default function Bank() {
   const filter = useUi((s) => s.bankFilter);
   const setFilter = useUi((s) => s.setBankFilter);
   const open = useUi((s) => s.bankOpen);
   const setOpen = useUi((s) => s.setBankOpen);
+  const chip = useUi((s) => s.bankChip);
+  const setChip = useUi((s) => s.setBankChip);
   const roots = useProgress((s) => s.p.roots);
   const now = Date.now();
 
@@ -25,37 +47,68 @@ export default function Bank() {
     const fh = normLetters(f);
     const list = ROOTS.filter(
       (r) =>
-        !f ||
-        rootLetters(r).includes(fh) ||
-        r.m.toLowerCase().includes(f) ||
-        r.cat.includes(f) ||
-        r.words.some(
-          (w) =>
-            stripNikud(w.h).includes(f) ||
-            w.g.toLowerCase().includes(f) ||
-            w.t.toLowerCase().includes(f),
-        ),
+        (!f ||
+          rootLetters(r).includes(fh) ||
+          r.m.toLowerCase().includes(f) ||
+          r.cat.includes(f) ||
+          r.words.some(
+            (w) =>
+              stripNikud(w.h).includes(f) ||
+              w.g.toLowerCase().includes(f) ||
+              w.t.toLowerCase().includes(f),
+          )) &&
+        matchesChip(chip, roots[r.r], now),
     );
     const g = new Map<string, Root[]>();
     for (const r of list) (g.get(r.cat) ?? g.set(r.cat, []).get(r.cat)!).push(r);
     return [...g.entries()];
-  }, [filter]);
-  const dueCount = ROOTS.filter((r) => isDue(roots[r.r], now)).length;
-  const learned = ROOTS.filter((r) => seen(roots[r.r])).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, chip, roots]);
+  const counts = useMemo(() => {
+    const c = { all: ROOTS.length, due: 0, learning: 0, memorized: 0, unmet: 0, tricky: 0 };
+    for (const r of ROOTS) {
+      const st = roots[r.r];
+      if (isDue(st, now)) c.due++;
+      if (seen(st) && !memorized(st)) c.learning++;
+      if (memorized(st)) c.memorized++;
+      if (!seen(st)) c.unmet++;
+      if (isTricky(st)) c.tricky++;
+    }
+    return c;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roots]);
+  const dueCount = counts.due;
+  const learned = ROOTS.length - counts.unmet;
+
+  const chips: { key: BankChip; label: string; n: number }[] = [
+    { key: "all", label: "All", n: counts.all },
+    { key: "due", label: "Due", n: counts.due },
+    { key: "learning", label: "Learning", n: counts.learning },
+    { key: "memorized", label: "Memorized", n: counts.memorized },
+    { key: "unmet", label: "Not met", n: counts.unmet },
+    ...(counts.tricky > 0
+      ? [{ key: "tricky" as BankChip, label: "Tricky", n: counts.tricky }]
+      : []),
+  ];
 
   return (
     <>
       <div className="view-h">
         <h2>Roots</h2>
-        <span className="k tnum">
-          {learned} learned · {ROOTS.length}
-          {dueCount > 0 && (
-            <>
-              {" "}
-              <span className="due-badge">{dueCount} due</span>
-            </>
-          )}
-        </span>
+        <div className="actions">
+          <span className="k tnum">
+            {learned} learned · {ROOTS.length}
+            {dueCount > 0 && (
+              <>
+                {" "}
+                <button type="button" className="due-badge" onClick={() => setChip("due")}>
+                  {dueCount} due
+                </button>
+              </>
+            )}
+          </span>
+          <HeaderGear />
+        </div>
       </div>
       <input
         className="search"
@@ -66,9 +119,32 @@ export default function Bank() {
         autoComplete="off"
         aria-label="Search roots"
       />
+      <div className="chips scroll">
+        {chips.map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            className="chip toggle"
+            aria-pressed={chip === c.key}
+            onClick={() => setChip(c.key)}
+          >
+            {c.label} <span className="tnum">{c.n}</span>
+          </button>
+        ))}
+      </div>
       {groups.length === 0 && (
         <p className="muted" style={{ marginTop: 16 }}>
-          Nothing matches.
+          Nothing matches.{" "}
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() => {
+              setFilter("");
+              setChip("all");
+            }}
+          >
+            Clear
+          </button>
         </p>
       )}
       {groups.map(([cat, rs]) => (
@@ -118,12 +194,18 @@ const RootRow = memo(function RootRow({
     <div className="rcard">
       <button type="button" className="rrow" aria-expanded={open} onClick={onToggle}>
         <span className="tile">
-          <span className="glyph">{rootDisplay(root)}</span>
+          <Heb className="glyph">{rootDisplay(root)}</Heb>
         </span>
         <span>
           <div className="m">{root.m}</div>
           <div className="c">
             {unitTitle(COURSE.byId[root.unit])} · {root.words.length} words · {state}
+            {isTricky(st) && (
+              <>
+                {" · "}
+                <span className="tag tricky">tricky</span>
+              </>
+            )}
           </div>
         </span>
         <MasteryDots level={m} />
@@ -166,9 +248,9 @@ function RootDetail({ root }: { root: Root }) {
           <div className="bh">
             {isBinyan(form) ? (
               <>
-                <span className="heb" style={{ letterSpacing: 0, fontSize: 14 }}>
-                  {BINYAN_BY_ID[form].he}
-                </span>{" "}
+                <Heb>
+                  <span style={{ letterSpacing: 0, fontSize: 14 }}>{BINYAN_BY_ID[form].he}</span>
+                </Heb>{" "}
                 · {form}
               </>
             ) : (

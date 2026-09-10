@@ -15,6 +15,7 @@ import { useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
 import { COURSE } from "../store/course";
 import { memorizedCount, sectionColor } from "../lib/course";
+import { HeaderGear } from "../components/HeaderGear";
 
 const MASTERY_COLORS = [
   "var(--bad)",
@@ -45,7 +46,12 @@ export default function Progress() {
 
   return (
     <div className="progress">
-      <h2>Progress</h2>
+      <div className="view-h">
+        <h2>Progress</h2>
+        <div className="actions">
+          <HeaderGear />
+        </div>
+      </div>
       <div className="stats">
         <div>
           <div className="n tnum">{p.streak}</div>
@@ -58,6 +64,18 @@ export default function Progress() {
         <div>
           <div className="n tnum">{acc}%</div>
           <div className="l">accuracy</div>
+        </div>
+        <div>
+          <div className="n tnum">×{p.bestCombo}</div>
+          <div className="l">best combo</div>
+        </div>
+        <div>
+          <div className="n tnum">✦ {p.gems}</div>
+          <div className="l">gems</div>
+        </div>
+        <div>
+          <div className="n tnum">{t.days}</div>
+          <div className="l">days played</div>
         </div>
       </div>
 
@@ -77,6 +95,7 @@ export default function Progress() {
                   {s.letter}
                 </span>
                 <span className="n">{s.name}</span>
+                <div className="hint">{s.hint}</div>
               </div>
             );
           })}
@@ -91,6 +110,7 @@ export default function Progress() {
               key={i}
               style={{ width: (met ? n / met : 0) * 100 + "%", background: MASTERY_COLORS[i] }}
               title={`Level ${i + 1}: ${n}`}
+              aria-label={`Level ${i + 1}: ${n} roots`}
             />
           ))}
         </div>
@@ -194,7 +214,7 @@ export default function Progress() {
       <section className="block">
         <div className="eyebrow">Weakest themes first</div>
         <p className="small muted" style={{ margin: "4px 0 12px" }}>
-          Tap a theme to focus, then start a session.
+          Tap a theme to focus practice on it. Tap again to clear.
         </p>
         <div className="bars">
           {themes.map((th) => (

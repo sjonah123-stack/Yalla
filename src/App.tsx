@@ -18,6 +18,9 @@ import UnitSheet from "./views/Unit";
 import Flashcards from "./views/Flashcards";
 import Match from "./views/Match";
 import Welcome from "./views/Welcome";
+import { ConfirmSheet } from "./components/ConfirmSheet";
+
+const GROUND = { light: "#f4ecdf", dark: "#1c0f20" };
 
 const NAV: { v: View; label: string; glyph: string }[] = [
   { v: "home", label: "Home", glyph: "◉" },
@@ -46,6 +49,11 @@ export default function App() {
   useEffect(() => {
     if (theme === "system") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = theme;
+    // Keep the browser chrome / status bar on the app's ground colour.
+    document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((m) => {
+      const forDark = (m.media ?? "").includes("dark");
+      m.content = theme === "system" ? (forDark ? GROUND.dark : GROUND.light) : GROUND[theme];
+    });
   }, [theme]);
 
   useEffect(() => {
@@ -70,7 +78,13 @@ export default function App() {
     }
   }, []);
 
-  if (view === "play" && session) return <Play />;
+  if (view === "play" && session)
+    return (
+      <>
+        <Play />
+        <ConfirmSheet />
+      </>
+    );
   if (onboardedAt === null) return <Welcome />;
   if (view === "flashcards" && toolUnit) return <Flashcards unitId={toolUnit} />;
   if (view === "match" && toolUnit) return <Match unitId={toolUnit} />;
@@ -110,6 +124,7 @@ export default function App() {
       <Toast />
       {unitSheet && <UnitSheet unitId={unitSheet} />}
       {settingsOpen && <Settings onClose={() => setSettingsOpen(false)} />}
+      <ConfirmSheet />
     </>
   );
 }

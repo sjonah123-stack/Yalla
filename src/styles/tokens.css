@@ -32,8 +32,8 @@
   --locked: #ebe1cf;
   --ink: #2a1630;
   --ink-2: #6b5670;
-  --ink-3: #9a8a9e;
-  --ink-4: #b8a9b0;
+  --ink-3: #77657c;
+  --ink-4: #8b7a88;
   --plum: #4a2352;
   --plum-deep: #331538;
   --plum-light: #8e5aa5;
@@ -48,9 +48,11 @@
   --good: #4e9a73;
   --good-deep: #35704f;
   --good-soft: #ddefe4;
+  --good-ink: #fff;
   --bad: #d2483f;
   --bad-deep: #9e3229;
   --bad-soft: #f8dcd6;
+  --bad-ink: #fff;
   --hero: linear-gradient(180deg, var(--plum-deep) 0%, var(--plum) 100%);
   --scrim: rgba(42, 22, 48, 0.45);
   --hairline: rgba(42, 22, 48, 0.08);
@@ -65,6 +67,8 @@
   --drop: 0 6px 0 var(--clay);
   --drop-sm: 0 4px 0 var(--clay);
   --drop-xs: 0 3px 0 var(--stone-2);
+  /* Focus ring: two hard rings, so it reads on gold/coral and survives round corners. */
+  --ring: 0 0 0 3px var(--paper), 0 0 0 6px var(--plum);
 
   /* Motion */
   --dur-fast: 120ms;
@@ -127,9 +131,11 @@
   --good: #6fbf95;
   --good-deep: #35704f;
   --good-soft: #1f3a2c;
+  --good-ink: #1c0f20;
   --bad: #f07565;
   --bad-deep: #9e3229;
   --bad-soft: #43231f;
+  --bad-ink: #1c0f20;
   --hero: linear-gradient(180deg, #120810 0%, #2a1630 100%);
   --scrim: rgba(0, 0, 0, 0.6);
   --hairline: rgba(248, 238, 223, 0.1);

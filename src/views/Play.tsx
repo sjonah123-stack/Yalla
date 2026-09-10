@@ -11,6 +11,7 @@ import { speak } from "../lib/speech";
 import { BINYAN_BY_ID } from "../data/binyanim";
 import { WordList } from "../components/WordList";
 import { SpeakButton } from "../components/SpeakButton";
+import { Heb } from "../components/Heb";
 import Summary from "./Summary";
 
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
@@ -20,6 +21,35 @@ export default function Play() {
   const { pickOption, typeKey, submitTyped, next, end, dismissLearn } = useSession.getState();
   const nikud = useProgress((st) => st.p.settings.nikud);
   const setView = useUi((st) => st.setView);
+
+  // Tests and placements are discarded when left early, so they ask first.
+  const quit = async () => {
+    const st = useSession.getState().s;
+    if (!st || st.done) return;
+    if (st.plan.kind === "test" || st.plan.kind === "placement") {
+      const v = await useUi.getState().confirm(
+        st.plan.kind === "test"
+          ? {
+              title: "Leave the test?",
+              body: "A test only counts when you finish it. Leaving throws this run away — the unit itself is untouched.",
+              actions: [
+                { label: "Keep going", value: "stay", kind: "plum" },
+                { label: "Leave the test", value: "leave", kind: "text" },
+              ],
+            }
+          : {
+              title: "Leave the placement test?",
+              body: "Nothing from a half-finished placement is saved. You can take it again from Home.",
+              actions: [
+                { label: "Keep going", value: "stay", kind: "plum" },
+                { label: "Leave", value: "leave", kind: "text" },
+              ],
+            },
+      );
+      if (v !== "leave") return;
+    }
+    end();
+  };
 
   // Physical keyboard: 1–4 pick, Enter/Space advance, Hebrew or QWERTY-positional typing.
   useEffect(() => {
@@ -84,7 +114,14 @@ export default function Play() {
   return (
     <div className="play">
       <div className="rail">
-        <button type="button" className="x" aria-label="End session" onClick={() => end()}>
+        <button
+          type="button"
+          className="x"
+          aria-label={
+            s.plan.kind === "test" || s.plan.kind === "placement" ? "Leave the test" : "End session"
+          }
+          onClick={() => quit()}
+        >
           ×
         </button>
         <div className="ticks" aria-label={`Question ${s.i + 1}`}>
@@ -132,7 +169,9 @@ export default function Play() {
       case "oddOne":
         return (
           <>
-            <div className="glyph hero">{rootDisplay(root)}</div>
+            <div className="glyph hero" lang="he">
+              {rootDisplay(root)}
+            </div>
             {q.mode === "oddOne" && <div className="gloss">{root.m}</div>}
           </>
         );
@@ -151,7 +190,9 @@ export default function Play() {
         return (
           <>
             <div className="row" style={{ justifyContent: "center" }}>
-              <div className="word">{wordText(q.word!.h)}</div>
+              <div className="word" lang="he">
+                {wordText(q.word!.h)}
+              </div>
               <SpeakButton text={q.word!.h} />
             </div>
             <div className="gloss">{q.word!.g}</div>
@@ -263,28 +304,26 @@ export default function Play() {
         const ow = q.opts!.find((o) => o.ok)!.w!;
         head = (
           <span>
-            <span className="heb">{wordText(ow.h)}</span> is from{" "}
-            <span className="heb">{rootDisplay(q.odd)}</span> ({q.odd.m})
+            <Heb>{wordText(ow.h)}</Heb> is from <Heb>{rootDisplay(q.odd)}</Heb> ({q.odd.m})
           </span>
         );
       } else if (q.mode === "whichBinyan" && q.binyan) {
         head = (
           <span>
-            <span className="heb">{wordText(q.word!.h)}</span> is{" "}
-            <span className="heb">{BINYAN_BY_ID[q.binyan].he}</span> ({q.binyan})
+            <Heb>{wordText(q.word!.h)}</Heb> is <Heb>{BINYAN_BY_ID[q.binyan].he}</Heb> ({q.binyan})
           </span>
         );
       } else {
         head = (
           <span>
-            The root is <span className="heb">{rootDisplay(root)}</span> ({root.m})
+            The root is <Heb>{rootDisplay(root)}</Heb> ({root.m})
           </span>
         );
       }
     } else if (q.mode === "hearWord") {
       head = (
         <span>
-          {pick(PRAISE)} <span className="heb">{wordText(q.word!.h)}</span> — {q.word!.g}
+          {pick(PRAISE)} <Heb>{wordText(q.word!.h)}</Heb> — {q.word!.g}
         </span>
       );
     }
@@ -298,10 +337,7 @@ export default function Play() {
         <div className="meta">
           {good && (
             <>
-              <span className="heb" style={{ letterSpacing: ".1em" }}>
-                {rootDisplay(root)}
-              </span>{" "}
-              · {root.m} ·{" "}
+              <Heb className="tracked">{rootDisplay(root)}</Heb> · {root.m} ·{" "}
             </>
           )}
           {root.cat} · mastery {mastery(st)}/5
@@ -319,7 +355,9 @@ export default function Play() {
     return (
       <div className="learn">
         <div className="eyebrow">New root</div>
-        <div className="glyph hero">{rootDisplay(root)}</div>
+        <div className="glyph hero" lang="he">
+          {rootDisplay(root)}
+        </div>
         <div className="m">{root.m}</div>
         <div className="muted">
           {root.cat} · {root.words.length} words

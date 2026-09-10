@@ -4,6 +4,8 @@ import { useSession } from "./session";
 import { COURSE } from "./course";
 import { defaultProgress } from "../lib/storage";
 import { GEM_BASE, GEM_PER_CORRECT, GEM_PERFECT } from "../lib/rewards";
+import { applyAnswer, isTricky } from "../lib/srs";
+import { ROOTS } from "../data/roots";
 
 /** Drive a whole session through the store the way the Play view does. */
 function playThrough(alwaysRight: boolean): void {
@@ -102,5 +104,30 @@ describe("session → rewards wiring", () => {
     useSession.getState().start({ kind: "placement" });
     playThrough(true);
     expect(useSession.getState().s!.rewards!.parts.placement).toBe(0);
+  });
+});
+
+describe("tricky practice", () => {
+  it("only holds tricky roots and still pays practice gems", () => {
+    const p = defaultProgress();
+    const now = Date.now();
+    for (const r of ROOTS.slice(0, 4)) {
+      let s = applyAnswer(undefined, true, true, now);
+      s = applyAnswer(s, false, true, now);
+      s = applyAnswer(s, false, true, now);
+      p.roots[r.r] = s;
+    }
+    p.onboardedAt = now;
+    useProgress.getState().adopt(p);
+    expect(useSession.getState().start({ kind: "practice", focus: "tricky" })).toBe(true);
+    const s = useSession.getState().s!;
+    expect(s.slots.length).toBe(8);
+    for (const r of s.slots) expect(isTricky(p.roots[r.r])).toBe(true);
+    playThrough(true);
+    expect(useSession.getState().s!.rewards?.parts.base).toBe(GEM_BASE);
+  });
+  it("cannot start when nothing is tricky", () => {
+    useProgress.getState().adopt(defaultProgress());
+    expect(useSession.getState().start({ kind: "practice", focus: "tricky" })).toBe(false);
   });
 });

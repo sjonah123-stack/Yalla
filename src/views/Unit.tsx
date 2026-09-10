@@ -8,6 +8,7 @@ import { formatMs } from "../lib/match";
 import { rootDisplay } from "../lib/hebrew";
 import { mastery } from "../lib/srs";
 import { MasteryDots } from "../components/MasteryDots";
+import { Heb } from "../components/Heb";
 import type { UnitId } from "../types";
 
 const STATUS_TEXT = {
@@ -60,13 +61,21 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
         <div className="row between" style={{ alignItems: "flex-start" }}>
           <div>
             <div className="eyebrow">
-              <span className="heb">{u.section.he}</span> · {u.section.title}
+              <Heb>{u.section.he}</Heb> · {u.section.title}
             </div>
             <h2>{unitTitle(u)}</h2>
           </div>
-          <span className={`upill ${status}${cracked ? " cracked" : ""}`}>
-            {cracked ? "needs repair" : status}
-          </span>
+          <div
+            className="actions"
+            style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}
+          >
+            <span className={`upill ${status}${cracked ? " cracked" : ""}`}>
+              {cracked ? "needs repair" : status}
+            </span>
+            <button type="button" className="btn sm" onClick={closeUnit}>
+              Done
+            </button>
+          </div>
         </div>
         <p className="status">
           {cracked
@@ -93,7 +102,7 @@ export default function UnitSheet({ unitId }: { unitId: UnitId }) {
                 className={"uroot" + (locked ? " dim" : "")}
                 onClick={() => openRoot(r.r)}
               >
-                <span className="glyph">{rootDisplay(r)}</span>
+                <Heb className="glyph">{rootDisplay(r)}</Heb>
                 <span className="s">{r.short}</span>
                 <MasteryDots level={m} />
               </button>

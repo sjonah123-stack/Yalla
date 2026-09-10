@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { applyAnswer, buildQueue, dayKey, mastery, newRootState, touchStreak, DAY } from "./srs";
+import {
+  applyAnswer,
+  buildQueue,
+  crossings,
+  dayKey,
+  isTricky,
+  mastery,
+  newRootState,
+  touchStreak,
+  trickyQueue,
+  trickyRoots,
+  DAY,
+} from "./srs";
 import { ROOTS } from "../data/roots";
 import { defaultProgress } from "./storage";
 
@@ -114,5 +126,72 @@ describe("buildQueue", () => {
     p.settings.cats = ["time"];
     const q = buildQueue(ROOTS, p, 20, 0, now);
     expect(q.every((r) => r.cat === "time")).toBe(true);
+  });
+});
+
+describe("tricky", () => {
+  const miss = (s?: ReturnType<typeof newRootState>) => applyAnswer(s, false, true, now);
+  const twice = () => miss(miss(applyAnswer(undefined, true, true, now)));
+  it("two misses make a root tricky, one does not", () => {
+    expect(isTricky(miss(applyAnswer(undefined, true, true, now)))).toBe(false);
+    expect(isTricky(twice())).toBe(true);
+  });
+  it("clears once the root climbs back to mastery 3, not at memorized", () => {
+    let s = twice();
+    s = applyAnswer(s, true, false, now); // relearn: ivl 1
+    expect(isTricky(s)).toBe(true);
+    s = applyAnswer(s, true, true, s.due); // ivl 3 = memorized
+    expect(mastery(s)).toBe(2);
+    expect(isTricky(s)).toBe(true);
+    // Lower ease after the misses means one or two more due days before interval ≥ 7.
+    let days = 0;
+    while (mastery(s) < 3 && days < 4) {
+      s = applyAnswer(s, true, true, s.due);
+      days++;
+    }
+    expect(mastery(s)).toBeGreaterThanOrEqual(3);
+    expect(days).toBeLessThanOrEqual(2);
+    expect(isTricky(s)).toBe(false);
+  });
+  it("unseen and placement-prescheduled roots are never tricky", () => {
+    expect(isTricky(undefined)).toBe(false);
+    expect(isTricky({ ...newRootState(), reps: 2, ivl: 7, due: now + 7 * DAY })).toBe(false);
+  });
+  it("trickyRoots lists only tricky roots, most lapses first", () => {
+    const [a, b, c] = ROOTS;
+    const p = { roots: { [a.r]: twice(), [b.r]: miss(twice()), [c.r]: miss(undefined) } };
+    expect(trickyRoots(ROOTS, p).map((r) => r.r)).toEqual([b.r, a.r]);
+  });
+  it("trickyQueue drills a short set twice with no adjacent repeat and caps a long one", () => {
+    const short = { roots: Object.fromEntries(ROOTS.slice(0, 3).map((r) => [r.r, twice()])) };
+    for (let i = 0; i < 20; i++) {
+      const q = trickyQueue(ROOTS, short, 10);
+      expect(q).toHaveLength(6);
+      for (let k = 1; k < q.length; k++) expect(q[k]).not.toBe(q[k - 1]);
+      expect(new Set(q).size).toBe(3);
+    }
+    const long = { roots: Object.fromEntries(ROOTS.slice(0, 12).map((r) => [r.r, twice()])) };
+    const q = trickyQueue(ROOTS, long, 10);
+    expect(q).toHaveLength(10);
+    expect(new Set(q).size).toBe(10);
+    expect(trickyQueue(ROOTS, { roots: {} }, 10)).toEqual([]);
+  });
+});
+
+describe("crossings", () => {
+  it("reports the new level when xp crosses a boundary, else null", () => {
+    expect(crossings({ xp: 99, todayXp: 0 }, { xp: 100, todayXp: 1 }, 50).level).toBe(2);
+    expect(crossings({ xp: 0, todayXp: 0 }, { xp: 50, todayXp: 50 }, 50).level).toBeNull();
+  });
+  it("jumping two levels reports the top one", () => {
+    expect(crossings({ xp: 0, todayXp: 0 }, { xp: 400, todayXp: 0 }, 50).level).toBe(3);
+  });
+  it("reports the daily goal only on the session that crosses it", () => {
+    expect(crossings({ xp: 0, todayXp: 30 }, { xp: 0, todayXp: 60 }, 50).goal).toBe(true);
+    expect(crossings({ xp: 0, todayXp: 60 }, { xp: 0, todayXp: 90 }, 50).goal).toBe(false);
+    expect(crossings({ xp: 0, todayXp: 0 }, { xp: 0, todayXp: 50 }, 50).goal).toBe(true);
+  });
+  it("a session that straddles midnight never reports the goal", () => {
+    expect(crossings({ xp: 0, todayXp: 40 }, { xp: 0, todayXp: 10 }, 50).goal).toBe(false);
   });
 });

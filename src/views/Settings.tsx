@@ -3,6 +3,7 @@ import type React from "react";
 import { useProgress } from "../store/progress";
 import { useSession } from "../store/session";
 import { useCloud } from "../store/cloud";
+import { useUi } from "../store/ui";
 import { loadCloud } from "../lib/cloud-loader";
 import { speechAvailable } from "../lib/speech";
 import { lastSyncedAt } from "../lib/storage";
@@ -72,8 +73,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         </div>
         <div style={{ marginTop: 8 }}>
           {row(
-            "Session length",
-            "Questions per session",
+            "Practice length",
+            "Questions per practice round · lessons are 16, tests 20",
             <Seg
               value={st.sessionLen}
               options={[
@@ -140,17 +141,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               <button
                 type="button"
                 className="btn sm"
-                onClick={() => {
-                  const wipe = confirm(
-                    "Also remove your progress from this device? It stays safe in your account.\n\nOK = remove it from this device · Cancel = keep a copy here",
-                  );
-                  cloud.signOut().then(() => {
-                    if (wipe) {
-                      useSession.getState().clear();
-                      useProgress.getState().wipeLocal();
-                      onClose();
-                    }
+                onClick={async () => {
+                  const v = await useUi.getState().confirm({
+                    title: "Sign out?",
+                    body: "Your progress stays safe in your account. Keep a copy on this device, or clear it?",
+                    actions: [
+                      { label: "Keep a copy here", value: "keep", kind: "plum" },
+                      { label: "Remove from this device", value: "wipe", kind: "danger" },
+                      { label: "Cancel", value: "cancel", kind: "text" },
+                    ],
                   });
+                  if (v !== "keep" && v !== "wipe") return;
+                  await cloud.signOut();
+                  if (v === "wipe") {
+                    useSession.getState().clear();
+                    useProgress.getState().wipeLocal();
+                    onClose();
+                  }
                 }}
               >
                 Sign out
@@ -183,18 +190,22 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           type="button"
           className="btn text"
           style={{ marginTop: 10, padding: "8px 0", color: "var(--coral-deep)" }}
-          onClick={() => {
-            if (
-              confirm(
+          onClick={async () => {
+            const v = await useUi.getState().confirm({
+              title: "Reset progress?",
+              body:
                 cloud.status === "signed-in"
-                  ? "Erase all progress on this device and in your account? This cannot be undone."
-                  : "Erase all progress on this device? This cannot be undone.",
-              )
-            ) {
-              useSession.getState().clear();
-              reset();
-              onClose();
-            }
+                  ? "This erases every root, streak, gem and seal on this device and in your account. It cannot be undone."
+                  : "This erases every root, streak, gem and seal on this device. It cannot be undone.",
+              actions: [
+                { label: "Erase everything", value: "reset", kind: "danger" },
+                { label: "Keep my progress", value: "cancel", kind: "text" },
+              ],
+            });
+            if (v !== "reset") return;
+            useSession.getState().clear();
+            reset();
+            onClose();
           }}
         >
           Reset progress
