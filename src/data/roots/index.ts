@@ -22,6 +22,11 @@ import { WEATHER } from "./weather";
 import { TECH } from "./tech";
 import { EDUCATION } from "./education";
 import { MILITARY } from "./military";
+import { CITY } from "./city";
+import { COMMERCE } from "./commerce";
+import { ANIMALS } from "./animals";
+import { SCIENCE } from "./science";
+import { SPORT } from "./sport";
 
 export const ROOTS: readonly Root[] = [
   ...SPEECH,
@@ -44,6 +49,11 @@ export const ROOTS: readonly Root[] = [
   ...TECH,
   ...EDUCATION,
   ...MILITARY,
+  ...CITY,
+  ...COMMERCE,
+  ...ANIMALS,
+  ...SCIENCE,
+  ...SPORT,
 ];
 
 export const ROOT_BY_ID: Record<string, Root> = Object.fromEntries(ROOTS.map((r) => [r.r, r]));

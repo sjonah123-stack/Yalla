@@ -15,7 +15,9 @@ firebase deploy --only hosting,firestore:rules   # targets `app` (yalla-677b9) +
 ```
 
 Ship = commit on `main` + deploy. Both live URLs serve the same build:
-https://yalla-roots.web.app and https://yalla-677b9.web.app.
+https://yalla-roots.web.app (canonical, `CANONICAL_HOST` in `src/lib/site.ts`) and
+https://yalla-677b9.web.app (legacy: `shouldMove` sends people to the canonical host when the
+device has no progress or syncs to an account; otherwise Home shows a move banner).
 
 ## Non-negotiables
 
@@ -47,7 +49,9 @@ https://yalla-roots.web.app and https://yalla-677b9.web.app.
   `{ v, updatedAt, resetAt, json }`. On sign-in `reconcileSignIn` merges for a never-synced
   device or the same uid, replaces for a different uid, and never uploads another person's
   local record. `resetAt` is an epoch: a reset wins wholesale on merge. Snapshot updates merge
-  in but never push back. Signing in counts as onboarding.
+  in but never push back. Signing in counts as onboarding. If the account record can't be
+  loaded at sign-in (offline), the device stays local-only (`pulled: false`) and `resync()`
+  re-attaches on `online` / foreground — never upload over an unknown record.
 - Artifact build: the same merge against the Claude artifact DB (`connectRemote`).
 - Firebase project `yalla-677b9`; public config in `src/lib/firebase-config.ts`. `authDomain`
   is the page's own origin on the hosts in `FIRST_PARTY_AUTH_HOSTS` (first-party sign-in, the

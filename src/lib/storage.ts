@@ -276,19 +276,22 @@ export const PUSH_DELAY = 800;
 let remote: RemoteBackend | null = null;
 let pending: { p: Progress; timer: ReturnType<typeof setTimeout> } | null = null;
 let lastPushedAt = 0;
+let syncedAt = 0;
 
 /** Attach (or, with null, detach) the remote. Detaching drops any queued push. */
 export function setRemote(r: RemoteBackend | null): void {
   if (pending) clearTimeout(pending.timer);
   pending = null;
   remote = r;
-  if (!r) lastPushedAt = 0;
+  if (!r) lastPushedAt = syncedAt = 0;
 }
 
 export const remoteConnected = (): boolean => !!remote;
 /** `updatedAt` of the last record handed to the remote (0 = nothing pushed yet). */
 export const lastPushedUpdatedAt = (): number => lastPushedAt;
 export const pushPending = (): boolean => !!pending;
+/** Wall-clock time of the last push the remote accepted (0 = none since attach). */
+export const lastSyncedAt = (): number => syncedAt;
 /** Swap the payload of a queued push (after an incoming merge) without resetting its timer. */
 export function replacePending(p: Progress): void {
   if (pending) pending.p = p;
@@ -305,7 +308,10 @@ export function pushRemote(p: Progress, immediate = false): Promise<SyncStatus> 
       pending = null;
       lastPushedAt = payload.updatedAt;
       r.save(payload)
-        .then(() => resolve("synced"))
+        .then(() => {
+          syncedAt = Date.now();
+          resolve("synced");
+        })
         .catch(() => resolve("error"));
     };
     if (immediate) {

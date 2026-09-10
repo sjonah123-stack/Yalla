@@ -9,6 +9,12 @@ import { rootLetters } from "../lib/hebrew";
 import { SEALS } from "../lib/rewards";
 import { GoalRing } from "../components/GoalRing";
 import { IconGear } from "../components/Icons";
+import { streakNudge } from "../lib/labels";
+import { CANONICAL_HOST, LEGACY_HOSTS, movedUrl } from "../lib/site";
+import { useCloud } from "../store/cloud";
+import { loadCloud } from "../lib/cloud-loader";
+
+const legacyHost = typeof location !== "undefined" && LEGACY_HOSTS.has(location.hostname);
 
 /** The dashboard: today's numbers, the next lesson, and the quick actions. */
 export default function Home() {
@@ -30,6 +36,8 @@ export default function Home() {
   const lvlPct = Math.max(2, Math.round(((p.xp - lo) / (hi - lo)) * 100));
   const alive = streakAlive(p.lastPlay);
   const sealCount = Object.keys(p.seals).length;
+  const cloudStatus = useCloud((s) => s.status);
+  const signIn = useCloud((s) => s.signIn);
   const curMem = unitMemorized(cur, p);
   const curGlyph = cur.roots[0] ? rootLetters(cur.roots[0]) : "?";
 
@@ -168,7 +176,37 @@ export default function Home() {
               {today.ok} right · {today.bad} wrong · +{today.xp} XP
             </span>
           </div>
+          <p className="small" style={{ marginTop: 6 }}>
+            {streakNudge(p.streak, p.lastPlay, today.xp, p.settings.dailyGoal)}
+          </p>
         </section>
+        {loadCloud && legacyHost && (
+          <section className="block gold" style={{ marginTop: 12 }}>
+            <div className="eyebrow">Yalla has moved</div>
+            <p style={{ marginTop: 6 }}>
+              The new address is <b>{CANONICAL_HOST}</b>.{" "}
+              {cloudStatus === "signed-in"
+                ? "Your progress is in your account — open the new address and sign in there."
+                : "Sign in here first so your progress follows you, then open the new address."}
+            </p>
+            <div className="row" style={{ gap: 8, marginTop: 12 }}>
+              {cloudStatus !== "signed-in" && (
+                <button type="button" className="btn plum" onClick={() => signIn()}>
+                  Sign in
+                </button>
+              )}
+              <button
+                type="button"
+                className={"btn " + (cloudStatus === "signed-in" ? "plum" : "ghost")}
+                onClick={() =>
+                  location.assign(movedUrl(location.pathname, location.search, location.hash))
+                }
+              >
+                Open {CANONICAL_HOST}
+              </button>
+            </div>
+          </section>
+        )}
       </div>
     </>
   );

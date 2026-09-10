@@ -5,6 +5,8 @@ import { useSession } from "../store/session";
 import { useCloud } from "../store/cloud";
 import { loadCloud } from "../lib/cloud-loader";
 import { speechAvailable } from "../lib/speech";
+import { lastSyncedAt } from "../lib/storage";
+import { accountLine } from "../lib/labels";
 import type { Settings as S } from "../types";
 
 function Seg<T extends string | number | boolean>({
@@ -130,12 +132,27 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           row(
             "Account",
             cloud.status === "signed-in"
-              ? `${cloud.user?.name ?? cloud.user?.email ?? "Signed in"} · progress follows you`
+              ? `${cloud.user?.name ?? cloud.user?.email ?? "Signed in"} · ${accountLine(sync, lastSyncedAt(), cloud.pulled, Date.now())}`
               : cloud.status === "error"
                 ? (cloud.error ?? "Sign-in failed")
                 : "Sign in to keep progress across devices",
             cloud.status === "signed-in" ? (
-              <button type="button" className="btn sm" onClick={() => cloud.signOut()}>
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => {
+                  const wipe = confirm(
+                    "Also remove your progress from this device? It stays safe in your account.\n\nOK = remove it from this device · Cancel = keep a copy here",
+                  );
+                  cloud.signOut().then(() => {
+                    if (wipe) {
+                      useSession.getState().clear();
+                      useProgress.getState().wipeLocal();
+                      onClose();
+                    }
+                  });
+                }}
+              >
                 Sign out
               </button>
             ) : (

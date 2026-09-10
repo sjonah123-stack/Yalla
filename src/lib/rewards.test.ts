@@ -315,9 +315,13 @@ describe("applySessionEnd", () => {
     expect(receipt.newSeals).toContain("first-unit");
   });
   it("a single-unit section pays its unit and section chests together", () => {
+    const solo = buildCourse(
+      ROOTS.filter((r) => r.unit === "time-1"),
+      [{ ...SECTION_BY_ID.time, units: ["time-1"] }],
+    );
     const p0 = { ...defaultProgress(), units: { "time-1": { completedAt: now } } };
     const { receipt } = applySessionEnd(
-      course,
+      solo,
       p0,
       end({ kind: "practice", ok: 1, bad: 3, best: 1 }),
       now,

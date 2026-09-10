@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { loadCloud } from "../lib/cloud-loader";
 import type { CloudUser } from "../lib/cloud";
+import type { Progress } from "../types";
 import {
   applyIncoming,
   cloudFlag,
@@ -25,6 +26,8 @@ interface CloudStore {
   status: CloudStatus;
   user: CloudUser | null;
   error: string | null;
+  /** Whether the account record has been loaded since sign-in. False = offline at sign-in. */
+  pulled: boolean;
   /** Load the SDK if this device had a cloud session, and start watching auth. */
   boot: () => Promise<void>;
   /**
@@ -35,6 +38,8 @@ interface CloudStore {
   warm: () => void;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** Retry a pull that failed at sign-in or a push that failed since; runs on reconnect. */
+  resync: () => void;
 }
 
 type Cloud = Awaited<ReturnType<NonNullable<typeof loadCloud>>>;
@@ -52,11 +57,16 @@ async function sdk(): Promise<Cloud | null> {
 async function attach(cloud: Cloud, user: CloudUser, set: (s: Partial<CloudStore>) => void) {
   const backend = cloud.firestoreBackend(user.uid);
   const progress = useProgress.getState();
-  let remote = null;
+  let remote: Progress | null;
   try {
     remote = await backend.load();
   } catch {
-    /* offline first launch: treat as no cloud record */
+    // Offline: the account record is unknown, so nothing may be uploaded over it. Stay signed in
+    // but local-only; resync() re-runs this once a connection is back.
+    setCloudFlag(true);
+    if (progress.p.onboardedAt === null) progress.adopt({ ...progress.p, onboardedAt: Date.now() });
+    set({ status: "signed-in", user, error: null, pulled: false });
+    return;
   }
   const { p, mode } = reconcileSignIn(progress.p, remote, getLastUid(), user.uid);
   if (mode === "replace" || mode === "fresh") useSession.getState().clear();
@@ -79,7 +89,7 @@ async function attach(cloud: Cloud, user: CloudUser, set: (s: Partial<CloudStore
       useProgress.getState().adopt(merged);
       if (pushPending()) replacePending(merged);
     }) ?? null;
-  set({ status: "signed-in", user, error: null });
+  set({ status: "signed-in", user, error: null, pulled: true });
 }
 
 function detach(set: (s: Partial<CloudStore>) => void) {
@@ -88,7 +98,7 @@ function detach(set: (s: Partial<CloudStore>) => void) {
   setRemote(null);
   setCloudFlag(false);
   useProgress.getState().setSync("local");
-  set({ status: "signed-out", user: null });
+  set({ status: "signed-out", user: null, pulled: false });
 }
 
 function fail(cloud: Cloud | null, e: unknown, set: (s: Partial<CloudStore>) => void) {
@@ -116,12 +126,31 @@ async function watch(
   );
 }
 
+let listening = false;
+function listen(resync: () => void) {
+  if (listening || typeof window === "undefined") return;
+  listening = true;
+  window.addEventListener("online", resync);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") resync();
+  });
+}
+
 export const useCloud = create<CloudStore>((set, get) => ({
   status: "off",
   user: null,
   error: null,
+  pulled: false,
+  resync: () => {
+    const { status, user, pulled } = get();
+    if (status !== "signed-in" || !user || !mod) return;
+    if (pulled && useProgress.getState().sync !== "error") return;
+    if (!pulled) attach(mod, user, set).catch((e) => fail(mod, e, set));
+    else pushRemote(useProgress.getState().p, true).then((s) => useProgress.getState().setSync(s));
+  },
   boot: async () => {
     if (!loadCloud) return;
+    listen(() => get().resync());
     if (!cloudFlag()) return set({ status: "signed-out" });
     set({ status: "loading" });
     try {

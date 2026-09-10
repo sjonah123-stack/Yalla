@@ -3,7 +3,8 @@ import { useUi, type View } from "./store/ui";
 import { useProgress } from "./store/progress";
 import { useSession } from "./store/session";
 import { initSpeech } from "./lib/speech";
-import { connectRemote } from "./lib/storage";
+import { cloudFlag, connectRemote } from "./lib/storage";
+import { movedUrl, shouldMove } from "./lib/site";
 import { loadCloud } from "./lib/cloud-loader";
 import { useCloud } from "./store/cloud";
 import Home from "./views/Home";
@@ -50,6 +51,11 @@ export default function App() {
   useEffect(() => {
     initSpeech().then((ok) => setAudioReady(ok));
     if (loadCloud) {
+      // One canonical address: leave a legacy host when nothing local would be lost.
+      if (shouldMove(location.hostname, useProgress.getState().p.onboardedAt, cloudFlag())) {
+        location.replace(movedUrl(location.pathname, location.search, location.hash));
+        return;
+      }
       // Web build: Firebase sync (SDK loads only if this device had a cloud session).
       useCloud.getState().boot();
     } else {

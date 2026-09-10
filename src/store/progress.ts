@@ -43,6 +43,8 @@ interface ProgressStore {
   /** Stamp onboardedAt once. */
   markOnboarded: () => void;
   reset: () => void;
+  /** Forget this device's copy without touching the account (after sign-out). */
+  wipeLocal: () => void;
 }
 
 const MATCH_RECORD_XP = 15;
@@ -165,6 +167,11 @@ export const useProgress = create<ProgressStore>((set, get) => ({
   },
   reset: () => {
     set({ p: persist({ ...defaultProgress(), resetAt: Date.now() }, set) });
+  },
+  wipeLocal: () => {
+    const p = defaultProgress();
+    saveLocal(p);
+    set({ p, sync: "local" });
   },
 }));
 

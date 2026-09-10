@@ -6,6 +6,10 @@ import { useSession } from "../store/session";
 import { useUi } from "../store/ui";
 import { useCloud } from "../store/cloud";
 import { loadCloud } from "../lib/cloud-loader";
+import { MOVED_PARAM } from "../lib/site";
+
+const moved =
+  typeof location !== "undefined" && new URLSearchParams(location.search).has(MOVED_PARAM);
 
 /** First run: the welcome screen. Either path marks the device onboarded before it navigates. */
 export default function Welcome() {
@@ -52,6 +56,12 @@ export default function Welcome() {
         </div>
       </div>
       <div className="spacer" />
+      {moved && (
+        <p className="small" style={{ opacity: 0.85, marginBottom: 10 }}>
+          Yalla now lives at this address. Signed in before? Sign in below and your progress comes
+          along.
+        </p>
+      )}
       <button type="button" className="btn primary block big" onClick={place}>
         I know some Hebrew — place me
       </button>

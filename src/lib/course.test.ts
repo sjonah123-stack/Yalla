@@ -35,7 +35,12 @@ describe("buildCourse", () => {
       for (let i = 1; i < u.roots.length; i++)
         expect(u.roots[i].rank).toBeGreaterThan(u.roots[i - 1].rank);
     expect(unitTitle(course.byId["speech-1"])).toBe("Speech 1");
-    expect(unitTitle(course.byId["time-1"])).toBe("Time");
+    // A section with a single unit takes the section's title.
+    const solo = buildCourse(
+      ROOTS.filter((r) => r.unit === "time-1"),
+      [{ ...SECTIONS.find((s) => s.id === "time")!, units: ["time-1"] }],
+    );
+    expect(unitTitle(solo.byId["time-1"])).toBe("Time");
     expect(course.sections).toBe(SECTIONS);
   });
 });

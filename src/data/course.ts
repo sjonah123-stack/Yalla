@@ -37,9 +37,9 @@ export const SECTIONS: readonly SectionDef[] = [
     he: "בית ויום־יום",
     units: ["home-1", "home-2"],
   },
-  { id: "people", cat: "people", title: "People", he: "אנשים", units: ["people-1"] },
-  { id: "time", cat: "time", title: "Time", he: "זמן", units: ["time-1"] },
-  { id: "feelings", cat: "feelings", title: "Feelings", he: "רגשות", units: ["feelings-1"] },
+  { id: "people", cat: "people", title: "People", he: "אנשים", units: ["people-1", "people-2"] },
+  { id: "time", cat: "time", title: "Time", he: "זמן", units: ["time-1", "time-2"] },
+  { id: "feelings", cat: "feelings", title: "Feelings", he: "רגשות", units: ["feelings-1", "feelings-2"] },
   {
     id: "work",
     cat: "work & money",
@@ -47,7 +47,7 @@ export const SECTIONS: readonly SectionDef[] = [
     he: "עבודה וכסף",
     units: ["work-1", "work-2"],
   },
-  { id: "food", cat: "food & body", title: "Food & body", he: "אוכל וגוף", units: ["food-1"] },
+  { id: "food", cat: "food & body", title: "Food & body", he: "אוכל וגוף", units: ["food-1", "food-2"] },
   {
     id: "size",
     cat: "size & change",
@@ -55,22 +55,22 @@ export const SECTIONS: readonly SectionDef[] = [
     he: "גודל ושינוי",
     units: ["size-1", "size-2", "size-3"],
   },
-  { id: "nature", cat: "nature", title: "Nature", he: "טבע", units: ["nature-1", "nature-2"] },
+  { id: "nature", cat: "nature", title: "Nature", he: "טבע", units: ["nature-1", "nature-2", "nature-3"] },
   {
     id: "law",
     cat: "law & state",
     title: "Law & state",
     he: "חוק ומדינה",
-    units: ["law-1", "law-2"],
+    units: ["law-1", "law-2", "law-3"],
   },
   {
     id: "jewish",
     cat: "Jewish life",
     title: "Jewish life",
     he: "חיים יהודיים",
-    units: ["jewish-1"],
+    units: ["jewish-1", "jewish-2"],
   },
-  { id: "culture", cat: "culture", title: "Culture", he: "תרבות", units: ["culture-1"] },
+  { id: "culture", cat: "culture", title: "Culture", he: "תרבות", units: ["culture-1", "culture-2"] },
   // Batch 2 (v0.5): appended so every earlier unit keeps its place on the path.
   {
     id: "body",
@@ -113,6 +113,42 @@ export const SECTIONS: readonly SectionDef[] = [
     title: "Military & security",
     he: "צבא וביטחון",
     units: ["military-1", "military-2", "military-3"],
+  },
+  // Batch 3 (v0.6): five new themes, appended after Batch 2.
+  {
+    id: "city",
+    cat: "city & travel",
+    title: "City & travel",
+    he: "עיר ונסיעות",
+    units: ["city-1", "city-2", "city-3"],
+  },
+  {
+    id: "commerce",
+    cat: "shopping & commerce",
+    title: "Shopping & commerce",
+    he: "קניות ומסחר",
+    units: ["commerce-1", "commerce-2", "commerce-3"],
+  },
+  {
+    id: "animals",
+    cat: "animals & farm",
+    title: "Animals & farm",
+    he: "חיות וחקלאות",
+    units: ["animals-1", "animals-2", "animals-3"],
+  },
+  {
+    id: "science",
+    cat: "science & numbers",
+    title: "Science & numbers",
+    he: "מדע ומספרים",
+    units: ["science-1", "science-2", "science-3"],
+  },
+  {
+    id: "sport",
+    cat: "sport & leisure",
+    title: "Sport & leisure",
+    he: "ספורט ופנאי",
+    units: ["sport-1", "sport-2", "sport-3"],
   },
 ];
 
