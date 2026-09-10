@@ -11,10 +11,13 @@ export function WordList({
   words,
   compact = false,
   showForm = true,
+  examples = !compact,
 }: {
   words: readonly Word[];
   compact?: boolean;
   showForm?: boolean;
+  /** Example sentences and known-word ticks (default: only when not compact). */
+  examples?: boolean;
 }) {
   const nikud = useProgress((s) => s.p.settings.nikud);
   const stats = useProgress((s) => s.p.words);
@@ -22,7 +25,7 @@ export function WordList({
   return (
     <div className={"words" + (compact ? " compact" : "")}>
       {words.map((w) => {
-        const ex = compact ? undefined : SENTENCES[w.h];
+        const ex = examples ? SENTENCES[w.h] : undefined;
         return (
           <div className="w" key={w.h}>
             <div className="g">
@@ -36,7 +39,7 @@ export function WordList({
               <span className="word" lang="he">
                 {text(w.h)}
               </span>
-              {!compact && isKnownWord(stats[w.h]) && (
+              {examples && isKnownWord(stats[w.h]) && (
                 <span className="known" aria-label="known">
                   ✓
                 </span>

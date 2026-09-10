@@ -347,7 +347,7 @@ function RootDetail({ root }: { root: Root }) {
               form
             )}
           </div>
-          <WordList words={ws} compact showForm={false} />
+          <WordList words={ws} compact showForm={false} examples />
         </div>
       ))}
       {root.note && (
