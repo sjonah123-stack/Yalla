@@ -16,6 +16,12 @@ firebase deploy --only functions                 # push reminders (Blaze plan; s
 cd functions && npm test                         # the reminder function's own vitest suite
 ```
 
+A combined `firebase deploy --only functions,hosting,…` does **not** release hosting when the
+functions part fails (it uploads, then skips the release). After any failed functions deploy,
+re-run `--only hosting` and confirm the live `assets/index-*.js` matches `dist/`. Forcing the
+Cloud Scheduler job (`…:run`) can lag minutes and carries the *next* slot's `scheduleTime`,
+which is what `remind` judges due-ness by — test by aiming a probe at a real upcoming slot.
+
 Ship = commit on `main` + deploy. Both live URLs serve the same build:
 https://yalla-roots.web.app (canonical, `CANONICAL_HOST` in `src/lib/site.ts`) and
 https://yalla-677b9.web.app (legacy: `shouldMove` sends people to the canonical host when the
