@@ -29,6 +29,10 @@ const VAPID_PRIVATE_KEY = defineSecret("VAPID_PRIVATE_KEY");
 
 /** Sends in flight at once. */
 const BATCH = 25;
+/** Per-request timeout: web-push only aborts a stalled request when this is set. */
+const SEND_TIMEOUT_MS = 10_000;
+/** Stop starting new batches this long into the run (the function times out at 300 s). */
+const RUN_DEADLINE_MS = 240_000;
 
 interface Job {
   doc: QueryDocumentSnapshot;
@@ -52,10 +56,16 @@ export const remind = onSchedule(
     maxInstances: 1,
   },
   async (event) => {
+    const started = Date.now();
     const now = runTime(event.scheduleTime, new Date());
     webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY.value());
     const db = getFirestore();
-    const on = await db.collection("push").where("on", "==", true).get();
+    // Only the fields the decision needs, so an oversized doc can't bloat the run.
+    const on = await db
+      .collection("push")
+      .where("on", "==", true)
+      .select("sub", "hour", "tz", "on", "lastSent")
+      .get();
 
     const jobs: Job[] = [];
     let badSub = 0;
@@ -66,7 +76,13 @@ export const remind = onSchedule(
     }
 
     const tally: Record<Outcome, number> = { sent: 0, played: 0, gone: 0, failed: 0 };
+    let skipped = 0;
     for (let i = 0; i < jobs.length; i += BATCH) {
+      if (Date.now() - started > RUN_DEADLINE_MS) {
+        skipped = jobs.length - i;
+        logger.warn("remind: run deadline reached", { skipped });
+        break;
+      }
       const outcomes = await Promise.all(jobs.slice(i, i + BATCH).map(run));
       for (const o of outcomes) tally[o]++;
     }
@@ -75,6 +91,7 @@ export const remind = onSchedule(
       on: on.size,
       due: jobs.length,
       badSub,
+      skipped,
       ...tally,
     });
 
@@ -88,6 +105,7 @@ export const remind = onSchedule(
           TTL: ttlToMidnight(local),
           urgency: "normal",
           topic: TOPIC,
+          timeout: SEND_TIMEOUT_MS,
         });
         await doc.ref.update({ lastSent: day, lastSentAt: Date.now() });
         return "sent";

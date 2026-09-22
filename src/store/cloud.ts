@@ -104,7 +104,8 @@ async function attach(cloud: Cloud, user: CloudUser, set: (s: Partial<CloudStore
       if (pushPending()) replacePending(merged);
     }) ?? null;
   set({ status: "signed-in", user, error: null, pulled: true });
-  if (useProgress.getState().p.settings.reminders.on) useCloud.getState().refreshPush();
+  // Always read the reminder doc: it may be on even when this device's setting says off.
+  useCloud.getState().refreshPush();
 }
 
 function detach(set: (s: Partial<CloudStore>) => void) {
@@ -207,12 +208,13 @@ export const useCloud = create<CloudStore>((set, get) => ({
     const uid = get().user?.uid;
     try {
       // Stop reminders reaching a device nobody is signed in on. Best effort, and never holds
-      // up sign-out for long (offline, or no service worker in dev).
-      if (uid && reminders().on)
-        await Promise.race([
-          cloud.disablePush(uid, true).catch(() => undefined),
-          new Promise((r) => setTimeout(r, 3000)),
-        ]);
+      // up sign-out for long (offline, or no service worker in dev): switch the account's doc
+      // off if it points here, then drop this device's subscription locally — that part needs
+      // no network, and the function turns off any doc whose endpoint has gone.
+      const within = (job: Promise<unknown>) =>
+        Promise.race([job.catch(() => undefined), new Promise((r) => setTimeout(r, 3000))]);
+      if (uid) await within(cloud.disablePush(uid, true));
+      await within(cloud.unsubscribeDevice());
       await cloud.signOut();
     } finally {
       detach(set);
@@ -223,7 +225,15 @@ export const useCloud = create<CloudStore>((set, get) => ({
     const cloud = mod;
     if (!cloud || !user || status !== "signed-in") return;
     cloud.pushState(user.uid).then(
-      (push) => get().user?.uid === user.uid && set({ push }),
+      (push) => {
+        if (get().user?.uid !== user.uid) return;
+        set({ push });
+        // The account's doc is the truth while it's on: another device may have switched the
+        // reminder on or moved its hour after this device's settings last synced.
+        const r = reminders();
+        if (push.on && (!r.on || (push.hour !== null && push.hour !== r.hour)))
+          setReminders({ on: true, hour: push.hour ?? r.hour });
+      },
       () => undefined,
     );
   },
@@ -240,7 +250,7 @@ export const useCloud = create<CloudStore>((set, get) => ({
     try {
       await job;
       setReminders({ on: true, hour });
-      set({ push: { on: true, here: true } });
+      set({ push: { on: true, here: true, hour } });
     } catch (e) {
       useUi.getState().showToast(describePushError(e));
     } finally {
@@ -268,14 +278,15 @@ export const useCloud = create<CloudStore>((set, get) => ({
   setReminderHour: async (hour) => {
     const was = reminders();
     setReminders({ ...was, hour });
-    const { user, status } = get();
+    const { user, status, push } = get();
     const cloud = mod;
-    if (!was.on || !cloud || !user || status !== "signed-in") return;
-    set({ reminderBusy: true });
+    if (!(was.on || push?.on) || !cloud || !user || status !== "signed-in") return;
+    set({ reminderBusy: true, push: push && { ...push, hour } });
     try {
       await cloud.setPushHour(user.uid, hour);
     } catch (e) {
       setReminders(was);
+      set({ push });
       useUi.getState().showToast(describePushError(e));
     } finally {
       set({ reminderBusy: false });

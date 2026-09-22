@@ -289,11 +289,22 @@ export async function pushState(uid: string): Promise<PushRemote> {
   const { fs } = init();
   const ref = doc(fs, "push", uid);
   const [snap, sub] = await Promise.all([getDoc(ref), currentSub().catch(() => null)]);
-  if (!snap.exists()) return { on: false, here: false };
+  if (!snap.exists()) return { on: false, here: false, hour: null };
   const on = snap.get("on") === true;
   const here = !!sub && snap.get("sub.endpoint") === sub.endpoint;
   const tz = localTz();
   if (on && here && snap.get("tz") !== tz)
     void settle(updateDoc(ref, { tz, updatedAt: Date.now() })).catch(() => undefined);
-  return { on, here };
+  const hour = typeof snap.get("hour") === "number" ? (snap.get("hour") as number) : null;
+  return { on, here, hour };
+}
+
+/**
+ * Drop this device's push subscription (signing out). Purely local, so it works offline and
+ * without auth: the endpoint then answers 404/410 and the `remind` function switches off any
+ * account doc still pointing here — a shared device never keeps the last person's reminders.
+ */
+export async function unsubscribeDevice(): Promise<void> {
+  const sub = await currentSub();
+  await sub?.unsubscribe();
 }

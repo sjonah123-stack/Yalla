@@ -13,23 +13,43 @@ service cloud.firestore {
     }
     // Daily reminder, one per account: { sub, hour, tz, on, updatedAt } from the app, plus
     // lastSent / lastSentAt / goneAt from the `remind` function (admin SDK, which skips rules).
+    // The client may only change its own five fields; every map and string is bounded.
     match /push/{uid} {
-      allow read, delete: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null && request.auth.uid == uid
+      function owner() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+      function validDoc(d) {
+        return validSub(d.sub)
+          && d.hour is int && d.hour >= 0 && d.hour <= 23
+          && d.tz is string && d.tz.size() < 64
+          && d.on is bool
+          && d.updatedAt is number;
+      }
+      function validSub(sub) {
+        return sub is map
+          && sub.keys().hasOnly(['endpoint', 'expirationTime', 'keys'])
+          && sub.endpoint is string
+          && sub.endpoint.size() < 1024
+          && sub.endpoint.matches('https://.+')
+          && (!('expirationTime' in sub) || sub.expirationTime == null
+            || sub.expirationTime is number)
+          && sub['keys'] is map
+          && sub['keys'].keys().hasOnly(['p256dh', 'auth'])
+          && sub['keys'].p256dh is string
+          && sub['keys'].p256dh.size() <= 128
+          && sub['keys'].auth is string
+          && sub['keys'].auth.size() <= 64;
+      }
+      allow read, delete: if owner();
+      allow create: if owner()
+        && request.resource.data.keys().hasOnly(['sub', 'hour', 'tz', 'on', 'updatedAt'])
+        && validDoc(request.resource.data);
+      allow update: if owner()
         && request.resource.data.keys().hasOnly(
           ['sub', 'hour', 'tz', 'on', 'updatedAt', 'lastSent', 'lastSentAt', 'goneAt'])
-        && request.resource.data.sub is map
-        && request.resource.data.sub.endpoint is string
-        && request.resource.data.sub.endpoint.size() < 1024
-        && request.resource.data.sub.endpoint.matches('https://.+')
-        && request.resource.data.sub.keys.p256dh is string
-        && request.resource.data.sub.keys.auth is string
-        && request.resource.data.hour is int
-        && request.resource.data.hour >= 0 && request.resource.data.hour <= 23
-        && request.resource.data.tz is string
-        && request.resource.data.tz.size() < 64
-        && request.resource.data.on is bool
-        && request.resource.data.updatedAt is number;
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['sub', 'hour', 'tz', 'on', 'updatedAt'])
+        && validDoc(request.resource.data);
     }
     match /{document=**} {
       allow read, write: if false;

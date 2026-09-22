@@ -134,17 +134,33 @@ describe("reminderNote", () => {
     expect(reminderNote(view({ on: true, permission: "granted" })).text).toBe(
       "Every day at 7:00 PM, unless you've already played",
     );
-    expect(reminderNote(view({ on: true, remote: { on: true, here: true } })).offerHere).toBe(
-      false,
-    );
+    expect(
+      reminderNote(view({ on: true, remote: { on: true, here: true, hour: 19 } })).offerHere,
+    ).toBe(false);
   });
 
   it("offers to move delivery here when it goes elsewhere or stopped", () => {
-    const away = reminderNote(view({ on: true, h12: false, remote: { on: true, here: false } }));
-    expect(away).toMatchObject({ text: "Going to your other device at 19:00", offerHere: true });
-    expect(reminderNote(view({ on: true, remote: { on: false, here: true } })).offerHere).toBe(
-      true,
+    const away = reminderNote(
+      view({ on: true, h12: false, remote: { on: true, here: false, hour: 19 } }),
     );
+    expect(away).toMatchObject({ text: "Going to your other device at 19:00", offerHere: true });
+    expect(
+      reminderNote(view({ on: true, remote: { on: false, here: true, hour: 19 } })).offerHere,
+    ).toBe(true);
+  });
+
+  it("says reminders are going elsewhere even where this device can't take them", () => {
+    const remote = { on: true, here: false, hour: 19 };
+    for (const v of [
+      view({ on: true, remote, permission: "denied" }),
+      view({ on: true, remote, support: "ios-install" }),
+      view({ on: true, remote, support: "unsupported" }),
+    ]) {
+      const n = reminderNote(v);
+      expect(n.text).toBe("Going to your other device at 7:00 PM");
+      expect(n.offerHere).toBe(false);
+      expect(n.canTurnOn).toBe(false);
+    }
   });
 });
 

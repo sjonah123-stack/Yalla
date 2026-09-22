@@ -18,6 +18,9 @@ self.addEventListener("push", (event) => {
       // No `badge` yet: Android masks it to its alpha channel, and the app icon is an opaque
       // square. Add a white-on-transparent glyph (e.g. /icons/badge-96.png) and set it here.
       tag: data.tag || "yalla-daily",
+      // Same tag replaces yesterday's reminder; renotify makes the replacement alert again
+      // (without it Android updates a still-showing notification silently).
+      renotify: true,
       lang: "en",
       data: { url: data.url || "/" },
     }),

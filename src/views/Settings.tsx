@@ -98,15 +98,17 @@ function ReminderRow() {
   const [h12] = useState(clock12);
   const signedIn = status === "signed-in";
   useEffect(() => {
-    if (signedIn && r.on) useCloud.getState().refreshPush();
-  }, [signedIn, r.on]);
-  const on = signedIn && r.on;
+    if (signedIn) useCloud.getState().refreshPush();
+  }, [signedIn]);
+  // The account's doc wins while it's on (another device may have turned it on or moved it).
+  const on = signedIn && (r.on || !!push?.on);
+  const hour = push?.on && push.hour !== null ? push.hour : r.hour;
   const note = reminderNote({
     support: pushSupport(env),
     permission: permissionNow(),
     signedIn,
     on,
-    hour: r.hour,
+    hour,
     h12,
     remote: push,
   });
@@ -130,7 +132,7 @@ function ReminderRow() {
           onChange={(v) => {
             if (v === on) return;
             // Straight from the tap: the notification prompt needs the user gesture.
-            if (v) void cloud.enableReminder(r.hour);
+            if (v) void cloud.enableReminder(hour);
             else void cloud.disableReminder();
           }}
         />
@@ -141,11 +143,11 @@ function ReminderRow() {
             <span className="remind-lbl">Time</span>
             <span className="remind-sel">
               <select
-                value={r.hour}
+                value={hour}
                 disabled={busy}
                 onChange={(e) => void cloud.setReminderHour(Number(e.target.value))}
               >
-                {hourOptions(r.hour).map((h) => (
+                {hourOptions(hour).map((h) => (
                   <option key={h} value={h}>
                     {hourLabel(h, h12)}
                   </option>
@@ -168,7 +170,7 @@ function ReminderRow() {
               type="button"
               className="btn sm plum"
               disabled={busy}
-              onClick={() => void cloud.enableReminder(r.hour)}
+              onClick={() => void cloud.enableReminder(hour)}
             >
               Send here
             </button>
@@ -436,7 +438,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               ],
             });
             if (v !== "reset") return;
-            const reminded = st.reminders.on;
+            const reminded = st.reminders.on || !!useCloud.getState().push?.on;
             useSession.getState().clear();
             reset();
             // Reset restores default settings (reminder off); stop the account's reminders too.

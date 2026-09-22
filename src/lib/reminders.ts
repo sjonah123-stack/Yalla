@@ -69,6 +69,8 @@ export interface PushRemote {
   on: boolean;
   /** Reminders are delivered to this device's subscription. */
   here: boolean;
+  /** The doc's local reminder hour (null when there is no doc). */
+  hour: number | null;
 }
 
 export interface ReminderView {
@@ -95,6 +97,12 @@ export interface ReminderNote {
 export function reminderNote(v: ReminderView): ReminderNote {
   const at = hourLabel(v.hour, v.h12);
   const no = (text: string): ReminderNote => ({ text, canTurnOn: false, offerHere: false });
+  // Working elsewhere: say so first, even where this device couldn't take them itself.
+  const elsewhere = v.on && v.remote?.on && !v.remote.here;
+  const canHere =
+    v.support === "ok" && v.signedIn && v.permission !== "denied" && v.permission !== "unsupported";
+  if (elsewhere)
+    return { text: `Going to your other device at ${at}`, canTurnOn: canHere, offerHere: canHere };
   if (v.support === "ios-install")
     return no(
       "Add Yalla to your Home Screen first (Share, then Add to Home Screen) and turn this on from there.",
@@ -116,8 +124,6 @@ export function reminderNote(v: ReminderView): ReminderNote {
       canTurnOn: true,
       offerHere: true,
     };
-  if (v.remote && !v.remote.here)
-    return { text: `Going to your other device at ${at}`, canTurnOn: true, offerHere: true };
   return {
     text: `Every day at ${at}, unless you've already played`,
     canTurnOn: true,
