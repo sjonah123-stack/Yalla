@@ -1,11 +1,21 @@
 import { create } from "zustand";
-import type { FlagReason, Progress, RootState, Settings, UnitId } from "../types";
+import type {
+  Accent,
+  FlagReason,
+  Mistake,
+  Progress,
+  RootState,
+  Settings,
+  ShopItem,
+  UnitId,
+} from "../types";
 import { ROOTS } from "../data/roots";
 import { applyAnswer, dayKey, touchStreak } from "../lib/srs";
 import { GOLD_SCORE, memorizedCount, newlyCompleted } from "../lib/course";
 import { applyPlacement, type PlacementAnswer } from "../lib/placement";
 import {
   applySessionEnd,
+  awardSeals,
   GEM_PLACEMENT,
   settle,
   type Receipt,
@@ -20,6 +30,37 @@ import {
   type SyncStatus,
 } from "../lib/storage";
 import { COURSE } from "./course";
+import * as shuk from "../lib/shuk";
+import {
+  ACCENT_COST,
+  BAG_COST,
+  FREEZE_COST,
+  RUSH_TOKEN_COST,
+  RUSH_TOKEN_MIN,
+  RUSH_TOKEN_MULT,
+  addPurchase,
+  applyFreezes,
+  cantBuy,
+  freezesOwned,
+  purchaseId,
+  repairStreak,
+  type BuyError,
+} from "../lib/shop";
+import { applyPrize, bagPrize, claimQuest, openQuestBag, type Prize } from "../lib/quests";
+import { settleLeague } from "../lib/league";
+import type { LeagueWeek } from "../types";
+import { ensureDailyRoot } from "../lib/daily";
+import { addMistake } from "../lib/mistakes";
+
+/** Shekels per hour right now. */
+export const shukRate = (p: Progress, now = Date.now()): number =>
+  shuk.incomeRate(shuk.stalls(ROOTS, p, now));
+
+/** XP for finishing a story the first time, and per question right. */
+export const STORY_XP = 20;
+export const STORY_Q_XP = 5;
+/** Shekels a first read pays (the market loves a regular). */
+export const STORY_SHEKELS = 150;
 
 interface ProgressStore {
   p: Progress;
@@ -54,6 +95,26 @@ interface ProgressStore {
   recordSessionEnd: (end: SessionEnd) => Receipt;
   /** Stamp onboardedAt once. */
   markOnboarded: () => void;
+  /**
+   * Daily housekeeping (app start, foreground, Home mount): streak freezes, league settling,
+   * the root of the day, starting the Shuk clock. Persists only when something changed.
+   */
+  tick: () => { league: { week: string; result: LeagueWeek }[] };
+  /** Collect the Shuk's pending income; returns the amount. */
+  collectShuk: () => number;
+  upgradeStall: (id: string) => boolean;
+  buyPerk: (id: shuk.PerkId) => boolean;
+  /** Gem shop. Returns the bag prize for a bag, true for other items, or the reason it failed. */
+  buy: (item: ShopItem) => Prize | true | BuyError;
+  setAccent: (a: Accent) => void;
+  repairStreak: () => boolean;
+  claimQuest: (id: string) => { gems: number; shekels: number } | null;
+  openBag: () => Prize | null;
+  recordMistake: (m: Mistake) => void;
+  /** Seconds spent in listening mode. */
+  recordListen: (sec: number) => void;
+  /** A story read to the end with `right` of its questions correct; returns XP earned. */
+  finishStory: (id: string, right: number) => { xp: number; shekels: number; first: boolean };
   reset: () => void;
   /** Forget this device's copy without touching the account (after sign-out). */
   wipeLocal: () => void;
@@ -139,7 +200,8 @@ export const useProgress = create<ProgressStore>((set, get) => ({
     h.xp += xp;
     let streak = p.streak;
     let lastPlay = p.lastPlay;
-    if (correct) ({ streak, lastPlay } = touchStreak(p.streak, p.lastPlay));
+    if (correct)
+      ({ streak, lastPlay } = touchStreak(p.streak, p.lastPlay, new Date(now), p.frozenDays));
     const next = reconcile(
       {
         ...p,
@@ -217,6 +279,141 @@ export const useProgress = create<ProgressStore>((set, get) => ({
   markOnboarded: () => {
     const p = get().p;
     if (p.onboardedAt === null) set({ p: persist({ ...p, onboardedAt: Date.now() }, set) });
+  },
+  tick: () => {
+    const p0 = get().p;
+    const now = Date.now();
+    let p = applyFreezes(p0, new Date(now));
+    const league = settleLeague(p, now);
+    p = league.p;
+    p = ensureDailyRoot(ROOTS, p, dayKey(new Date(now)), now);
+    // The Shuk's clock starts when its first stall opens — as a grand opening, with a full
+    // storage window already waiting to be collected.
+    if (!p.shuk.lastCollect && shukRate(p, now) > 0)
+      p = { ...p, shuk: { ...p.shuk, lastCollect: now - shuk.storageMs(p.shuk) } };
+    if (p !== p0) {
+      const settled = awardSeals(COURSE, p, now); // a promotion's gems can cross a gem seal
+      set({ p: persist(settled.p, set) });
+    }
+    return { league: league.settled };
+  },
+  collectShuk: () => {
+    const p = get().p;
+    const now = Date.now();
+    const { s, got } = shuk.collect(ROOTS, p, now);
+    let next: Progress = { ...p, shuk: s };
+    if (got > 0) {
+      const day = dayKey(new Date(now));
+      const h = { ...(p.history[day] ?? { ok: 0, bad: 0, xp: 0 }) };
+      h.collects = (h.collects ?? 0) + 1;
+      next = awardSeals(COURSE, { ...next, history: { ...p.history, [day]: h } }, now).p;
+    }
+    set({ p: persist(next, set) });
+    return got;
+  },
+  upgradeStall: (id) => {
+    const p = get().p;
+    const s = shuk.upgradeStall(p.shuk, id);
+    if (!s) return false;
+    set({ p: persist({ ...p, shuk: s }, set) });
+    return true;
+  },
+  buyPerk: (id) => {
+    const p = get().p;
+    const s = shuk.buyPerk(p.shuk, id);
+    if (!s) return false;
+    set({ p: persist({ ...p, shuk: s }, set) });
+    return true;
+  },
+  buy: (item) => {
+    const p = get().p;
+    const now = Date.now();
+    const cost =
+      item === "freeze"
+        ? FREEZE_COST
+        : item === "rush"
+          ? RUSH_TOKEN_COST
+          : item === "bag"
+            ? BAG_COST
+            : item === "repair"
+              ? -1
+              : ACCENT_COST;
+    if (cost < 0) return get().repairStreak() ? true : "gems";
+    const why = cantBuy(p, item, cost);
+    if (why) return why;
+    const id = purchaseId(now);
+    let next = addPurchase(p, item, cost, now, id);
+    let out: Prize | true = true;
+    if (item === "rush")
+      next = { ...next, shuk: shuk.startRush(next.shuk, RUSH_TOKEN_MULT, RUSH_TOKEN_MIN, now) };
+    else if (item === "bag") {
+      const prize = bagPrize(id, shukRate(next, now), freezesOwned(next));
+      next = applyPrize(next, prize, id, now);
+      out = prize;
+    } else if (item.startsWith("accent:"))
+      next = { ...next, settings: { ...next.settings, accent: item.slice(7) as Accent } };
+    set({ p: persist(awardSeals(COURSE, next, now).p, set) });
+    return out;
+  },
+  setAccent: (accent) => get().setSettings({ accent }),
+  repairStreak: () => {
+    const now = Date.now();
+    const next = repairStreak(get().p, now);
+    if (!next) return false;
+    set({ p: persist(next, set) });
+    return true;
+  },
+  claimQuest: (id) => {
+    const p = get().p;
+    const now = Date.now();
+    const r = claimQuest(p, dayKey(new Date(now)), id, shukRate(p, now), now);
+    if (!r) return null;
+    set({ p: persist(awardSeals(COURSE, r.p, now).p, set) });
+    return { gems: r.gems, shekels: r.shekels };
+  },
+  openBag: () => {
+    const p = get().p;
+    const now = Date.now();
+    const r = openQuestBag(p, dayKey(new Date(now)), shukRate(p, now), now);
+    if (!r) return null;
+    set({ p: persist(awardSeals(COURSE, r.p, now).p, set) });
+    return r.prize;
+  },
+  recordMistake: (m) => {
+    const p = get().p;
+    set({ p: persist({ ...p, mistakes: addMistake(p.mistakes, m) }, set) });
+  },
+  recordListen: (sec) => {
+    if (sec <= 0) return;
+    const p = get().p;
+    const day = dayKey();
+    const h = { ...(p.history[day] ?? { ok: 0, bad: 0, xp: 0 }) };
+    h.listen = (h.listen ?? 0) + Math.round(sec);
+    set({ p: persist({ ...p, history: { ...p.history, [day]: h } }, set) });
+  },
+  finishStory: (id, right) => {
+    const p = get().p;
+    const now = Date.now();
+    const prev = p.stories[id];
+    const first = !prev;
+    const xp = first ? STORY_XP + STORY_Q_XP * right : 0;
+    const shekels = first ? STORY_SHEKELS : 0;
+    const day = dayKey(new Date(now));
+    const h = { ...(p.history[day] ?? { ok: 0, bad: 0, xp: 0 }) };
+    h.stories = (h.stories ?? 0) + 1;
+    h.xp += xp;
+    const next: Progress = {
+      ...p,
+      xp: p.xp + xp,
+      history: { ...p.history, [day]: h },
+      stories: {
+        ...p.stories,
+        [id]: { at: prev?.at ?? now, best: Math.max(prev?.best ?? 0, right) },
+      },
+      shuk: shekels ? { ...p.shuk, earned: p.shuk.earned + shekels } : p.shuk,
+    };
+    set({ p: persist(awardSeals(COURSE, next, now).p, set) });
+    return { xp, shekels, first };
   },
   reset: () => {
     set({ p: persist({ ...defaultProgress(), resetAt: Date.now() }, set) });

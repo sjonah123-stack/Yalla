@@ -22,6 +22,13 @@ npm test               # vitest: course, lessons, placement, match, SRS, quiz, H
 npm run lint
 ```
 
+**Push reminders** run as a scheduled Cloud Function (`functions/`, Node 22, every 15 min): it reads `push/{uid}` (`{ sub, hour, tz, on, lastSent }`, written by Settings → Daily reminder), skips anyone who already played today in their time zone, and sends a Web Push through `web-push`. The service worker gets its `push` / `notificationclick` handlers from `public/push-sw.js` (Workbox `importScripts`). Deploying functions needs the Blaze plan and the VAPID private key as a secret:
+
+```bash
+firebase functions:secrets:set VAPID_PRIVATE_KEY   # the private half of VAPID_PUBLIC_KEY in firebase-config.ts
+firebase deploy --only functions,hosting,firestore:rules
+```
+
 Progress lives in `localStorage` (`yalla.v3`; older `v2` / `v1` records migrate on first load) and is local-first: the app works fully offline.
 
 **Sign in with Google** (Settings → Account, or the link on the welcome screen) and progress follows you: the web app keeps one Firestore document per user (`users/{uid}`, the whole record as JSON) and merges it with the device record per root, per day and per unit, so phone and laptop never overwrite each other. Live updates from another device arrive through a snapshot listener; a "Reset progress" propagates as a wipe (a `resetAt` epoch beats a merge). Signing in on a device that someone else used replaces the local record instead of merging it. Signing in while offline keeps the device local-only until the account record has been loaded (nothing is ever uploaded over an unknown record); the pull, and any failed save, retry on reconnect and whenever the app comes back to the foreground. Signing out asks (in an in-app sheet) whether to keep a copy on the device; Reset and leaving a test or placement early confirm the same way. The Account row shows when the account was last saved. Inside a Claude artifact the same merge runs against the artifact DB; the Firebase SDK is never bundled into the single-file build.
@@ -29,6 +36,20 @@ Progress lives in `localStorage` (`yalla.v3`; older `v2` / `v1` records migrate 
 Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows each user only their own document) + Google sign-in. The public web config is committed in `src/lib/firebase-config.ts`. On the hosting origins listed in `FIRST_PARTY_AUTH_HOSTS` the app uses its own origin as `authDomain` (every Hosting site serves `/__/auth/*`), so sign-in is first-party: that is what lets the redirect flow complete on iPhones and installed PWAs, where Safari blocks the third-party storage a cross-origin `authDomain` needs. Phones and installed apps sign in by redirect, desktops by popup. Each listed host's `https://<host>/__/auth/handler` must be an authorized redirect URI on the project's OAuth client in Google Cloud (Credentials → "Web client (auto created by Google Service)"); elsewhere (dev server) the default `yalla-677b9.firebaseapp.com` domain and the popup flow are used. Google sign-in is enabled in the console and both web.app hosts are authorized domains.
 
 ## How it works
+
+### v1.0: the Shuk and the daily loop
+
+- **The Shuk** (tab ₪) — an idle market tycoon fed by what you learn. Each of the 25 themes is a stall (newsstand, spice stall, falafel…); every memorized root is stock that earns shekels every hour, even while the app is closed, up to the storage cap (4h, upgradeable to 24h). Come back and **collect**. A root that is due for review has **wilted** and earns nothing until you restock it (a review round of that stall's due roots). Shekels buy stall levels (×1.15 cost each, landmarks at 10/25/50/100 double income) and perks (storage, rush length, haggling). Finishing a lesson or review starts a **rush hour** (×2, ×3 when perfect); every right answer **sells** about a minute of income. The market grows Stand → Stall → Shop → Market → Mall.
+- **Gem shop** — gems finally buy things: streak freezes (hold two), a streak repair within two missed days, a rush token, lucky bags, and accent colours (Jaffa, Galilee, Negev).
+- **Daily quests** — three a day (same three on every device), each paying gems + shekels; all three unlock a **lucky bag** with a random prize (shekels, a jackpot, gems, a freeze, a ×3 rush).
+- **Streak freeze & repair** — a missed day is covered automatically by a held freeze; the flame grows at 7, 30 and 100 days.
+- **Weekly league** — Monday to Sunday against 20 rivals paced to your own recent weeks, plus "You, last week". Top 4 promote, bottom 4 demote, Clay → Bronze → Silver → Gold → Diamond; promotion pays gems.
+- **Combo fever** — XP ×1.5 from 5 in a row, ×2 from 10.
+- **Root of the day** — four quick questions on one of your weakest roots, including a **discovery** question: a family member you haven't met, guessed from the root.
+- **Mini stories** — 30 graded passages built from bank roots, unlocked once you've met every root in them; tap a word for its root, reveal the English, answer comprehension questions.
+- **Mistake notebook** — every miss is logged; "Fix my mistakes" drills the roots you keep missing, and mix-up cards put two confused roots side by side.
+- **Listening mode** — a hands-free loop: hear the word, then see the meaning; Known / Again.
+- **Reminders** — a daily Web Push at the hour you pick (signed in; on iPhone from the installed app).
 
 - **Home** — the dashboard: streak, gems, roots memorized, today's XP ring, level bar, the Continue card and shortcuts to Practice, the current unit's tools and the seals.
 - **The path** — 25 theme sections (speech, movement, senses & mind, … technology, education, military, city & travel, shopping & commerce, animals & farm, science & numbers, sport & leisure) split into 63 units, shown as one card per theme; the open theme lists its units as chips. A unit is *locked* until the one before it is complete (or you test out of it), *started* once quizzed, *learned* when every root has been answered right once, *complete* when every root is memorized, and *gold* after a unit test at 90%+. A complete unit whose roots slip shows as needing repair.
@@ -64,6 +85,13 @@ Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows ea
 | `src/lib/lesson.ts` | Lesson and unit-test builders |
 | `src/lib/placement.ts` | Placement sampling, result rule, writes |
 | `src/lib/rewards.ts` | Gems, chests, seals: pure reward rules applied at session end |
+| `src/lib/shuk.ts` | The market tycoon: stalls, income, accrual, upgrades, perks, rush, sales, tiers |
+| `src/lib/shop.ts` | Gem ledger, streak freezes and repair |
+| `src/lib/quests.ts` | Daily quests and lucky bags |
+| `src/lib/league.ts` | Weekly league: rivals, the ghost, standings, settling |
+| `src/lib/daily.ts`, `mistakes.ts`, `stories.ts` | Root of the day, the mistake notebook, story unlocks |
+| `src/data/stories/` | Mini stories (tags map words to roots) |
+| `functions/` | Scheduled push reminders (Cloud Functions) |
 | `src/lib/match.ts` | Match pair selection |
 | `src/lib/srs.ts` | Scheduling, mastery, streak, practice queue |
 | `src/lib/quiz.ts` | Distractors, mode selection, question generation, XP |

@@ -1,7 +1,7 @@
 import type { UnitId, View } from "../types";
 
 // ---------- Tabs ----------
-export const SHELL_VIEWS = ["home", "path", "bank", "patterns", "progress"] as const;
+export const SHELL_VIEWS = ["home", "path", "shuk", "bank", "patterns", "progress"] as const;
 export type ShellView = (typeof SHELL_VIEWS)[number];
 export const isShellView = (v: View): v is ShellView =>
   (SHELL_VIEWS as readonly string[]).includes(v);
@@ -35,7 +35,17 @@ export type Layer =
   | { kind: "play" }
   | { kind: "confirm" };
 
-export const TOOL_VIEWS: readonly View[] = ["flashcards", "match", "familysort", "conjugate"];
+/** Full-screen pages that don't belong to a unit; they return to the tab they came from. */
+export const PAGE_VIEWS: readonly View[] = ["story", "listen", "notebook", "league"];
+export const TOOL_VIEWS: readonly View[] = [
+  "flashcards",
+  "match",
+  "familysort",
+  "conjugate",
+  ...PAGE_VIEWS,
+];
+/** Tools that run without a unit. */
+const UNITLESS: readonly View[] = ["conjugate", ...PAGE_VIEWS];
 
 /**
  * Everything the back gesture can close, bottom to top. Mirrors App.tsx's render order:
@@ -48,7 +58,7 @@ export function layerStack(s: NavState): Layer[] {
   if (!s.onboarded && !play) return s.confirmOpen ? [{ kind: "confirm" }] : [];
   for (const v of s.trail.slice(1)) out.push({ kind: "tab", view: v });
   if (play) out.push({ kind: "play" });
-  else if (TOOL_VIEWS.includes(s.view) && (s.toolUnit || s.view === "conjugate"))
+  else if (TOOL_VIEWS.includes(s.view) && (s.toolUnit || UNITLESS.includes(s.view)))
     out.push({ kind: "tool", view: s.view });
   else if (isShellView(s.view)) {
     if (s.unitSheet) out.push({ kind: "unit" });
@@ -85,11 +95,13 @@ export function reduceBack(s: NavState): BackAction {
 }
 
 /** Where a finished session lands when left; Summary's buttons and Back agree. */
-export function summaryExit(plan: { kind: string; unit?: UnitId }): {
-  view: "path" | "home";
+export function summaryExit(plan: { kind: string; unit?: UnitId; focus?: string }): {
+  view: "path" | "home" | "shuk";
   unit?: UnitId;
 } {
-  if (plan.kind === "speed") return { view: "home" };
+  if (plan.focus === "restock") return { view: "shuk" };
+  if (plan.kind === "speed" || plan.kind === "daily" || plan.focus === "mistakes")
+    return { view: "home" };
   if ((plan.kind === "lesson" || plan.kind === "test") && plan.unit)
     return { view: "path", unit: plan.unit };
   return { view: "path" };

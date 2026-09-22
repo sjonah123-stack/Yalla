@@ -113,8 +113,10 @@ describe("xpFor", () => {
   it("scales by mode, combo, and retry", () => {
     expect(xpFor("rootMeaning", 0, true)).toBe(10);
     expect(xpFor("typeRoot", 0, true)).toBe(20);
-    expect(xpFor("rootMeaning", 3, true)).toBe(15);
-    expect(xpFor("rootMeaning", 6, true)).toBe(20);
+    expect(xpFor("rootMeaning", 4, true)).toBe(10);
+    expect(xpFor("rootMeaning", 5, true)).toBe(15);
+    expect(xpFor("rootMeaning", 10, true)).toBe(20);
+    expect(xpFor("typeRoot", 10, false)).toBe(20);
     expect(xpFor("typeRoot", 0, false)).toBe(10);
     expect(xpFor("buildWord", 0, true)).toBe(20);
   });

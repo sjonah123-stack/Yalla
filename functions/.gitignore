@@ -1,0 +1,6 @@
+# Compiled output (built by the firebase.json predeploy step)
+lib/
+node_modules/
+# Local secrets for the emulator; the deployed secret lives in Secret Manager
+*.local
+.secret.local

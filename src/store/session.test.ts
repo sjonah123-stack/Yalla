@@ -235,3 +235,61 @@ describe("chain (daily plan)", () => {
     for (const w of Object.values(words)) expect(w.ok + w.bad).toBeGreaterThan(0);
   });
 });
+
+describe("v1.0 sessions", () => {
+  beforeEach(() => {
+    useSession.getState().clear();
+  });
+
+  it("wrong answers land in the mistake notebook, with the picked root", () => {
+    const p = defaultProgress();
+    p.onboardedAt = 1;
+    useProgress.getState().adopt(p);
+    useSession.getState().start({ kind: "lesson", unit: COURSE.units[0].id });
+    playThrough(false);
+    const m = useProgress.getState().p.mistakes;
+    expect(m.length).toBeGreaterThan(0);
+    expect(m.some((x) => x.pickedRoot && x.pickedRoot !== x.root)).toBe(true);
+    // …and a fix-my-mistakes round drills exactly those roots, counting fixes for the quest.
+    expect(useSession.getState().start({ kind: "practice", focus: "mistakes" })).toBe(true);
+    const ids = new Set(m.map((x) => x.root));
+    for (const r of useSession.getState().s!.slots) expect(ids.has(r.r)).toBe(true);
+    playThrough(true);
+    expect(useProgress.getState().p.history[dayKey()].fixed).toBeGreaterThan(0);
+  });
+
+  it("the root of the day runs four questions on one root and marks the day", () => {
+    const p = defaultProgress();
+    p.onboardedAt = 1;
+    const now = Date.now();
+    for (const r of ROOTS.slice(0, 6)) p.roots[r.r] = applyAnswer(undefined, true, true, now);
+    useProgress.getState().adopt(p);
+    useProgress.getState().tick();
+    expect(useSession.getState().start({ kind: "daily" })).toBe(true);
+    const s = useSession.getState().s!;
+    expect(s.slots).toHaveLength(4);
+    expect(new Set(s.slots.map((r) => r.r)).size).toBe(1);
+    playThrough(true);
+    const after = useProgress.getState().p;
+    expect(after.history[dayKey()].daily).toBe(1);
+    expect(useSession.getState().s!.rewards?.rush?.mult).toBe(3);
+  });
+
+  it("restock drills only a stall's wilted roots", () => {
+    const p = defaultProgress();
+    p.onboardedAt = 1;
+    const speech = ROOTS.filter((r) => r.cat === "speech").slice(0, 3);
+    const past = Date.now() - 10 * 86_400_000;
+    for (const r of speech)
+      p.roots[r.r] = { ease: 2.5, ivl: 3, due: past, reps: 2, lapses: 0, ok: 2, bad: 0 };
+    useProgress.getState().adopt(p);
+    expect(
+      useSession.getState().start({ kind: "practice", focus: "restock", section: "speech" }),
+    ).toBe(true);
+    const ids = new Set(speech.map((r) => r.r));
+    for (const r of useSession.getState().s!.slots) expect(ids.has(r.r)).toBe(true);
+    expect(
+      useSession.getState().start({ kind: "practice", focus: "restock", section: "sport" }),
+    ).toBe(false);
+  });
+});

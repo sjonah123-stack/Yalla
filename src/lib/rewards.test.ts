@@ -3,7 +3,7 @@ import { ROOTS } from "../data/roots";
 import { SECTION_BY_ID } from "../data/course";
 import { buildCourse } from "./course";
 import { DAY, newRootState } from "./srs";
-import { defaultProgress } from "./storage";
+import { defaultProgress, defaultShuk } from "./storage";
 import {
   GEM_BASE,
   GEM_PERFECT,
@@ -194,13 +194,30 @@ describe("awardSeals", () => {
         history: { "2026-01-01": { ok: 20, bad: 0, xp: 100, speedBest: 20 } },
       }),
     },
+    { id: "streak-7", make: () => ({ ...defaultProgress(), streak: 7 }) },
+    { id: "streak-30", make: () => ({ ...defaultProgress(), streak: 30 }) },
+    {
+      id: "shuk-shop",
+      make: () => ({ ...defaultProgress(), shuk: { ...defaultShuk(), earned: 10_000 } }),
+    },
+    {
+      id: "shuk-mall",
+      make: () => ({ ...defaultProgress(), shuk: { ...defaultShuk(), earned: 1_000_000 } }),
+    },
+    {
+      id: "stories-5",
+      make: () => ({
+        ...defaultProgress(),
+        stories: Object.fromEntries(["a", "b", "c", "d", "e"].map((k) => [k, { at: 1, best: 2 }])),
+      }),
+    },
   ];
 
-  it("has 13 seals with unique ids and letters in alef-bet order", () => {
-    expect(SEALS).toHaveLength(13);
-    expect(new Set(SEAL_IDS).size).toBe(13);
-    expect(new Set(SEALS.map((s) => s.letter)).size).toBe(13);
-    expect(SEALS.map((s) => s.letter).join("")).toBe("אבגדהוזחטיכלמ");
+  it("has 18 seals with unique ids and letters in alef-bet order", () => {
+    expect(SEALS).toHaveLength(18);
+    expect(new Set(SEAL_IDS).size).toBe(18);
+    expect(new Set(SEALS.map((s) => s.letter)).size).toBe(18);
+    expect(SEALS.map((s) => s.letter).join("")).toBe("אבגדהוזחטיכלמנסעפצ");
     expect(SEAL_IDS).toEqual([
       "first-root",
       "ten-memorized",
@@ -215,6 +232,11 @@ describe("awardSeals", () => {
       "gems-300",
       "level-5",
       "speed-20",
+      "streak-7",
+      "streak-30",
+      "shuk-shop",
+      "shuk-mall",
+      "stories-5",
     ]);
     for (const s of SEALS) {
       expect(SEAL_BY_ID[s.id]).toBe(s);
@@ -242,6 +264,9 @@ describe("awardSeals", () => {
       "speech-done": ["first-unit"],
       "movement-done": ["first-unit"],
       "level-5": ["xp-500"],
+      "streak-7": ["streak-3"],
+      "streak-30": ["streak-3", "streak-7"],
+      "shuk-mall": ["shuk-shop"],
     };
     const allowed = new Set<SealId>([id, ...(implied[id] ?? [])]);
     for (const e of earned) expect(allowed.has(e)).toBe(true);
@@ -374,5 +399,47 @@ describe("speed round gems", () => {
   it("never counts as a perfect lesson", () => {
     const { p } = applySessionEnd(course, defaultProgress(), end(10, true), now);
     expect(p.perfectLessons).toBe(0);
+  });
+});
+
+describe("applySessionEnd: Shuk sales, rush hour and quest counters", () => {
+  const stocked = (): Progress => ({
+    ...defaultProgress(),
+    roots: Object.fromEntries(ROOTS.slice(0, 10).map((r) => [r.r, mem()])),
+  });
+
+  it("sells right answers, starts a rush and bumps today's counters", () => {
+    const { p, receipt } = applySessionEnd(
+      course,
+      stocked(),
+      end({ ok: 10, bad: 0, best: 10 }),
+      now,
+    );
+    expect(receipt.shekels).toBeGreaterThan(0);
+    expect(p.shuk.earned).toBe(receipt.shekels);
+    expect(receipt.rush).toEqual({ mult: 3, until: now + 30 * 60_000 });
+    const h = Object.values(p.history)[0];
+    expect(h.sessions).toBe(1);
+    expect(h.perfect).toBe(1);
+    expect(h.combo).toBe(10);
+  });
+
+  it("a miss makes a 2× rush; quitting starts none; tests sell nothing", () => {
+    expect(applySessionEnd(course, stocked(), end({ ok: 5, bad: 1 }), now).receipt.rush?.mult).toBe(
+      2,
+    );
+    expect(
+      applySessionEnd(course, stocked(), end({ ok: 5, completed: false }), now).receipt.rush,
+    ).toBeNull();
+    const t = applySessionEnd(course, stocked(), end({ kind: "test", ok: 20 }), now).receipt;
+    expect(t.shekels).toBe(0);
+    expect(t.rush).toBeNull();
+  });
+
+  it("a mistakes round counts fixed answers; a daily round marks the daily quest", () => {
+    const a = applySessionEnd(course, stocked(), end({ focus: "mistakes", ok: 6, bad: 2 }), now).p;
+    expect(Object.values(a.history)[0].fixed).toBe(6);
+    const b = applySessionEnd(course, stocked(), end({ kind: "daily", ok: 4 }), now).p;
+    expect(Object.values(b.history)[0].daily).toBe(1);
   });
 });

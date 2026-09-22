@@ -1,5 +1,5 @@
 /** Tiny synthesized cues — no assets, nothing to load. Callers gate on the sounds setting. */
-export type Cue = "good" | "bad" | "chest" | "tick" | "done";
+export type Cue = "good" | "bad" | "chest" | "tick" | "done" | "fever" | "coin" | "page";
 
 let ctx: AudioContext | null = null;
 function audio(): AudioContext | null {
@@ -53,6 +53,20 @@ export function playCue(cue: Cue): void {
       break;
     case "chest":
       [523, 659, 784, 1047].forEach((f, i) => note(c, f, t + i * 0.09, 0.22, "triangle", 0.1));
+      break;
+    case "fever":
+      // A quick rising arpeggio that lands an octave up: the combo caught fire.
+      [587, 740, 880, 1175].forEach((f, i) => note(c, f, t + i * 0.055, 0.12, "triangle", 0.09));
+      note(c, 1760, t + 0.24, 0.2, "sine", 0.05);
+      break;
+    case "coin":
+      // Two bright pings, the classic coin.
+      note(c, 988, t, 0.07, "square", 0.035);
+      note(c, 1319, t + 0.07, 0.22, "square", 0.035);
+      break;
+    case "page":
+      // A soft low tap for turning to the next line of a story.
+      note(c, 520, t, 0.06, "sine", 0.05);
       break;
   }
 }

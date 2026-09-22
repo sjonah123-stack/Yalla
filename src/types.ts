@@ -69,6 +69,23 @@ export interface DayStats {
   mem?: number;
   /** Best speed-round score that day. */
   speedBest?: number;
+  // Daily-quest counters (v1.0). All optional, max-merged per field.
+  /** Lessons / reviews finished. */
+  sessions?: number;
+  /** Best combo that day. */
+  combo?: number;
+  /** Sessions finished with no misses. */
+  perfect?: number;
+  /** Seconds of listening mode. */
+  listen?: number;
+  /** Stories read to the end. */
+  stories?: number;
+  /** Shuk collections. */
+  collects?: number;
+  /** Root of the day finished (1). */
+  daily?: number;
+  /** Right answers in a "fix my mistakes" round. */
+  fixed?: number;
 }
 
 export type DailyGoal = 20 | 50 | 100;
@@ -83,6 +100,75 @@ export interface Settings {
   dailyGoal: DailyGoal;
   /** Answer blips and chest jingle (and vibration where the platform allows). */
   sounds: boolean;
+  /** Accent palette (bought in the gem shop; "plum" is the default). */
+  accent: Accent;
+  /** Daily push reminder (web build, signed in). `hour` is local, 0–23. */
+  reminders: { on: boolean; hour: number };
+}
+
+export type Accent = "plum" | "jaffa" | "galil" | "negev";
+
+/** What the gem shop sells. */
+export type ShopItem = "freeze" | "repair" | "rush" | "bag" | `accent:${Accent}`;
+
+/** One gem-shop purchase (or a prize that behaves like one, cost 0). Keyed by a unique id. */
+export interface Purchase {
+  at: number;
+  item: ShopItem;
+  cost: number;
+}
+
+/** A rush hour: Shuk income × mult between from and until. */
+export interface Rush {
+  from: number;
+  until: number;
+  mult: number;
+}
+
+/** The market tycoon. Shekel balance = earned − cost of levels and perks (all derived). */
+export interface ShukState {
+  /** Lifetime shekels collected (only goes up). */
+  earned: number;
+  /** Section id → stall level (0 = unupgraded). */
+  levels: Record<string, number>;
+  /** Perk id → level. */
+  perks: Record<string, number>;
+  /** When income was last collected (0 = the Shuk was never opened). */
+  lastCollect: number;
+  rush: Rush | null;
+}
+
+/** A wrong answer, for the mistake notebook. */
+export interface Mistake {
+  at: number;
+  /** The root asked about. */
+  root: string;
+  mode: Mode;
+  /** What was picked or typed (display label). */
+  picked: string;
+  /** The root the picked option belongs to, when it was a root option. */
+  pickedRoot?: string;
+  /** The vocalized word asked about, for word questions. */
+  word?: string;
+}
+
+/** A finished league week. */
+export interface LeagueWeek {
+  /** Tier played in (0 = Clay … 4 = Diamond). */
+  tier: number;
+  /** Final rank, 1-based. */
+  rank: number;
+  /** Tier for the following week. */
+  next: number;
+  /** XP earned that week. */
+  xp: number;
+}
+
+export interface StoryRecord {
+  /** First finished. */
+  at: number;
+  /** Best number of comprehension questions right. */
+  best: number;
 }
 
 /** Per-word exposure, keyed by the vocalized word. */
@@ -127,7 +213,12 @@ export type SealId =
   | "movement-done"
   | "gems-300"
   | "level-5"
-  | "speed-20";
+  | "speed-20"
+  | "streak-7"
+  | "streak-30"
+  | "shuk-shop"
+  | "shuk-mall"
+  | "stories-5";
 
 /** Why a learner flagged a root for review. */
 export type FlagReason = "gloss" | "nikud" | "translit" | "audio" | "root" | "other";
@@ -150,7 +241,12 @@ export type View =
   | "flashcards"
   | "match"
   | "familysort"
-  | "conjugate";
+  | "conjugate"
+  | "shuk"
+  | "story"
+  | "listen"
+  | "notebook"
+  | "league";
 
 export interface Progress {
   v: 3;
@@ -186,6 +282,20 @@ export interface Progress {
   words: Record<string, WordStat>;
   /** When the first-run tour was dismissed (null = not yet). */
   tourAt: number | null;
+  /** Gem-shop ledger: id → purchase. Gem balance = gems − Σ cost. Union-merged. */
+  purchases: Record<string, Purchase>;
+  /** Streak days covered without play: day key → how ("freeze" uses an owned freeze). */
+  frozenDays: Record<string, "freeze" | "repair">;
+  /** The market tycoon. */
+  shuk: ShukState;
+  /** Daily quest claims: "YYYY-MM-DD:questId" (or ":bag") → claimedAt. */
+  quests: Record<string, number>;
+  /** Settled league weeks: Monday day key → result. */
+  league: Record<string, LeagueWeek>;
+  /** Recent wrong answers, oldest first, capped. */
+  mistakes: Mistake[];
+  /** Story id → reading record. */
+  stories: Record<string, StoryRecord>;
 }
 
 export type Mode =
@@ -197,7 +307,8 @@ export type Mode =
   | "typeWord"
   | "cloze"
   | "hearWord"
-  | "whichBinyan";
+  | "whichBinyan"
+  | "guessWord";
 
 export interface Option {
   /** Display label: English gloss, root display string, or vocalized word. */
@@ -206,6 +317,8 @@ export interface Option {
   ok: boolean;
   /** Word tiles (buildWord): the word shown. */
   w?: Word;
+  /** The root this option stands for (root and meaning options), for the mistake notebook. */
+  rid?: string;
 }
 
 export interface Question {

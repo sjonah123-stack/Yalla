@@ -10,6 +10,14 @@ import { speechAvailable } from "../lib/speech";
 import { lastSyncedAt } from "../lib/storage";
 import { accountLine } from "../lib/labels";
 import { activeFlags, flagsToText } from "../lib/flags";
+import {
+  hourLabel,
+  hourOptions,
+  pushSupport,
+  reminderNote,
+  uses12h,
+  type PushEnv,
+} from "../lib/reminders";
 import { ROOTS } from "../data/roots";
 import type { Settings as S } from "../types";
 
@@ -17,18 +25,21 @@ function Seg<T extends string | number | boolean>({
   value,
   options,
   onChange,
+  label,
 }: {
   value: T;
-  options: readonly { v: T; l: string }[];
+  options: readonly { v: T; l: string; disabled?: boolean }[];
   onChange: (v: T) => void;
+  label?: string;
 }) {
   return (
-    <div className="seg" role="group">
+    <div className="seg" role="group" aria-label={label}>
       {options.map((o) => (
         <button
           key={String(o.v)}
           type="button"
           aria-pressed={o.v === value}
+          disabled={o.disabled}
           onClick={() => onChange(o.v)}
         >
           {o.l}
@@ -42,6 +53,131 @@ const ON_OFF = [
   { v: true, l: "On" },
   { v: false, l: "Off" },
 ] as const;
+
+/** What this browser offers for Web Push (read once per Settings open). */
+function pushEnv(): PushEnv {
+  if (typeof navigator === "undefined")
+    return { ua: "", standalone: false, hasSW: false, hasPush: false, hasNotification: false };
+  const standalone =
+    (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+    (typeof matchMedia === "function" && matchMedia("(display-mode: standalone)").matches);
+  return {
+    ua: navigator.userAgent,
+    standalone,
+    hasSW: "serviceWorker" in navigator,
+    hasPush: typeof PushManager !== "undefined",
+    hasNotification: typeof Notification !== "undefined",
+    touchPoints: navigator.maxTouchPoints ?? 0,
+  };
+}
+
+const permissionNow = (): NotificationPermission | "unsupported" =>
+  typeof Notification === "undefined" ? "unsupported" : Notification.permission;
+
+function clock12(): boolean {
+  try {
+    return uses12h(
+      new Intl.DateTimeFormat(undefined, { hour: "numeric" }).resolvedOptions().hourCycle,
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Daily reminder: an On/Off switch plus the local hour. Web build only (needs the cloud module);
+ * the push itself comes from the `remind` Cloud Function. Explains instead of failing when the
+ * device can't take one yet (signed out, an iPhone Safari tab, notifications blocked).
+ */
+function ReminderRow() {
+  const r = useProgress((s) => s.p.settings.reminders);
+  const status = useCloud((s) => s.status);
+  const push = useCloud((s) => s.push);
+  const busy = useCloud((s) => s.reminderBusy);
+  const [env] = useState(pushEnv);
+  const [h12] = useState(clock12);
+  const signedIn = status === "signed-in";
+  useEffect(() => {
+    if (signedIn && r.on) useCloud.getState().refreshPush();
+  }, [signedIn, r.on]);
+  const on = signedIn && r.on;
+  const note = reminderNote({
+    support: pushSupport(env),
+    permission: permissionNow(),
+    signedIn,
+    on,
+    hour: r.hour,
+    h12,
+    remote: push,
+  });
+  const cloud = useCloud.getState();
+  return (
+    <div className="setting remind">
+      <div className="remind-main">
+        <div>
+          <div className="l">Daily reminder</div>
+          <div className="d" aria-live="polite">
+            {busy ? "Setting up…" : note.text}
+          </div>
+        </div>
+        <Seg
+          label="Daily reminder"
+          value={on}
+          options={[
+            { v: true, l: "On", disabled: busy || (!on && !note.canTurnOn) },
+            { v: false, l: "Off", disabled: busy },
+          ]}
+          onChange={(v) => {
+            if (v === on) return;
+            // Straight from the tap: the notification prompt needs the user gesture.
+            if (v) void cloud.enableReminder(r.hour);
+            else void cloud.disableReminder();
+          }}
+        />
+      </div>
+      {(on || note.canTurnOn) && (
+        <div className="remind-when">
+          <label className="remind-pick">
+            <span className="remind-lbl">Time</span>
+            <span className="remind-sel">
+              <select
+                value={r.hour}
+                disabled={busy}
+                onChange={(e) => void cloud.setReminderHour(Number(e.target.value))}
+              >
+                {hourOptions(r.hour).map((h) => (
+                  <option key={h} value={h}>
+                    {hourLabel(h, h12)}
+                  </option>
+                ))}
+              </select>
+              <svg viewBox="0 0 12 8" width="12" height="8" aria-hidden="true">
+                <path
+                  d="M1.5 1.5 6 6l4.5-4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </label>
+          {on && note.offerHere && (
+            <button
+              type="button"
+              className="btn sm plum"
+              disabled={busy}
+              onClick={() => void cloud.enableReminder(r.hour)}
+            >
+              Send here
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Settings({ onClose }: { onClose: () => void }) {
   const drag = useSheetDrag<HTMLDivElement>(onClose);
@@ -195,6 +331,7 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               </button>
             ),
           )}
+        {loadCloud && <ReminderRow />}
         {row(
           "Flagged roots",
           nFlags ? `${nFlags} waiting for review` : "Flag a root from a lesson or the Roots list",
@@ -299,8 +436,11 @@ export default function Settings({ onClose }: { onClose: () => void }) {
               ],
             });
             if (v !== "reset") return;
+            const reminded = st.reminders.on;
             useSession.getState().clear();
             reset();
+            // Reset restores default settings (reminder off); stop the account's reminders too.
+            if (reminded) void useCloud.getState().disableReminder();
             onClose();
           }}
         >

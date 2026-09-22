@@ -11,6 +11,26 @@ service cloud.firestore {
         && request.resource.data.json is string
         && request.resource.data.json.size() < 400000;
     }
+    // Daily reminder, one per account: { sub, hour, tz, on, updatedAt } from the app, plus
+    // lastSent / lastSentAt / goneAt from the `remind` function (admin SDK, which skips rules).
+    match /push/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+          ['sub', 'hour', 'tz', 'on', 'updatedAt', 'lastSent', 'lastSentAt', 'goneAt'])
+        && request.resource.data.sub is map
+        && request.resource.data.sub.endpoint is string
+        && request.resource.data.sub.endpoint.size() < 1024
+        && request.resource.data.sub.endpoint.matches('https://.+')
+        && request.resource.data.sub.keys.p256dh is string
+        && request.resource.data.sub.keys.auth is string
+        && request.resource.data.hour is int
+        && request.resource.data.hour >= 0 && request.resource.data.hour <= 23
+        && request.resource.data.tz is string
+        && request.resource.data.tz.size() < 64
+        && request.resource.data.on is bool
+        && request.resource.data.updatedAt is number;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import type { Mode, Question, Root, UnitId } from "../types";
 import { ROOTS } from "../data/roots";
-import { buildQueue, dayKey, mastery, seen, trickyQueue } from "../lib/srs";
+import { buildQueue, dayKey, isDue, mastery, seen, trickyQueue, twoPassQueue } from "../lib/srs";
+import { SECTION_BY_ID } from "../data/course";
+import { dailyModes, dailyRootId } from "../lib/daily";
+import { mistakeRoots } from "../lib/mistakes";
+import { memorized } from "../lib/course";
 import { knownWords } from "../lib/words";
 import { makeQuestion, modeFor, xpFor } from "../lib/quiz";
 import { buildLesson, buildTest, testScore } from "../lib/lesson";
@@ -19,7 +23,11 @@ export type Tick = "pending" | "good" | "bad" | "recovered";
 
 export type Plan =
   | { kind: "lesson"; unit: UnitId }
-  | { kind: "practice"; focus?: "tricky" }
+  | { kind: "practice"; focus?: "tricky" | "mistakes" }
+  /** Review the wilted (due) roots of one Shuk stall. */
+  | { kind: "practice"; focus: "restock"; section: string }
+  /** The root of the day: four questions on one root, with a discovery word. */
+  | { kind: "daily" }
   | { kind: "test"; unit: UnitId }
   | { kind: "placement" }
   | { kind: "speed" };
@@ -27,7 +35,7 @@ export type Plan =
 /** Behaviour flags derived from the plan. */
 export const planRules = (plan: Plan) => ({
   /** Show the feedback sheet after each question (else tick and move on, results at the end). */
-  feedbackEach: plan.kind === "lesson" || plan.kind === "practice",
+  feedbackEach: plan.kind === "lesson" || plan.kind === "practice" || plan.kind === "daily",
   /** Misses are re-queued a few questions later. */
   requeue: plan.kind === "lesson" || plan.kind === "practice",
   learnFirst: plan.kind === "lesson",
@@ -202,6 +210,7 @@ function finish(s: Session, completed = true): Session {
   } else {
     out.rewards = prog.recordSessionEnd({
       kind: s.plan.kind,
+      ...(s.plan.kind === "practice" && s.plan.focus ? { focus: s.plan.focus } : {}),
       ok: s.ok,
       bad: s.bad,
       best: s.best,
@@ -220,6 +229,28 @@ function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[] } {
     case "practice": {
       if (plan.focus === "tricky")
         return { slots: trickyQueue(ROOTS, prog, prog.settings.sessionLen) };
+      if (plan.focus === "mistakes")
+        return {
+          slots: twoPassQueue(
+            mistakeRoots(ROOTS, prog, Date.now()).map((m) => m.root),
+            prog.settings.sessionLen,
+          ),
+        };
+      if (plan.focus === "restock") {
+        const cat = SECTION_BY_ID[plan.section]?.cat;
+        const now = Date.now();
+        const wilted = ROOTS.filter(
+          (r) => r.cat === cat && memorized(prog.roots[r.r]) && isDue(prog.roots[r.r], now),
+        );
+        return {
+          slots: buildQueue(
+            wilted,
+            { ...prog, settings: { ...prog.settings, cats: [] } },
+            prog.settings.sessionLen,
+            0,
+          ),
+        };
+      }
       const seenRoots = ROOTS.filter((r) => seen(prog.roots[r.r]));
       return { slots: buildQueue(seenRoots, prog, prog.settings.sessionLen, 0) };
     }
@@ -234,6 +265,13 @@ function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[] } {
         modeFor(r, mastery(prog.roots[r.r]), { audio: false, quick: true }),
       );
       return { slots, modes };
+    }
+    case "daily": {
+      const id = dailyRootId(prog, dayKey());
+      const root = id ? ROOTS.find((r) => r.r === id) : undefined;
+      if (!root) return { slots: [] };
+      const modes = dailyModes(root, prog, knownWords(prog));
+      return { slots: modes.map(() => root), modes };
     }
     case "placement": {
       const sample = placementSample(COURSE);
@@ -410,6 +448,17 @@ function answer(
   const xp = correct && rules.xp ? xpFor(q.mode, combo, srsFirst) : 0;
   if (rules.writesSrs) prog.recordAnswer(id, correct, srsFirst, xp);
   if (rules.writesSrs && q.word && q.mode !== "typeRoot") prog.recordWord(q.word.h, correct);
+  if (!correct && rules.writesSrs) {
+    const rid = picked !== null ? q.opts?.[picked]?.rid : undefined;
+    prog.recordMistake({
+      at: Date.now(),
+      root: id,
+      mode: q.mode,
+      picked: pickedLabel,
+      ...(rid && rid !== id ? { pickedRoot: rid } : {}),
+      ...(q.word ? { word: q.word.h } : {}),
+    });
+  }
 
   const ticks = s.ticks.slice();
   const queue = s.queue.slice();

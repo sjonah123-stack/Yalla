@@ -32,6 +32,8 @@ export default defineConfig({
               globPatterns: ["**/*.{js,css,html,woff2,png,svg}"],
               // Firebase Auth serves /__/auth/* on this origin; never answer it with index.html.
               navigateFallbackDenylist: [/^\/__\//],
+              // Daily-reminder push + notificationclick handlers (public/push-sw.js).
+              importScripts: ["push-sw.js"],
             },
           }),
         ]),

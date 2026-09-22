@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { loadCloud } from "../lib/cloud-loader";
 import type { CloudUser } from "../lib/cloud";
+import { describePushError, type PushRemote } from "../lib/reminders";
 import type { Progress } from "../types";
 import {
   applyIncoming,
@@ -40,6 +41,19 @@ interface CloudStore {
   signOut: () => Promise<void>;
   /** Retry a pull that failed at sign-in or a push that failed since; runs on reconnect. */
   resync: () => void;
+  /** The account's daily-reminder doc as seen from this device; null until read. */
+  push: PushRemote | null;
+  /** A reminder change is in flight (permission prompt, subscribe, write). */
+  reminderBusy: boolean;
+  /** Re-read the reminder doc (Settings open, sign-in). Also moves its time zone along. */
+  refreshPush: () => void;
+  /**
+   * Turn the daily reminder on, delivered to this device ("Send here" too). Call straight from
+   * the tap: the notification prompt must open inside the user gesture.
+   */
+  enableReminder: (hour: number) => Promise<void>;
+  disableReminder: () => Promise<void>;
+  setReminderHour: (hour: number) => Promise<void>;
 }
 
 type Cloud = Awaited<ReturnType<NonNullable<typeof loadCloud>>>;
@@ -90,6 +104,7 @@ async function attach(cloud: Cloud, user: CloudUser, set: (s: Partial<CloudStore
       if (pushPending()) replacePending(merged);
     }) ?? null;
   set({ status: "signed-in", user, error: null, pulled: true });
+  if (useProgress.getState().p.settings.reminders.on) useCloud.getState().refreshPush();
 }
 
 function detach(set: (s: Partial<CloudStore>) => void) {
@@ -98,8 +113,12 @@ function detach(set: (s: Partial<CloudStore>) => void) {
   setRemote(null);
   setCloudFlag(false);
   useProgress.getState().setSync("local");
-  set({ status: "signed-out", user: null, pulled: false });
+  set({ status: "signed-out", user: null, pulled: false, push: null });
 }
+
+const reminders = () => useProgress.getState().p.settings.reminders;
+const setReminders = (r: { on: boolean; hour: number }) =>
+  useProgress.getState().setSettings({ reminders: r });
 
 function fail(cloud: Cloud | null, e: unknown, set: (s: Partial<CloudStore>) => void) {
   const msg = cloud ? cloud.describeError(e) : "Sign-in failed.";
@@ -138,6 +157,8 @@ export const useCloud = create<CloudStore>((set, get) => ({
   user: null,
   error: null,
   pulled: false,
+  push: null,
+  reminderBusy: false,
   resync: () => {
     const { status, user, pulled } = get();
     if (status !== "signed-in" || !user || !mod) return;
@@ -183,10 +204,81 @@ export const useCloud = create<CloudStore>((set, get) => ({
   signOut: async () => {
     const cloud = mod;
     if (!cloud) return;
+    const uid = get().user?.uid;
     try {
+      // Stop reminders reaching a device nobody is signed in on. Best effort, and never holds
+      // up sign-out for long (offline, or no service worker in dev).
+      if (uid && reminders().on)
+        await Promise.race([
+          cloud.disablePush(uid, true).catch(() => undefined),
+          new Promise((r) => setTimeout(r, 3000)),
+        ]);
       await cloud.signOut();
     } finally {
       detach(set);
+    }
+  },
+  refreshPush: () => {
+    const { user, status } = get();
+    const cloud = mod;
+    if (!cloud || !user || status !== "signed-in") return;
+    cloud.pushState(user.uid).then(
+      (push) => get().user?.uid === user.uid && set({ push }),
+      () => undefined,
+    );
+  },
+  enableReminder: async (hour) => {
+    const { user, status } = get();
+    const cloud = mod;
+    if (!cloud || !user || status !== "signed-in") {
+      useUi.getState().showToast(describePushError({ code: "push/signed-out" }));
+      return;
+    }
+    // Called before anything is awaited, so the permission prompt stays inside the tap.
+    const job = cloud.enablePush(user.uid, hour);
+    set({ reminderBusy: true });
+    try {
+      await job;
+      setReminders({ on: true, hour });
+      set({ push: { on: true, here: true } });
+    } catch (e) {
+      useUi.getState().showToast(describePushError(e));
+    } finally {
+      set({ reminderBusy: false });
+    }
+  },
+  disableReminder: async () => {
+    const was = reminders();
+    setReminders({ ...was, on: false });
+    const { user, status, push } = get();
+    const cloud = mod;
+    if (!cloud || !user || status !== "signed-in") return;
+    set({ reminderBusy: true, push: push && { ...push, on: false } });
+    try {
+      await cloud.disablePush(user.uid);
+    } catch (e) {
+      // The doc is still on, so reminders would keep coming: show that rather than a false Off.
+      setReminders(was);
+      set({ push });
+      useUi.getState().showToast(describePushError(e));
+    } finally {
+      set({ reminderBusy: false });
+    }
+  },
+  setReminderHour: async (hour) => {
+    const was = reminders();
+    setReminders({ ...was, hour });
+    const { user, status } = get();
+    const cloud = mod;
+    if (!was.on || !cloud || !user || status !== "signed-in") return;
+    set({ reminderBusy: true });
+    try {
+      await cloud.setPushHour(user.uid, hour);
+    } catch (e) {
+      setReminders(was);
+      useUi.getState().showToast(describePushError(e));
+    } finally {
+      set({ reminderBusy: false });
     }
   },
 }));

@@ -12,6 +12,8 @@ npm run lint && npx tsc -p tsconfig.app.json --noEmit
 npm run build          # PWA → dist/
 npm run build:artifact # single-file dist/yalla.html; fails on purpose if Firebase leaks in
 firebase deploy --only hosting,firestore:rules   # targets `app` (yalla-677b9) + `roots` (yalla-roots)
+firebase deploy --only functions                 # push reminders (Blaze plan; secret VAPID_PRIVATE_KEY)
+cd functions && npm test                         # the reminder function's own vitest suite
 ```
 
 Ship = commit on `main` + deploy. Both live URLs serve the same build:
@@ -62,11 +64,29 @@ device has no progress or syncs to an account; otherwise Home shows a move banne
 
 ## Rewards
 
-Gems: 15 + 3×correct (+20 perfect) per lesson/practice; +50 unit chest (once, `chestAt`);
+Gems: 15 + 3×correct (+20 perfect) per lesson/practice/daily; +50 unit chest (once, `chestAt`);
 +50 section chest (once, only if no unit in the section was placed); +40 for the first
 placement; a speed round pays 15 only if the timer ran out + 3×min(right, 20), never perfect.
-Thirteen seals with ASCII ids in `SEALS`. All settled by `applySessionEnd` at
-session end — never sprinkle rewards into `recordAnswer`.
+Eighteen seals with ASCII ids in `SEALS`. All settled by `applySessionEnd` at
+session end — never sprinkle rewards into `recordAnswer`. Non-session actions (quests, bags,
+shop, collect, stories) call `awardSeals`, never `settle` (settle would pay chests silently).
+
+## Economy (v1.0) — spending must survive a max-merge
+
+- `p.gems` is **lifetime earned** and only goes up (merge = max). Spending is the
+  `p.purchases` ledger (unique id → `{at, item, cost}`, union-merged); balance =
+  `gemBalance(p)` in `src/lib/shop.ts`. Never decrement `gems`. Prizes that must not duplicate
+  on merge use a deterministic purchase id (the bag id).
+- Shekels (the Shuk, `src/lib/shuk.ts`): `shuk.earned` lifetime (max), stall `levels` and
+  `perks` (max per key); balance = earned − deterministic cost of levels/perks (`shekels()`).
+  Income = fresh (memorized, not due) roots × level multiplier; due roots wilt. Offline
+  accrual since `lastCollect`, capped by the storage perk; `rush` multiplies the overlap.
+- Streak freezes: owned = freezes in purchases − `frozenDays` marked "freeze"; repairs mark
+  days "repair". `touchStreak`/`streakAlive` bridge frozen days; show `visibleStreak(p)`.
+- Deterministic randomness (`src/lib/rng.ts` `seeded`) for anything two devices must agree
+  on: daily quests, bag prizes, league rivals, root of the day.
+- Daily housekeeping is `useProgress().tick()` (App mount + foreground): freezes, league
+  settling, root of the day, starting the Shuk clock.
 
 ## UI conventions (v0.7)
 
@@ -90,6 +110,14 @@ session end — never sprinkle rewards into `recordAnswer`.
 - The daily plan is a session chain: `session.startChain(dailyPlan(...))`, `nextInChain()`.
 - Content flags live in `Progress.flags` (tombstoned on clear); text export via `flagsToText`.
 - Tap targets are 44px (hit expanders via `::after` on small controls); focus ring = `--ring`.
+- Six tabs (`SHELL_VIEWS`: home, path, shuk, bank, patterns, progress). Full-screen pages
+  without a unit (`PAGE_VIEWS`: story, listen, notebook, league) open with
+  `ui.openPage(v)` and return to the tab they came from via `leaveTool()`.
+- Stories live in `src/data/stories/{a,b,c}.ts` (ids `st-a01`… stable forever); tags are exact
+  substrings of the line → root id; `src/data/stories.test.ts` enforces it. A story unlocks
+  when every tagged root has been seen.
+- Push reminders: `functions/` (scheduled `remind`, web-push, secret `VAPID_PRIVATE_KEY`),
+  `public/push-sw.js` imported into the Workbox SW; subscriptions in Firestore `push/{uid}`.
 
 ## Verifying UI changes
 

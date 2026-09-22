@@ -42,6 +42,8 @@
   --coral-deep: #b5452f;
   --coral-ink: #2a1630;
   --coral-soft: #fbe3dc;
+  /* Text on --coral-soft (chips): deep coral on light, pale coral on dark. */
+  --coral-soft-ink: var(--coral-deep);
   --gold: #e2b04a;
   --gold-deep: #b8852a;
   --gold-soft: #f7e7c4;
@@ -59,6 +61,16 @@
   --scrim: rgba(42, 22, 48, 0.45);
   --hairline: rgba(42, 22, 48, 0.08);
   --on-dark-soft: rgba(255, 255, 255, 0.1);
+  /* The Shuk: coin face / rim, shekel figures on the ground, wilted (due) stock. */
+  --shekel: #f2c14e;
+  --shekel-deep: #b8852a;
+  --shekel-ink: #8a5a0f;
+  --wilt: #a58a70;
+  /* Accent swatches for the gem shop: each palette's --plum in the current theme. */
+  --sw-plum: #4a2352;
+  --sw-jaffa: #9c3f10;
+  --sw-galil: #2e5e3a;
+  --sw-negev: #7d5217;
 
   /* Shape */
   --r-sm: 12px;
@@ -102,6 +114,7 @@
     --plum-light: #b58cc7;
     --plum-ink: #f8eedf;
     --coral-soft: #4a2a2a;
+    --coral-soft-ink: #ffb8a3;
     --gold-soft: #4a3a1e;
     --good: #6fbf95;
     --good-deep: #35704f;
@@ -115,6 +128,12 @@
     --hero: linear-gradient(180deg, #120810 0%, #2a1630 100%);
     --scrim: rgba(0, 0, 0, 0.6);
     --hairline: rgba(248, 238, 223, 0.1);
+    --shekel-ink: #f0c35a;
+    --wilt: #7d6858;
+    --sw-plum: #8e5aa5;
+    --sw-jaffa: #b34b16;
+    --sw-galil: #3c774b;
+    --sw-negev: #916030;
     color-scheme: dark;
   }
 }
@@ -134,6 +153,7 @@
   --plum-light: #b58cc7;
   --plum-ink: #f8eedf;
   --coral-soft: #4a2a2a;
+  --coral-soft-ink: #ffb8a3;
   --gold-soft: #4a3a1e;
   --good: #6fbf95;
   --good-deep: #35704f;
@@ -147,5 +167,63 @@
   --hero: linear-gradient(180deg, #120810 0%, #2a1630 100%);
   --scrim: rgba(0, 0, 0, 0.6);
   --hairline: rgba(248, 238, 223, 0.1);
+  --shekel-ink: #f0c35a;
+  --wilt: #7d6858;
+  --sw-plum: #8e5aa5;
+  --sw-jaffa: #b34b16;
+  --sw-galil: #3c774b;
+  --sw-negev: #916030;
   color-scheme: dark;
+}
+
+/* Accent palettes (gem shop; App sets <html data-accent>). They swap the plum family only —
+   ground, ink, coral and gold stay — so the hero gradient, primary buttons, nav and focus ring
+   follow. Light accents keep cream text at ≥5.8:1; dark ones sit at the dark plum's luminance
+   (cream text ≥4.6:1, ≥3:1 against the dark paper). Keep the three blocks per accent in sync. */
+:root[data-accent="jaffa"] {
+  --plum: #9c3f10;
+  --plum-deep: #6a2a0b;
+  --plum-light: #d0692f;
+}
+:root[data-accent="galil"] {
+  --plum: #2e5e3a;
+  --plum-deep: #1b3a23;
+  --plum-light: #5f9a6c;
+}
+:root[data-accent="negev"] {
+  --plum: #7d5217;
+  --plum-deep: #52350d;
+  --plum-light: #b88a4e;
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-accent="jaffa"]:not([data-theme="light"]) {
+    --plum: #b34b16;
+    --plum-deep: #56270f;
+    --plum-light: #de9470;
+  }
+  :root[data-accent="galil"]:not([data-theme="light"]) {
+    --plum: #3c774b;
+    --plum-deep: #203a26;
+    --plum-light: #7cb289;
+  }
+  :root[data-accent="negev"]:not([data-theme="light"]) {
+    --plum: #916030;
+    --plum-deep: #46301b;
+    --plum-light: #c59e78;
+  }
+}
+:root[data-theme="dark"][data-accent="jaffa"] {
+  --plum: #b34b16;
+  --plum-deep: #56270f;
+  --plum-light: #de9470;
+}
+:root[data-theme="dark"][data-accent="galil"] {
+  --plum: #3c774b;
+  --plum-deep: #203a26;
+  --plum-light: #7cb289;
+}
+:root[data-theme="dark"][data-accent="negev"] {
+  --plum: #916030;
+  --plum-deep: #46301b;
+  --plum-light: #c59e78;
 }

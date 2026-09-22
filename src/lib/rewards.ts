@@ -1,7 +1,8 @@
 import type { Progress, SealId, UnitId } from "../types";
 import { SECTION_BY_ID } from "../data/course";
 import { memorizedCount, type Course } from "./course";
-import { level, seen } from "./srs";
+import { dayKey, level, seen } from "./srs";
+import { incomeRate, perkValue, sales, stalls, startRush, tierOf } from "./shuk";
 
 // ---------- Gems ----------
 export const GEM_BASE = 15;
@@ -123,6 +124,41 @@ export const SEALS: readonly Seal[] = [
     hint: "Get 20 right in one speed round.",
     test: (p) => Object.values(p.history).some((h) => (h.speedBest ?? 0) >= 20),
   },
+  {
+    id: "streak-7",
+    letter: "נ",
+    name: "Week on fire",
+    hint: "Keep a 7-day streak.",
+    test: (p) => p.streak >= 7,
+  },
+  {
+    id: "streak-30",
+    letter: "ס",
+    name: "Month on fire",
+    hint: "Keep a 30-day streak.",
+    test: (p) => p.streak >= 30,
+  },
+  {
+    id: "shuk-shop",
+    letter: "ע",
+    name: "Shopkeeper",
+    hint: "Grow your Shuk into a shop (₪10k earned).",
+    test: (p) => tierOf(p.shuk.earned) >= 2,
+  },
+  {
+    id: "shuk-mall",
+    letter: "פ",
+    name: "Mall owner",
+    hint: "Grow your Shuk into a mall (₪1M earned).",
+    test: (p) => tierOf(p.shuk.earned) >= 4,
+  },
+  {
+    id: "stories-5",
+    letter: "צ",
+    name: "Bookworm",
+    hint: "Read five stories.",
+    test: (p) => Object.keys(p.stories).length >= 5,
+  },
 ];
 
 export const SEAL_IDS: readonly SealId[] = SEALS.map((s) => s.id);
@@ -132,7 +168,9 @@ export const SEAL_BY_ID: Record<SealId, Seal> = Object.fromEntries(
 
 // ---------- Session end ----------
 export interface SessionEnd {
-  kind: "lesson" | "practice" | "test" | "speed";
+  kind: "lesson" | "practice" | "test" | "speed" | "daily";
+  /** A focused practice. */
+  focus?: "tricky" | "mistakes" | "restock";
   ok: number;
   bad: number;
   /** Best combo this session. */
@@ -157,6 +195,10 @@ export interface Receipt {
   unitChests: UnitId[];
   sectionChests: string[];
   newSeals: SealId[];
+  /** Shekels the session's right answers sold for in the Shuk. */
+  shekels: number;
+  /** Rush hour started by this session. */
+  rush: { mult: number; until: number } | null;
 }
 
 export const isPerfect = (end: SessionEnd): boolean => end.completed && end.ok > 0 && end.bad === 0;
@@ -272,23 +314,55 @@ export function settle(
       unitChests: pending.units,
       sectionChests: pending.sections,
       newSeals: awarded.earned,
+      shekels: 0,
+      rush: null,
     },
   };
 }
 
-/** Fold a finished (or abandoned) session into progress: counters, then gems and seals. */
+/** Sessions that feed the daily counters, pay sales and can start a rush hour. */
+const studies = (end: SessionEnd): boolean =>
+  end.kind === "lesson" || end.kind === "practice" || end.kind === "daily";
+
+/**
+ * Fold a finished (or abandoned) session into progress: counters and today's quest counters,
+ * Shuk sales and rush hour, then gems and seals.
+ */
 export function applySessionEnd(
   course: Course,
   p: Progress,
   end: SessionEnd,
   now: number,
 ): { p: Progress; receipt: Receipt } {
-  const perfect = isPerfect(end) && (end.kind === "lesson" || end.kind === "practice");
-  const next: Progress = {
+  const perfect = isPerfect(end) && studies(end);
+  let next: Progress = {
     ...p,
     bestCombo: Math.max(p.bestCombo, end.best),
     typedOk: p.typedOk + end.typedOk,
     perfectLessons: p.perfectLessons + (perfect ? 1 : 0),
   };
-  return settle(course, next, now, sessionGems(end));
+  const played = end.ok + end.bad > 0;
+  if (played) {
+    const day = dayKey(new Date(now));
+    const h = { ...(next.history[day] ?? { ok: 0, bad: 0, xp: 0 }) };
+    h.combo = Math.max(h.combo ?? 0, end.best);
+    if (studies(end) && end.completed) h.sessions = (h.sessions ?? 0) + 1;
+    if (perfect) h.perfect = (h.perfect ?? 0) + 1;
+    if (end.kind === "daily" && end.completed) h.daily = 1;
+    if (end.focus === "mistakes") h.fixed = (h.fixed ?? 0) + end.ok;
+    next = { ...next, history: { ...next.history, [day]: h } };
+  }
+  // The Shuk: right answers sell (tests don't), and a finished study session starts a rush.
+  const rate = incomeRate(stalls(allRoots(course), next, now));
+  const sold = end.kind === "test" ? 0 : sales(next.shuk, rate, end.ok);
+  let shuk = sold ? { ...next.shuk, earned: next.shuk.earned + sold } : next.shuk;
+  let rush: Receipt["rush"] = null;
+  if (studies(end) && end.completed && end.ok > 0) {
+    const mult = perfect ? 3 : 2;
+    shuk = startRush(shuk, mult, perkValue(shuk, "rush"), now);
+    if (shuk.rush && shuk.rush.until > now) rush = { mult: shuk.rush.mult, until: shuk.rush.until };
+  }
+  if (shuk !== next.shuk) next = { ...next, shuk };
+  const out = settle(course, next, now, sessionGems(end));
+  return { p: out.p, receipt: { ...out.receipt, shekels: sold, rush } };
 }

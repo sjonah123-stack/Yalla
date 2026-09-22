@@ -1,12 +1,13 @@
 import type { Progress, Root } from "../types";
 import type { Course } from "./course";
 import { currentUnit } from "./course";
-import { isDue, seen, trickyRoots } from "./srs";
+import { dayKey, isDue, seen, trickyRoots } from "./srs";
+import { dailyRootId } from "./daily";
 import type { Plan } from "../store/session";
 
 /**
- * Today's session as a chain: due reviews, then tricky roots, then the next lesson. Only the
- * parts with something to do are included; a lesson is always last.
+ * Today's session as a chain: due reviews, tricky roots, the root of the day (until done), then
+ * the next lesson. Only the parts with something to do are included; a lesson is always last.
  */
 export function dailyPlan(
   roots: readonly Root[],
@@ -18,6 +19,8 @@ export function dailyPlan(
   const due = roots.filter((r) => isDue(p.roots[r.r], now)).length;
   if (due > 0 && roots.some((r) => seen(p.roots[r.r]))) out.push({ kind: "practice" });
   if (trickyRoots(roots, p).length > 0) out.push({ kind: "practice", focus: "tricky" });
+  const day = dayKey(new Date(now));
+  if (dailyRootId(p, day) && !p.history[day]?.daily) out.push({ kind: "daily" });
   out.push({ kind: "lesson", unit: currentUnit(course, p).id });
   return out;
 }
@@ -26,7 +29,15 @@ export function dailyPlan(
 export function planLabel(plan: Plan): string {
   switch (plan.kind) {
     case "practice":
-      return plan.focus === "tricky" ? "Tricky roots" : "Review";
+      return plan.focus === "tricky"
+        ? "Tricky roots"
+        : plan.focus === "mistakes"
+          ? "Fix mistakes"
+          : plan.focus === "restock"
+            ? "Restock"
+            : "Review";
+    case "daily":
+      return "Root of the day";
     case "lesson":
       return "Lesson";
     case "test":

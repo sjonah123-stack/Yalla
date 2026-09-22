@@ -34,6 +34,11 @@ export function ConfirmSheet() {
         ref={drag.ref}
         style={drag.style}
       >
+        {spec.art && (
+          <div className="confirm-art" aria-hidden="true">
+            {spec.art}
+          </div>
+        )}
         <h2 id="confirm-title">{spec.title}</h2>
         {spec.body && <p>{spec.body}</p>}
         <div className="actions">

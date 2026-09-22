@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { UnitId, View } from "../types";
-import { pushTrail, scrollKey, type ShellView } from "../lib/history";
+import { isShellView, PAGE_VIEWS, pushTrail, scrollKey, type ShellView } from "../lib/history";
 
 export type { View } from "../types";
 
@@ -14,10 +14,13 @@ export interface ConfirmSpec {
   title: string;
   body?: string;
   actions: ConfirmAction[];
+  /** A big celebratory glyph above the title (lucky bag, promotion); animates in. */
+  art?: string;
 }
 export type BankChip = "all" | "due" | "learning" | "memorized" | "unmet" | "tricky" | "flagged";
 export type ToolView = "flashcards" | "match" | "familysort";
 export type DrillBinyan = "pa'al" | "pi'el" | "hif'il";
+export type PageView = "story" | "listen" | "notebook" | "league";
 
 interface UiStore {
   view: View;
@@ -31,6 +34,12 @@ interface UiStore {
   /** Binyan the conjugation drill is running on. */
   conjBinyan: DrillBinyan | null;
   openConjugate: (b: DrillBinyan) => void;
+  /** Open a full-screen page (story reader, listening, notebook, league); Back returns here. */
+  openPage: (v: PageView, storyId?: string) => void;
+  /** The tab a page was opened from. */
+  pageFrom: ShellView;
+  /** Story open in the reader. */
+  storyId: string | null;
   /** Window scroll offsets per view key (see scrollKey). */
   scrollMemory: Record<string, number>;
   rememberScroll: (key: string, y: number) => void;
@@ -76,17 +85,29 @@ export const useUi = create<UiStore>((set) => ({
     }),
   leaveTool: () =>
     set((s) =>
-      s.view === "conjugate"
-        ? { view: "patterns", trail: pushTrail(s.trail, "patterns"), toolUnit: null }
-        : {
-            view: "path",
-            trail: pushTrail(s.trail, "path"),
-            unitSheet: s.toolUnit,
-            toolUnit: null,
-          },
+      (PAGE_VIEWS as readonly View[]).includes(s.view)
+        ? { view: s.pageFrom, trail: pushTrail(s.trail, s.pageFrom), toolUnit: null }
+        : s.view === "conjugate"
+          ? { view: "patterns", trail: pushTrail(s.trail, "patterns"), toolUnit: null }
+          : {
+              view: "path",
+              trail: pushTrail(s.trail, "path"),
+              unitSheet: s.toolUnit,
+              toolUnit: null,
+            },
     ),
   conjBinyan: null,
   openConjugate: (conjBinyan) => set({ view: "conjugate", conjBinyan, unitSheet: null }),
+  pageFrom: "home",
+  storyId: null,
+  openPage: (v, storyId) =>
+    set((s) => ({
+      view: v,
+      pageFrom: isShellView(s.view) ? s.view : s.pageFrom,
+      storyId: storyId ?? s.storyId,
+      unitSheet: null,
+      toolUnit: null,
+    })),
   scrollMemory: {},
   rememberScroll: (key, y) =>
     set((s) => (s.scrollMemory[key] === y ? s : { scrollMemory: { ...s.scrollMemory, [key]: y } })),

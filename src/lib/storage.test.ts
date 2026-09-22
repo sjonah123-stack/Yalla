@@ -467,3 +467,92 @@ describe("words and tour", () => {
     expect(m.tourAt).toBe(9);
   });
 });
+
+describe("v1.0 fields", () => {
+  it("normalize fills defaults and drops junk", () => {
+    const p = normalize({
+      purchases: { a: { at: 1, item: "freeze", cost: 50 }, b: { at: 1, item: "yacht", cost: 1 } },
+      frozenDays: { "2026-09-01": "freeze", nope: "freeze", "2026-09-02": "x" },
+      shuk: {
+        earned: 10,
+        levels: { speech: 2, food: -1 },
+        lastCollect: 5,
+        rush: { from: 2, until: 1, mult: 2 },
+      },
+      league: { "2026-09-14": { tier: 1, rank: 3, next: 2, xp: 10 }, bad: {} },
+      settings: { accent: "neon", reminders: { on: true, hour: 40 } },
+    });
+    expect(Object.keys(p.purchases)).toEqual(["a"]);
+    expect(p.frozenDays).toEqual({ "2026-09-01": "freeze" });
+    expect(p.shuk).toEqual({
+      earned: 10,
+      levels: { speech: 2 },
+      perks: {},
+      lastCollect: 5,
+      rush: null,
+    });
+    expect(Object.keys(p.league)).toEqual(["2026-09-14"]);
+    expect(p.settings.accent).toBe("plum");
+    expect(p.settings.reminders).toEqual({ on: true, hour: 19 });
+    expect(normalize({}).shuk.earned).toBe(0);
+  });
+
+  it("merge: purchases and quests union, shuk and day counters max, stories min/max", () => {
+    const a = {
+      ...defaultProgress(),
+      purchases: { x: { at: 1, item: "bag" as const, cost: 60 } },
+      quests: { "2026-09-22:collect": 5 },
+      shuk: {
+        earned: 500,
+        levels: { speech: 3 },
+        perks: {},
+        lastCollect: 10,
+        rush: { from: 0, until: 50, mult: 2 },
+      },
+      history: { "2026-09-22": { ok: 1, bad: 0, xp: 5, sessions: 2, listen: 30 } },
+      stories: { s: { at: 5, best: 1 } },
+    };
+    const b = {
+      ...defaultProgress(),
+      purchases: { y: { at: 2, item: "rush" as const, cost: 40 } },
+      quests: { "2026-09-22:collect": 3, "2026-09-22:bag": 7 },
+      shuk: {
+        earned: 400,
+        levels: { speech: 1, food: 2 },
+        perks: { storage: 1 },
+        lastCollect: 20,
+        rush: { from: 0, until: 90, mult: 3 },
+      },
+      history: { "2026-09-22": { ok: 3, bad: 0, xp: 1, combo: 8 } },
+      stories: { s: { at: 3, best: 2 }, t: { at: 9, best: 0 } },
+    };
+    const m = mergeProgress(a, b);
+    expect(Object.keys(m.purchases).sort()).toEqual(["x", "y"]);
+    expect(m.quests).toEqual({ "2026-09-22:collect": 3, "2026-09-22:bag": 7 });
+    expect(m.shuk).toEqual({
+      earned: 500,
+      levels: { speech: 3, food: 2 },
+      perks: { storage: 1 },
+      lastCollect: 20,
+      rush: { from: 0, until: 90, mult: 3 },
+    });
+    expect(m.history["2026-09-22"]).toEqual({
+      ok: 3,
+      bad: 0,
+      xp: 5,
+      sessions: 2,
+      listen: 30,
+      combo: 8,
+    });
+    expect(m.stories).toEqual({ s: { at: 3, best: 2 }, t: { at: 9, best: 0 } });
+  });
+
+  it("prunes quest claims to the last QUEST_DAYS days", () => {
+    const quests: Record<string, number> = {};
+    for (let i = 0; i < 40; i++)
+      for (const q of ["a", "b", "c", "bag"])
+        quests[`2026-0${1 + Math.floor(i / 28)}-${String((i % 28) + 1).padStart(2, "0")}:${q}`] = i;
+    const p = pruneHistory({ ...defaultProgress(), quests });
+    expect(new Set(Object.keys(p.quests).map((k) => k.slice(0, 10))).size).toBe(30);
+  });
+});

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import type React from "react";
-import { planRules, useSession } from "../store/session";
+import { planRules, useSession, type Plan } from "../store/session";
 import { useFlag, useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
 import { KEY_ROWS, PRAISE, FINALS, keyToHebrew, rootDisplay, stripNikud } from "../lib/hebrew";
@@ -9,10 +9,11 @@ import { unitTitle } from "../lib/course";
 import { COURSE } from "../store/course";
 import { speak } from "../lib/speech";
 import { buzz, playCue } from "../lib/sound";
-import { formBadge } from "../lib/quiz";
+import { FEVER, FEVER_MULT, feverLevel, formBadge } from "../lib/quiz";
 import { FLAG_LABEL, isActiveFlag } from "../lib/flags";
 import { SPEED_MISS_MS, SPEED_MS } from "../lib/speed";
 import { BINYAN_BY_ID } from "../data/binyanim";
+import { SECTION_BY_ID } from "../data/course";
 import { WordList } from "../components/WordList";
 import { SpeakButton } from "../components/SpeakButton";
 import { Heb } from "../components/Heb";
@@ -20,6 +21,22 @@ import Summary from "./Summary";
 import type { FlagReason } from "../types";
 
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
+
+/** A small tag over the question for the focused session kinds. */
+function planTag(plan: Plan): string | null {
+  if (plan.kind === "daily") return "Root of the day";
+  if (plan.kind !== "practice") return null;
+  if (plan.focus === "tricky") return "Tricky roots";
+  if (plan.focus === "mistakes") return "Fix my mistakes";
+  if (plan.focus === "restock") {
+    const sec = SECTION_BY_ID[plan.section];
+    return sec ? `Restock · ${sec.title} stall` : "Restock the Shuk";
+  }
+  return null;
+}
+
+/** This answer lit (or stoked) the combo fever. */
+const crossedFever = (combo: number): boolean => feverLevel(combo) > feverLevel(combo - 1);
 
 export default function Play() {
   const s0 = useSession((st) => st.s);
@@ -91,14 +108,16 @@ export default function Play() {
     return () => clearTimeout(t);
   }, [answered, qi, feedbackEach, isSpeed, next]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // One blip (and a buzz) per answer, right / wrong.
+  // One blip (and a buzz) per answer, right / wrong; a rising arpeggio when fever catches.
   const slotIdx = s0?.slot ?? 0;
   useEffect(() => {
     if (!answered) return;
     if (!useProgress.getState().p.settings.sounds) return;
-    const ok = !!useSession.getState().s?.lastCorrect;
-    playCue(ok ? "good" : "bad");
-    buzz(ok ? 12 : [20, 30, 20]);
+    const st = useSession.getState().s;
+    const ok = !!st?.lastCorrect;
+    const fever = ok && !!st && st.plan.kind !== "placement" && crossedFever(st.combo);
+    playCue(fever ? "fever" : ok ? "good" : "bad");
+    buzz(fever ? [12, 40, 12, 40, 24] : ok ? 12 : [20, 30, 20]);
   }, [qi, slotIdx, answered]);
 
   if (!s0) return null;
@@ -117,7 +136,11 @@ export default function Play() {
   const q = s.q!;
   const root = q.root;
   const wordText = (h: string) => (nikud ? h : stripNikud(h));
-  const hot = s.combo >= 3;
+  // Placement pays no XP, so it has no fever.
+  const feverOn = s.plan.kind !== "placement";
+  const fever = feverOn ? feverLevel(s.combo) : 0;
+  const feverPop = feverOn && s.answered && s.lastCorrect && crossedFever(s.combo);
+  const tag = planTag(s.plan);
 
   /** Report (or un-report) the current root's content. */
   const toggleFlag = async (flagged: boolean) => {
@@ -141,7 +164,7 @@ export default function Play() {
   };
 
   return (
-    <div className="play">
+    <div className={"play" + (fever ? ` fever-${fever}` : "")}>
       <div className="rail">
         <button
           type="button"
@@ -178,10 +201,14 @@ export default function Play() {
             ))}
           </div>
         )}
-        <span className={"combo tnum" + (hot ? " hot" : "")} key={hot ? s.combo : "cold"}>
-          {s.combo > 1 ? `×${s.combo}` : ""}
-        </span>
+        {feverOn && <FeverMeter combo={s.combo} />}
       </div>
+
+      {feverPop && (
+        <div className={"feverpop lv" + fever} key={`fp-${s.i}-${s.slot}`} aria-hidden="true">
+          {fever === 2 ? "×2 · on fire!" : "Fever ×1.5!"}
+        </div>
+      )}
 
       <div className={"stage" + (s.answered ? " dim" : "")} key={`${s.i}-${s.slot}`}>
         {s.answered && s.lastCorrect && s.lastXp > 0 && (
@@ -190,15 +217,17 @@ export default function Play() {
           </span>
         )}
         <div className="q-in">
+          {tag && <div className="plan-tag">{tag}</div>}
           <div className="title">
             {planLabel}
             {q.title}
-            {q.word && (q.mode === "wordRoot" || q.mode === "typeRoot") && (
-              <>
-                {" "}
-                · <b>{q.word.b}</b>
-              </>
-            )}
+            {q.word &&
+              (q.mode === "wordRoot" || q.mode === "typeRoot" || q.mode === "guessWord") && (
+                <>
+                  {" "}
+                  · <b>{q.word.b}</b>
+                </>
+              )}
           </div>
           <Prompt />
         </div>
@@ -270,6 +299,24 @@ export default function Play() {
           </>
         );
       }
+      case "guessWord":
+        return (
+          <>
+            <div className="guess-root">
+              <span className="glyph" lang="he">
+                {rootDisplay(root)}
+              </span>
+              <span className="s">{root.short}</span>
+            </div>
+            <div className="row" style={{ justifyContent: "center" }}>
+              <div className="word" lang="he">
+                {wordText(q.word!.h)}
+              </div>
+              <SpeakButton text={q.word!.h} />
+            </div>
+            <div className="sub">You know the root. What does this one mean?</div>
+          </>
+        );
       case "wordRoot":
       case "whichBinyan":
       case "typeRoot":
@@ -289,7 +336,7 @@ export default function Play() {
 
   function Tiles() {
     const kind =
-      q.mode === "rootMeaning"
+      q.mode === "rootMeaning" || q.mode === "guessWord"
         ? "en"
         : q.mode === "buildWord" || q.mode === "cloze"
           ? "word"
@@ -407,6 +454,12 @@ export default function Play() {
             The word is <Heb>{wordText(q.word.h)}</Heb> ({q.word.g})
           </span>
         );
+      } else if (q.mode === "guessWord" && q.word) {
+        head = (
+          <span>
+            <Heb>{wordText(q.word.h)}</Heb> means “{q.word.g}”
+          </span>
+        );
       } else {
         head = (
           <span>
@@ -414,6 +467,8 @@ export default function Play() {
           </span>
         );
       }
+    } else if (q.mode === "guessWord") {
+      head = <span>{pick(PRAISE)} New word</span>;
     } else if (q.mode === "hearWord") {
       head = (
         <span>
@@ -437,7 +492,15 @@ export default function Play() {
           {root.cat} · mastery {mastery(st)}/5
         </div>
         {q.mode === "cloze" && q.sentence && q.word && <Example />}
-        <WordList words={root.words.slice(0, 6)} compact />
+        {q.mode === "guessWord" && q.word && <NewWord />}
+        <WordList
+          words={
+            q.mode === "guessWord" && q.word
+              ? root.words.filter((w) => w.h !== q.word!.h).slice(0, 4)
+              : root.words.slice(0, 6)
+          }
+          compact
+        />
         {root.note && <div className="note">{root.note}</div>}
         <button type="button" className="btn text flag" onClick={() => toggleFlag(flagged)}>
           {flagged ? "Flagged ✓ · tap to clear" : "Something wrong with this root?"}
@@ -445,6 +508,25 @@ export default function Play() {
         <button type="button" className="btn primary block" onClick={() => next()} autoFocus>
           {last ? "Finish" : "Next"}
         </button>
+      </div>
+    );
+  }
+
+  /** guessWord: the discovered family member, spelled out. */
+  function NewWord() {
+    const w = q.word!;
+    return (
+      <div className="newword">
+        <div className="nw-top">
+          <span className="word" lang="he">
+            {wordText(w.h)}
+          </span>
+          <SpeakButton text={w.h} />
+        </div>
+        <div className="nw-g">{w.g}</div>
+        <div className="nw-t">
+          <i>{w.t}</i> · {w.b} · from <Heb>{rootDisplay(root)}</Heb>
+        </div>
       </div>
     );
   }
@@ -523,5 +605,40 @@ function HearPrompt({ text }: { text: string }) {
       <SpeakButton text={text} big label="Play again" />
       <div className="sub">Tap to hear it again</div>
     </>
+  );
+}
+
+/**
+ * Combo fever: a bar filling toward the next threshold (5, then 10). At the first the chip reads
+ * ×1.5 FEVER, at the second ×2, and every right answer is multiplied.
+ */
+function FeverMeter({ combo }: { combo: number }) {
+  const lv = feverLevel(combo);
+  const [lo, hi] = lv === 0 ? [0, FEVER[0]] : [FEVER[0], FEVER[1]];
+  const fill = lv === 2 ? 1 : Math.min(1, (combo - lo) / (hi - lo));
+  const label = lv === 0 ? (combo > 1 ? `×${combo}` : "") : `×${FEVER_MULT[lv]} fever`;
+  const text =
+    lv === 0
+      ? `Combo ${combo}: ${FEVER[0] - combo} more right for fever`
+      : lv === 1
+        ? `Fever, XP ×1.5: ${FEVER[1] - combo} more right for ×2`
+        : `Fever, XP ×2`;
+  return (
+    <div
+      className={"fever lv" + lv}
+      role="meter"
+      aria-label="Combo fever"
+      aria-valuemin={0}
+      aria-valuemax={FEVER[1]}
+      aria-valuenow={Math.min(combo, FEVER[1])}
+      aria-valuetext={text}
+    >
+      <span className="fv-l tnum" key={lv}>
+        {label}
+      </span>
+      <span className="fv-bar">
+        <i style={{ width: fill * 100 + "%" }} />
+      </span>
+    </div>
   );
 }

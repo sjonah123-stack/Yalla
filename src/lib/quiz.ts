@@ -68,6 +68,9 @@ export function modeFor(root: Root, m: number, ctx: ModeContext): Mode {
   if (ctx.quick) opts = opts.filter((o) => o !== "typeRoot");
   if (new Set(verbForms(root).map((w) => w.b)).size < 2)
     opts = opts.filter((o) => o !== "whichBinyan");
+  // Discovery: a known root with a family member the learner hasn't met yet.
+  if (m >= 1 && !ctx.quick && ctx.known && root.words.some((w) => !ctx.known!.has(w.h)))
+    opts.push("guessWord");
   return opts.length ? pick(opts) : "rootMeaning";
 }
 
@@ -109,6 +112,7 @@ export const MODE_TITLE: Record<Mode, string> = {
   cloze: "Fill the blank",
   hearWord: "Listen. Which root is it?",
   whichBinyan: "Which binyan is this?",
+  guessWord: "New word! Guess its meaning",
 };
 
 /** Word tiles: the asked word plus the root's other forms first, then look-alike roots' words. */
@@ -142,7 +146,7 @@ export function makeQuestion(
 ): Question {
   const sim = similarRoots(root, all, 3);
   const rootOpts = (): Option[] =>
-    shuffle([root, ...sim].map((r) => ({ label: rootDisplay(r), ok: r === root })));
+    shuffle([root, ...sim].map((r) => ({ label: rootDisplay(r), ok: r === root, rid: r.r })));
   const title = MODE_TITLE[mode];
   switch (mode) {
     case "rootMeaning":
@@ -150,7 +154,7 @@ export function makeQuestion(
         mode,
         root,
         title,
-        opts: shuffle([root, ...sim].map((r) => ({ label: r.short, ok: r === root }))),
+        opts: shuffle([root, ...sim].map((r) => ({ label: r.short, ok: r === root, rid: r.r }))),
       };
     case "meaningRoot":
       return { mode, root, title, opts: rootOpts() };
@@ -198,10 +202,34 @@ export function makeQuestion(
     }
     case "typeRoot":
       return { mode, root, title, word: pick(root.words), answer: rootLetters(root) };
+    case "guessWord": {
+      // An unmet family member of a known root: the root's meaning plus the pattern give it away.
+      // Distractors are same-form words of look-alike roots, so the root is the clue.
+      const w = pickWord(root, known);
+      const labels = new Set([w.g, ...root.words.map((x) => x.g)]);
+      const opts: Option[] = [{ label: w.g, ok: true, rid: root.r }];
+      for (const r of similarRoots(root, all, 12)) {
+        if (opts.length >= 4) break;
+        const x =
+          r.words.find((y) => y.b === w.b && !labels.has(y.g)) ??
+          r.words.find((y) => !labels.has(y.g));
+        if (!x) continue;
+        labels.add(x.g);
+        opts.push({ label: x.g, ok: false, rid: r.r });
+      }
+      return { mode, root, title, word: w, opts: shuffle(opts) };
+    }
   }
 }
 
-/** XP for a correct answer. Production modes pay more; combos add; retries pay half. */
+/** Combo thresholds for fever: ×1.5 from the first, ×2 from the second. */
+export const FEVER = [5, 10] as const;
+/** 0 = no fever, 1 = fever (×1.5), 2 = super fever (×2). */
+export const feverLevel = (combo: number): number =>
+  combo >= FEVER[1] ? 2 : combo >= FEVER[0] ? 1 : 0;
+export const FEVER_MULT = [1, 1.5, 2] as const;
+
+/** XP for a correct answer. Production modes pay more; combo fever multiplies; retries pay half. */
 export function xpFor(mode: Mode, combo: number, first: boolean): number {
   let x =
     mode === "typeRoot" || mode === "typeWord" || mode === "whichBinyan" || mode === "buildWord"
@@ -209,8 +237,7 @@ export function xpFor(mode: Mode, combo: number, first: boolean): number {
       : mode === "hearWord" || mode === "cloze"
         ? 15
         : 10;
-  if (combo >= 3) x += 5;
-  if (combo >= 6) x += 5;
+  x = Math.round(x * FEVER_MULT[feverLevel(combo)]);
   if (!first) x = Math.round(x / 2);
   return x;
 }

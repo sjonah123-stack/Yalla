@@ -16,6 +16,10 @@ import { useUi } from "../store/ui";
 import { COURSE } from "../store/course";
 import { memorizedCount, sectionColor } from "../lib/course";
 import { HeaderGear } from "../components/HeaderGear";
+import { visibleStreak } from "../lib/shop";
+import { standings, tierFor, TIERS, weekKey } from "../lib/league";
+import { mistakeRoots } from "../lib/mistakes";
+import { stripNikud } from "../lib/hebrew";
 
 const MASTERY_COLORS = [
   "var(--bad)",
@@ -43,6 +47,13 @@ export default function Progress() {
   const acc = t.ok + t.bad ? Math.round((t.ok / (t.ok + t.bad)) * 100) : 0;
   const met = dist.slice(1).reduce((a, n) => a + n, 0);
   const sealCount = SEALS.filter((s) => p.seals[s.id]).length;
+  const openPage = useUi((s) => s.openPage);
+  const now = Date.now();
+  const wk = weekKey(new Date(now));
+  const tier = tierFor(p, wk);
+  const rank = standings(p, wk, now).findIndex((s) => s.me) + 1;
+  const toFix = mistakeRoots(ROOTS, p, now).length;
+  const storiesRead = Object.keys(p.stories).length;
 
   return (
     <div className="progress">
@@ -54,7 +65,7 @@ export default function Progress() {
       </div>
       <div className="stats">
         <div>
-          <div className="n tnum">{p.streak}</div>
+          <div className="n tnum">{visibleStreak(p)}</div>
           <div className="l">day streak</div>
         </div>
         <div>
@@ -71,12 +82,35 @@ export default function Progress() {
         </div>
         <div>
           <div className="n tnum">✦ {p.gems}</div>
-          <div className="l">gems</div>
+          <div className="l">gems earned</div>
         </div>
         <div>
           <div className="n tnum">{t.days}</div>
           <div className="l">days played</div>
         </div>
+      </div>
+
+      <div className="pg-links">
+        <button type="button" onClick={() => openPage("league")}>
+          <span className={"lg-badge sm t" + tier} aria-hidden="true">
+            {stripNikud(TIERS[tier].he)[0]}
+          </span>
+          <span className="t">League</span>
+          <span className="s tnum">
+            {TIERS[tier].name} · #{rank}
+          </span>
+        </button>
+        <button type="button" onClick={() => openPage("notebook")}>
+          <span className="ic" aria-hidden="true">
+            ✎
+          </span>
+          <span className="t">Notebook</span>
+          <span className="s tnum">{toFix ? `${toFix} to fix` : "all clear"}</span>
+        </button>
+        <button type="button" onClick={() => openPage("story")}>
+          <span className="n tnum">{storiesRead}</span>
+          <span className="t">Stories read</span>
+        </button>
       </div>
 
       <div className="sec">

@@ -24,9 +24,11 @@ import {
   onSnapshot,
   persistentLocalCache,
   setDoc,
+  updateDoc,
   type Firestore,
 } from "firebase/firestore";
-import { authDomainFor, firebaseConfig } from "./firebase-config";
+import { authDomainFor, firebaseConfig, VAPID_PUBLIC_KEY } from "./firebase-config";
+import { keyBytes, sameBytes, type PushErrorCode, type PushRemote } from "./reminders";
 import { decodeDoc, encodeDoc, type RemoteBackend } from "./storage";
 import type { Progress } from "../types";
 
@@ -157,4 +159,141 @@ export function describeError(e: unknown): string {
   if (code) return `Sign-in failed (${code.replace("auth/", "")}).`;
   const msg = (e as { message?: string }).message;
   return msg ? `Sync failed: ${msg.slice(0, 80)}` : "Sign-in failed.";
+}
+
+// ---------- Daily reminder (Web Push) ----------
+// One doc per account, `push/{uid}` = { sub, hour, tz, on, updatedAt } (+ lastSent, written by the
+// `remind` function). Reminders go to the device that last turned them on; the scheduled
+// function in functions/src sends them. Pure decisions live in reminders.ts.
+
+const pushError = (code: PushErrorCode) => Object.assign(new Error(code), { code });
+
+const localTz = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+};
+
+/** Wait for a Firestore write's server ack, but not forever: offline writes stay queued. */
+async function settle(write: Promise<void>, ms = 6000): Promise<void> {
+  write.catch(() => undefined);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([write, new Promise<void>((r) => (timer = setTimeout(r, ms)))]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** An update to a doc that may not exist yet (never turned on anywhere) is a no-op. */
+const ignoreMissing = (e: unknown) => {
+  if ((e as { code?: string }).code !== "not-found") throw e;
+};
+
+/** This device's existing subscription for Yalla's key, if any. Never waits on an install. */
+async function currentSub(): Promise<PushSubscription | null> {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  const sub = (await reg?.pushManager?.getSubscription()) ?? null;
+  const key = sub?.options?.applicationServerKey;
+  return sub && (!key || sameBytes(key, keyBytes(VAPID_PUBLIC_KEY))) ? sub : null;
+}
+
+/** Subscribe this device (reusing a live subscription made with the same key). */
+async function subscribeDevice(): Promise<PushSubscription> {
+  if (!("serviceWorker" in navigator) || typeof PushManager === "undefined")
+    throw pushError("push/unsupported");
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const reg = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<never>((_, no) => (timer = setTimeout(() => no(pushError("push/no-sw")), 8000))),
+  ]).finally(() => clearTimeout(timer));
+  const key = keyBytes(VAPID_PUBLIC_KEY);
+  const have = await reg.pushManager.getSubscription();
+  if (have) {
+    const k = have.options?.applicationServerKey;
+    if (!k || sameBytes(k, key)) return have;
+    await have.unsubscribe().catch(() => false);
+  }
+  return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+}
+
+/** The subscription as stored: plain JSON, no undefined values (Firestore rejects them). */
+function subJson(sub: PushSubscription) {
+  const j = sub.toJSON();
+  return {
+    endpoint: sub.endpoint,
+    expirationTime: j.expirationTime ?? null,
+    keys: { p256dh: j.keys?.p256dh ?? "", auth: j.keys?.auth ?? "" },
+  };
+}
+
+/**
+ * Turn the daily reminder on and deliver it to this device. Asks for notification permission
+ * first, synchronously inside the caller's tap: Safari only shows the prompt for a user gesture,
+ * so nothing may be awaited before this is called.
+ */
+export async function enablePush(uid: string, hour: number): Promise<void> {
+  const asked: Promise<NotificationPermission> =
+    typeof Notification === "undefined"
+      ? Promise.reject(pushError("push/unsupported"))
+      : Notification.requestPermission();
+  const permission = await asked;
+  if (permission === "denied") throw pushError("push/denied");
+  if (permission !== "granted") throw pushError("push/dismissed");
+  const sub = await subscribeDevice();
+  const { fs } = init();
+  await settle(
+    setDoc(
+      doc(fs, "push", uid),
+      { sub: subJson(sub), hour, tz: localTz(), on: true, updatedAt: Date.now() },
+      // Replace these fields whole but keep the function's `lastSent`, so re-enabling after
+      // today's reminder went out doesn't send a second one.
+      { mergeFields: ["sub", "hour", "tz", "on", "updatedAt"] },
+    ),
+  );
+}
+
+/**
+ * New reminder hour, wherever the reminders are delivered. The hour is wall-clock time in the
+ * receiving device's zone, so `tz` is left to that device (enablePush / pushState).
+ */
+export async function setPushHour(uid: string, hour: number): Promise<void> {
+  const { fs } = init();
+  await settle(
+    updateDoc(doc(fs, "push", uid), { hour, updatedAt: Date.now() }).catch(ignoreMissing),
+  );
+}
+
+/**
+ * Switch the reminder off for the account. With `onlyIfHere` (signing out), only when this
+ * device is the one receiving them — another device's reminders are left alone.
+ */
+export async function disablePush(uid: string, onlyIfHere = false): Promise<void> {
+  const { fs } = init();
+  const ref = doc(fs, "push", uid);
+  if (onlyIfHere) {
+    const [snap, sub] = await Promise.all([getDoc(ref), currentSub().catch(() => null)]);
+    if (!snap.exists() || !sub || snap.get("sub.endpoint") !== sub.endpoint) return;
+  }
+  await settle(updateDoc(ref, { on: false, updatedAt: Date.now() }).catch(ignoreMissing));
+}
+
+/**
+ * Read the account's reminder doc as seen from this device. When this device receives the
+ * reminders and has moved time zone, the doc follows it (the hour stays local wall-clock time).
+ */
+export async function pushState(uid: string): Promise<PushRemote> {
+  const { fs } = init();
+  const ref = doc(fs, "push", uid);
+  const [snap, sub] = await Promise.all([getDoc(ref), currentSub().catch(() => null)]);
+  if (!snap.exists()) return { on: false, here: false };
+  const on = snap.get("on") === true;
+  const here = !!sub && snap.get("sub.endpoint") === sub.endpoint;
+  const tz = localTz();
+  if (on && here && snap.get("tz") !== tz)
+    void settle(updateDoc(ref, { tz, updatedAt: Date.now() })).catch(() => undefined);
+  return { on, here };
 }

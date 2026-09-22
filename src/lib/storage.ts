@@ -8,6 +8,14 @@ import type {
   FlagReason,
   RootFlag,
   WordStat,
+  LeagueWeek,
+  Mistake,
+  Mode,
+  Purchase,
+  Rush,
+  ShopItem,
+  ShukState,
+  StoryRecord,
 } from "../types";
 import { SECTIONS, UNIT_IDS } from "../data/course";
 import { SEAL_IDS } from "./rewards";
@@ -26,7 +34,22 @@ export const defaultSettings = (): Settings => ({
   theme: "system",
   dailyGoal: 50,
   sounds: true,
+  accent: "plum",
+  reminders: { on: false, hour: 19 },
 });
+
+export const defaultShuk = (): ShukState => ({
+  earned: 0,
+  levels: {},
+  perks: {},
+  lastCollect: 0,
+  rush: null,
+});
+
+/** Newest mistakes kept on the record. */
+export const MISTAKES_MAX = 300;
+/** Days of quest claims kept on the record. */
+export const QUEST_DAYS = 30;
 
 export const defaultProgress = (): Progress => ({
   v: 3,
@@ -51,7 +74,121 @@ export const defaultProgress = (): Progress => ({
   flags: {},
   words: {},
   tourAt: null,
+  purchases: {},
+  frozenDays: {},
+  shuk: defaultShuk(),
+  quests: {},
+  league: {},
+  mistakes: [],
+  stories: {},
 });
+
+const ACCENTS = new Set<string>(["plum", "jaffa", "galil", "negev"]);
+const MODES = new Set<string>([
+  "rootMeaning",
+  "meaningRoot",
+  "wordRoot",
+  "buildWord",
+  "typeRoot",
+  "typeWord",
+  "cloze",
+  "hearWord",
+  "whichBinyan",
+  "guessWord",
+]);
+const isItem = (x: unknown): x is ShopItem =>
+  typeof x === "string" &&
+  (["freeze", "repair", "rush", "bag"].includes(x) ||
+    (x.startsWith("accent:") && ACCENTS.has(x.slice(7))));
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const obj = (x: unknown): Record<string, unknown> =>
+  x && typeof x === "object" && !Array.isArray(x) ? (x as Record<string, unknown>) : {};
+const num = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+
+function purchaseMap(raw: unknown): Record<string, Purchase> {
+  const out: Record<string, Purchase> = {};
+  for (const [id, v] of Object.entries(obj(raw))) {
+    const x = obj(v);
+    if (num(x.at) && isItem(x.item) && num(x.cost) && x.cost >= 0)
+      out[id] = { at: x.at, item: x.item, cost: x.cost };
+  }
+  return out;
+}
+
+function frozenMap(raw: unknown): Record<string, "freeze" | "repair"> {
+  const out: Record<string, "freeze" | "repair"> = {};
+  for (const [d, v] of Object.entries(obj(raw)))
+    if (DAY_RE.test(d) && (v === "freeze" || v === "repair")) out[d] = v;
+  return out;
+}
+
+function levelMap(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(obj(raw))) if (num(v) && v > 0) out[k] = Math.floor(v);
+  return out;
+}
+
+function rushOf(raw: unknown): Rush | null {
+  const x = obj(raw);
+  return num(x.from) && num(x.until) && num(x.mult) && x.until > x.from
+    ? { from: x.from, until: x.until, mult: x.mult }
+    : null;
+}
+
+function shukOf(raw: unknown): ShukState {
+  const x = obj(raw);
+  return {
+    earned: count(x.earned),
+    levels: levelMap(x.levels),
+    perks: levelMap(x.perks),
+    lastCollect: count(x.lastCollect),
+    rush: rushOf(x.rush),
+  };
+}
+
+function leagueMap(raw: unknown): Record<string, LeagueWeek> {
+  const out: Record<string, LeagueWeek> = {};
+  for (const [w, v] of Object.entries(obj(raw))) {
+    const x = obj(v);
+    if (DAY_RE.test(w) && num(x.tier) && num(x.rank) && num(x.next) && num(x.xp))
+      out[w] = { tier: x.tier, rank: x.rank, next: x.next, xp: x.xp };
+  }
+  return out;
+}
+
+function mistakeList(raw: unknown): Mistake[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Mistake[] = [];
+  for (const v of raw) {
+    const x = obj(v);
+    if (!num(x.at) || typeof x.root !== "string" || !MODES.has(x.mode as string)) continue;
+    const m: Mistake = {
+      at: x.at,
+      root: x.root,
+      mode: x.mode as Mode,
+      picked: typeof x.picked === "string" ? x.picked.slice(0, 80) : "",
+    };
+    if (typeof x.pickedRoot === "string") m.pickedRoot = x.pickedRoot;
+    if (typeof x.word === "string") m.word = x.word;
+    out.push(m);
+  }
+  return out.sort((a, b) => a.at - b.at).slice(-MISTAKES_MAX);
+}
+
+function storyMap(raw: unknown): Record<string, StoryRecord> {
+  const out: Record<string, StoryRecord> = {};
+  for (const [id, v] of Object.entries(obj(raw))) {
+    const x = obj(v);
+    if (num(x.at)) out[id] = { at: x.at, best: count(x.best) };
+  }
+  return out;
+}
+
+function numberMap(raw: unknown): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(obj(raw))) if (num(v)) out[k] = v;
+  return out;
+}
 
 /** Keep only word stats with numeric counts. */
 function wordMap(raw: unknown): Record<string, WordStat> {
@@ -124,6 +261,12 @@ export function normalize(raw: unknown): Progress {
   delete settings.newPerSession;
   if (![20, 50, 100].includes(settings.dailyGoal)) settings.dailyGoal = 50;
   if (typeof settings.sounds !== "boolean") settings.sounds = true;
+  if (!ACCENTS.has(settings.accent)) settings.accent = "plum";
+  const rem = obj(settings.reminders);
+  settings.reminders = {
+    on: rem.on === true,
+    hour: num(rem.hour) && rem.hour >= 0 && rem.hour <= 23 ? Math.floor(rem.hour) : 19,
+  };
   const units: Record<string, UnitRecord> = {};
   if (r.units && typeof r.units === "object")
     for (const [id, rec] of Object.entries(r.units))
@@ -166,6 +309,13 @@ export function normalize(raw: unknown): Progress {
     flags: flagMap(r.flags),
     words: wordMap(r.words),
     tourAt: typeof r.tourAt === "number" ? r.tourAt : null,
+    purchases: purchaseMap(r.purchases),
+    frozenDays: frozenMap(r.frozenDays),
+    shuk: shukOf(r.shuk),
+    quests: numberMap(r.quests),
+    league: leagueMap(r.league),
+    mistakes: mistakeList(r.mistakes),
+    stories: storyMap(r.stories),
   };
 }
 
@@ -180,16 +330,19 @@ function betterRoot(a: RootState | undefined, b: RootState | undefined): RootSta
   return a.due >= b.due ? a : b;
 }
 
+/** Per-field max; optional counters stay absent when neither side has them. */
 const maxDay = (a: DayStats | undefined, b: DayStats | undefined): DayStats => {
   const out: DayStats = {
     ok: Math.max(a?.ok ?? 0, b?.ok ?? 0),
     bad: Math.max(a?.bad ?? 0, b?.bad ?? 0),
     xp: Math.max(a?.xp ?? 0, b?.xp ?? 0),
   };
-  const mem = Math.max(a?.mem ?? -1, b?.mem ?? -1);
-  if (mem >= 0) out.mem = mem;
-  const sb = Math.max(a?.speedBest ?? -1, b?.speedBest ?? -1);
-  if (sb >= 0) out.speedBest = sb;
+  const keys = new Set([...Object.keys(a ?? {}), ...Object.keys(b ?? {})]) as Set<keyof DayStats>;
+  for (const k of keys) {
+    if (k === "ok" || k === "bad" || k === "xp") continue;
+    const v = Math.max(num(a?.[k]) ? a![k]! : -1, num(b?.[k]) ? b![k]! : -1);
+    if (v >= 0) out[k] = v;
+  }
   return out;
 };
 
@@ -268,6 +421,21 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     const y = b.words[h];
     words[h] = { ok: Math.max(x?.ok ?? 0, y?.ok ?? 0), bad: Math.max(x?.bad ?? 0, y?.bad ?? 0) };
   }
+  const purchases = { ...a.purchases, ...b.purchases };
+  const frozenDays: Record<string, "freeze" | "repair"> = { ...a.frozenDays };
+  // A repaired day never consumes an owned freeze, so "repair" wins a conflict.
+  for (const [d, v] of Object.entries(b.frozenDays))
+    if (!frozenDays[d] || v === "repair") frozenDays[d] = v;
+  const league: Record<string, LeagueWeek> = { ...a.league };
+  for (const [w, v] of Object.entries(b.league))
+    if (!league[w] || v.rank < league[w].rank) league[w] = v;
+  const stories: Record<string, StoryRecord> = {};
+  for (const id of new Set([...Object.keys(a.stories), ...Object.keys(b.stories)])) {
+    const x = a.stories[id];
+    const y = b.stories[id];
+    stories[id] =
+      x && y ? { at: Math.min(x.at, y.at), best: Math.max(x.best, y.best) } : { ...(x ?? y)! };
+  }
   return {
     v: 3,
     xp: Math.max(a.xp, b.xp),
@@ -296,11 +464,52 @@ export function mergeProgress(a: Progress, b: Progress): Progress {
     flags,
     words,
     tourAt: minDef(a.tourAt ?? undefined, b.tourAt ?? undefined) ?? null,
+    purchases,
+    frozenDays,
+    shuk: mergeShuk(a.shuk, b.shuk),
+    quests: unionEarliest(a.quests, b.quests),
+    league,
+    mistakes: mergeMistakes(a.mistakes, b.mistakes),
+    stories,
   };
 }
 
-/** Keep only the trailing `days` of history so the blob stops growing forever. */
+export function mergeShuk(a: ShukState, b: ShukState): ShukState {
+  const levels: Record<string, number> = { ...a.levels };
+  for (const [k, v] of Object.entries(b.levels)) levels[k] = Math.max(levels[k] ?? 0, v);
+  const perks: Record<string, number> = { ...a.perks };
+  for (const [k, v] of Object.entries(b.perks)) perks[k] = Math.max(perks[k] ?? 0, v);
+  const rush =
+    a.rush && b.rush ? (a.rush.until >= b.rush.until ? a.rush : b.rush) : (a.rush ?? b.rush);
+  return {
+    earned: Math.max(a.earned, b.earned),
+    levels,
+    perks,
+    lastCollect: Math.max(a.lastCollect, b.lastCollect),
+    rush: rush ? { ...rush } : null,
+  };
+}
+
+/** Union by (at, root), oldest first, newest MISTAKES_MAX kept. */
+export function mergeMistakes(a: readonly Mistake[], b: readonly Mistake[]): Mistake[] {
+  const by = new Map<string, Mistake>();
+  for (const m of [...a, ...b]) by.set(`${m.at}:${m.root}`, m);
+  return [...by.values()].sort((x, y) => x.at - y.at).slice(-MISTAKES_MAX);
+}
+
+/**
+ * Keep only the trailing `days` of history so the blob stops growing forever; quest claims
+ * keep QUEST_DAYS.
+ */
 export function pruneHistory(p: Progress, days = HISTORY_DAYS): Progress {
+  const qKeys = Object.keys(p.quests);
+  if (qKeys.length > QUEST_DAYS * 4) {
+    const days = [...new Set(qKeys.map((k) => k.slice(0, 10)))].sort().slice(-QUEST_DAYS);
+    const keep = new Set(days);
+    const quests: Record<string, number> = {};
+    for (const k of qKeys) if (keep.has(k.slice(0, 10))) quests[k] = p.quests[k];
+    p = { ...p, quests };
+  }
   const keys = Object.keys(p.history).sort();
   if (keys.length <= days) return p;
   const keep = new Set(keys.slice(-days));

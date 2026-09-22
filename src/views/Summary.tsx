@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { useSession, type Session } from "../store/session";
+import { useEffect, useRef, useState } from "react";
+import { useSession, type Plan, type Session } from "../store/session";
 import { useUi } from "../store/ui";
 import { useProgress } from "../store/progress";
 import { COURSE } from "../store/course";
@@ -8,6 +8,8 @@ import { rootDisplay } from "../lib/hebrew";
 import { crossings, dayKey, levelCeil } from "../lib/srs";
 import { speedBestToday } from "../lib/speed";
 import { planLabel } from "../lib/plan";
+import { summaryExit } from "../lib/history";
+import { SECTION_BY_ID } from "../data/course";
 import { playCue } from "../lib/sound";
 import { Heb } from "../components/Heb";
 import { GOLD_SCORE, memorizedCount, unitTitle } from "../lib/course";
@@ -134,6 +136,80 @@ function Chest({ s, receipt }: { s: Session; receipt: Receipt }) {
   );
 }
 
+/**
+ * The Shuk's share of a session: what the right answers sold for (counting up with a coin ping)
+ * and, when the session started one, the rush-hour chip.
+ */
+function ShukLine({ s, receipt }: { s: Session; receipt: Receipt }) {
+  const chain = useSession((st) => st.chain);
+  const sold = useCountUp(receipt.shekels, 700);
+  const rush = receipt.rush;
+  // Minutes left, read once: the chip says what this session started, it is not a clock.
+  const [mins] = useState(() =>
+    rush ? Math.max(1, Math.round((rush.until - Date.now()) / 60_000)) : 0,
+  );
+  useEffect(() => {
+    if (!receipt.shekels || !useProgress.getState().p.settings.sounds) return;
+    // After the chest jingle / done fanfare, not on top of it.
+    const t = setTimeout(() => playCue("coin"), 450);
+    return () => clearTimeout(t);
+  }, [receipt.shekels]);
+  if (!receipt.shekels && !rush) return null;
+  // Leaving for the Shuk would drop the rest of today's session; a restock already goes there.
+  const canOpen = !chain.length && summaryExit(s.plan).view !== "shuk";
+  const openShuk = () => {
+    useSession.getState().leave();
+    useUi.getState().setView("shuk");
+  };
+  return (
+    <div className="shukline">
+      {receipt.shekels > 0 && (
+        <div className="sold">
+          <span className="coin" aria-hidden="true">
+            ₪
+          </span>
+          <span>
+            Sold <b className="tnum">₪{sold.toLocaleString("en-US")}</b> at the Shuk
+          </span>
+        </div>
+      )}
+      {rush && (
+        <div className="rushchip">
+          <span className="mult tnum" aria-hidden="true">
+            ×{rush.mult}
+          </span>
+          <div className="t">
+            <b>
+              Rush hour ×{rush.mult} <span>for {mins} min</span>
+            </b>
+            <span>Your stalls earn {rush.mult}× now</span>
+          </div>
+          {canOpen && (
+            <button type="button" className="btn sm plum" onClick={openShuk}>
+              Open the Shuk
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Eyebrow over a lesson / practice / daily summary. */
+function lessonEyebrow(plan: Plan): string {
+  if (plan.kind === "lesson") return `${unitTitle(COURSE.byId[plan.unit])} · lesson complete`;
+  if (plan.kind === "daily") return "Root of the day · done";
+  if (plan.kind === "practice") {
+    if (plan.focus === "tricky") return "Tricky roots · round complete";
+    if (plan.focus === "mistakes") return "Fix my mistakes · round complete";
+    if (plan.focus === "restock") {
+      const sec = SECTION_BY_ID[plan.section];
+      return sec ? `Restock the Shuk · ${sec.title} stall` : "Restock the Shuk · done";
+    }
+  }
+  return "Practice complete";
+}
+
 function NewSeals({ receipt }: { receipt?: Receipt }) {
   if (!receipt?.newSeals.length) return null;
   return (
@@ -181,21 +257,26 @@ function LessonSummary({ s }: { s: Session }) {
         : "Every miss is a root coming back.";
   const hasChest = !!receipt && receipt.gems > 0;
   const claimed = !hasChest || s.chestClaimed;
-  const exit = useChainExit("Continue");
+  const toShuk = summaryExit(s.plan).view === "shuk";
+  const exit = useChainExit(toShuk ? "Back to the Shuk" : "Continue");
+  const daily = s.plan.kind === "daily" ? s.slots[0] : null;
 
   return (
     <div className="shell view summary">
-      <div className="eyebrow sum-eyebrow">
-        {unit
-          ? `${unitTitle(unit)} · lesson complete`
-          : s.plan.kind === "practice" && s.plan.focus === "tricky"
-            ? "Tricky roots · round complete"
-            : "Practice complete"}
-      </div>
+      <div className="eyebrow sum-eyebrow">{lessonEyebrow(s.plan)}</div>
       <div className="headline">{headline}</div>
+      {daily && (
+        <div className="daily-root">
+          <span className="glyph" lang="he">
+            {rootDisplay(daily)}
+          </span>
+          <span>{daily.short}</span>
+        </div>
+      )}
       <ChainNote chain={exit.chain} />
       <Stats xp={s.xp} acc={acc} best={s.best} />
       {hasChest && <Chest s={s} receipt={receipt} />}
+      {claimed && receipt && <ShukLine s={s} receipt={receipt} />}
       {claimed && <NewSeals receipt={receipt} />}
       {claimed && <Milestones s={s} />}
 
@@ -239,16 +320,19 @@ function LessonSummary({ s }: { s: Session }) {
       >
         {exit.label}
       </button>
-      <button
-        type="button"
-        className="btn text block"
-        style={{ marginTop: 8 }}
-        onClick={() => {
-          if (!start(s.plan)) showToast("Nothing to study here right now.");
-        }}
-      >
-        {unit ? "Another lesson" : "Another round"}
-      </button>
+      {/* The root of the day is once a day. */}
+      {!daily && (
+        <button
+          type="button"
+          className="btn text block"
+          style={{ marginTop: 8 }}
+          onClick={() => {
+            if (!start(s.plan)) showToast("Nothing to study here right now.");
+          }}
+        >
+          {unit ? "Another lesson" : "Another round"}
+        </button>
+      )}
     </div>
   );
 }
@@ -294,6 +378,7 @@ function SpeedResult({ s }: { s: Session }) {
         </div>
       </div>
       {hasChest && <Chest s={s} receipt={receipt} />}
+      {claimed && receipt && <ShukLine s={s} receipt={receipt} />}
       {claimed && <NewSeals receipt={receipt} />}
       {claimed && <Milestones s={s} />}
 

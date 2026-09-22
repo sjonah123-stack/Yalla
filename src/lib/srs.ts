@@ -36,6 +36,8 @@ export function mastery(st?: RootState): number {
   return i >= 30 ? 5 : i >= 15 ? 4 : i >= 7 ? 3 : i >= 3 ? 2 : 1;
 }
 
+export const lapsesOf = (st?: RootState): number => st?.lapses ?? 0;
+
 export const isDue = (st: RootState | undefined, now: number): boolean =>
   !!st && st.reps > 0 && st.due <= now;
 
@@ -80,22 +82,46 @@ export function applyAnswer(
   return r;
 }
 
-/** Streak bookkeeping for a play event on `today`. Call only on a correct answer. */
+/** Day keys strictly between `lastPlay` and `today` (the days that were skipped), oldest first. */
+export function skippedDays(lastPlay: string, today: Date = new Date(), max = 400): string[] {
+  const out: string[] = [];
+  const t = dayKey(today);
+  if (lastPlay >= t) return out;
+  for (let i = 1; i <= max; i++) {
+    const d = dayKey(shiftDay(today, -i));
+    if (d <= lastPlay) break;
+    out.push(d);
+  }
+  return out.reverse();
+}
+
+/** Days a streak freeze or repair has covered. */
+export type Frozen = Readonly<Record<string, unknown>>;
+
+/**
+ * Streak bookkeeping for a play event on `today`. Call only on a correct answer. Days covered by
+ * a freeze or repair bridge the gap (they keep the streak alive but don't add to it).
+ */
 export function touchStreak(
   streak: number,
   lastPlay: string | null,
   today: Date = new Date(),
+  frozen: Frozen = {},
 ): { streak: number; lastPlay: string } {
   const t = dayKey(today);
   if (lastPlay === t) return { streak, lastPlay: t };
-  const y = dayKey(shiftDay(today, -1));
-  return { streak: lastPlay === y ? streak + 1 : 1, lastPlay: t };
+  const bridged = !!lastPlay && skippedDays(lastPlay, today).every((d) => d in frozen);
+  return { streak: bridged ? streak + 1 : 1, lastPlay: t };
 }
 
-/** A streak is "alive" if the user played today or yesterday. */
-export function streakAlive(lastPlay: string | null, today: Date = new Date()): boolean {
+/** A streak is "alive" if every day since the last play (before today) was played or frozen. */
+export function streakAlive(
+  lastPlay: string | null,
+  today: Date = new Date(),
+  frozen: Frozen = {},
+): boolean {
   if (!lastPlay) return false;
-  return lastPlay === dayKey(today) || lastPlay === dayKey(shiftDay(today, -1));
+  return skippedDays(lastPlay, today).every((d) => d in frozen);
 }
 
 export const level = (xp: number): number => Math.floor(Math.sqrt(xp / 100)) + 1;
@@ -129,7 +155,14 @@ export function trickyQueue(
   p: Pick<Progress, "roots">,
   len: number,
 ): Root[] {
-  const t = trickyRoots(roots, p);
+  return twoPassQueue(trickyRoots(roots, p), len);
+}
+
+/**
+ * A focused round over `t`: two shuffled passes (no adjacent repeat) when they fit in `len`,
+ * else one pass capped at `len`.
+ */
+export function twoPassQueue(t: readonly Root[], len: number): Root[] {
   if (!t.length) return [];
   if (t.length * 2 > len) return shuffle(t).slice(0, len);
   const first = shuffle(t);

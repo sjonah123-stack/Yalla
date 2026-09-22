@@ -19,6 +19,12 @@ import Flashcards from "./views/Flashcards";
 import Match from "./views/Match";
 import FamilySort from "./views/FamilySort";
 import Conjugate from "./views/Conjugate";
+import Shuk from "./views/Shuk";
+import Story from "./views/Story";
+import Listen from "./views/Listen";
+import Notebook from "./views/Notebook";
+import League from "./views/League";
+import { SHELL_VIEWS } from "./lib/history";
 import { ScrollMemory } from "./components/ScrollMemory";
 import Welcome from "./views/Welcome";
 import { ConfirmSheet } from "./components/ConfirmSheet";
@@ -28,6 +34,7 @@ const GROUND = { light: "#f4ecdf", dark: "#1c0f20" };
 const NAV: { v: View; label: string; glyph: string }[] = [
   { v: "home", label: "Home", glyph: "◉" },
   { v: "path", label: "Path", glyph: "ד" },
+  { v: "shuk", label: "Shuk", glyph: "₪" },
   { v: "bank", label: "Roots", glyph: "ש" },
   { v: "patterns", label: "Patterns", glyph: "ב" },
   { v: "progress", label: "Progress", glyph: "◈" },
@@ -42,6 +49,7 @@ export default function App() {
   const toolUnit = useUi((s) => s.toolUnit);
   const conjBinyan = useUi((s) => s.conjBinyan);
   const theme = useProgress((s) => s.p.settings.theme);
+  const accent = useProgress((s) => s.p.settings.accent);
   const onboardedAt = useProgress((s) => s.p.onboardedAt);
   const session = useSession((s) => s.s);
   const [, setAudioReady] = useState(false);
@@ -55,6 +63,29 @@ export default function App() {
       m.content = theme === "system" ? (forDark ? GROUND.dark : GROUND.light) : GROUND[theme];
     });
   }, [theme]);
+
+  useEffect(() => {
+    if (accent === "plum") delete document.documentElement.dataset.accent;
+    else document.documentElement.dataset.accent = accent;
+  }, [accent]);
+
+  // Daily housekeeping: streak freezes, league weeks, root of the day, the Shuk clock.
+  useEffect(() => {
+    const run = () => {
+      if (document.visibilityState !== "visible") return;
+      const { league } = useProgress.getState().tick();
+      const last = league[league.length - 1];
+      if (last && last.result.next !== last.result.tier)
+        useUi
+          .getState()
+          .showToast(
+            last.result.next > last.result.tier ? "Promoted in the league!" : "Dropped a league",
+          );
+    };
+    run();
+    document.addEventListener("visibilitychange", run);
+    return () => document.removeEventListener("visibilitychange", run);
+  }, []);
 
   useEffect(() => {
     initSpeech().then((ok) => setAudioReady(ok));
@@ -91,10 +122,26 @@ export default function App() {
   if (view === "match" && toolUnit) return <Match unitId={toolUnit} />;
   if (view === "familysort" && toolUnit) return <FamilySort unitId={toolUnit} />;
   if (view === "conjugate" && conjBinyan) return <Conjugate binyan={conjBinyan} />;
+  const page =
+    view === "story" ? (
+      <Story />
+    ) : view === "listen" ? (
+      <Listen />
+    ) : view === "notebook" ? (
+      <Notebook />
+    ) : view === "league" ? (
+      <League />
+    ) : null;
+  if (page)
+    return (
+      <>
+        {page}
+        <Toast />
+        <ConfirmSheet />
+      </>
+    );
   // A tool/play view with nothing to show (e.g. after a reload) falls back to the path.
-  const shown: View = ["home", "path", "bank", "patterns", "progress"].includes(view)
-    ? view
-    : "home";
+  const shown: View = (SHELL_VIEWS as readonly View[]).includes(view) ? view : "home";
 
   return (
     <>
@@ -102,6 +149,7 @@ export default function App() {
         <main key={shown} className={"view" + (shown === "home" ? "" : " pad")}>
           {shown === "home" && <Home />}
           {shown === "path" && <Path />}
+          {shown === "shuk" && <Shuk />}
           {shown === "bank" && <Bank />}
           {shown === "progress" && <Progress />}
           {shown === "patterns" && <Patterns />}
