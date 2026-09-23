@@ -30,7 +30,7 @@ export const BODY = [
       { h: "גּוּפָנִי", t: "gufani", g: "bodily, physical", b: "adj" },
       { h: "גּוּפִיָּה", t: "gufiya", g: "undershirt, tank top", b: "noun" },
       { h: "גּוּפָה", t: "gufa", g: "corpse", b: "noun" },
-      { h: "בְּגוּפוֹ", t: "begufo", g: "in person", b: "adv" },
+      { h: "בְּגוּפוֹ", t: "begufo", g: "in person (lit. 'in his body')", b: "adv" },
     ],
   },
   {
@@ -155,7 +155,7 @@ export const BODY = [
     unit: "body-2",
     words: [
       { h: "עֶצֶם", t: "etzem", g: "bone; object", b: "noun" },
-      { h: "עַצְמִי", t: "atzmi", g: "self; my own", b: "adj" },
+      { h: "עַצְמִי", t: "atzmi", g: "self-; own", b: "adj" },
       { h: "עַצְמָאִי", t: "atzma'i", g: "independent", b: "adj" },
       { h: "עַצְמָאוּת", t: "atzma'ut", g: "independence", b: "noun" },
       { h: "עָצוּם", t: "atzum", g: "huge, immense", b: "adj" },

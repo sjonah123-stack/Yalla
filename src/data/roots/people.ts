@@ -11,7 +11,7 @@ export const PEOPLE = [
     unit: "people-1",
     words: [
       { h: "נָתַן", t: "natan", g: "he gave", b: "pa'al" },
-      { h: "נִתָּן", t: "nitan", g: "it is possible; was given", b: "nif'al" },
+      { h: "נִתָּן", t: "nitan", g: "it is possible; is given", b: "nif'al" },
       { h: "מַתָּנָה", t: "matana", g: "gift", b: "noun" },
       { h: "נְתוּנִים", t: "netunim", g: "data", b: "noun" },
       { h: "מַתָּן", t: "matan", g: "giving (מתן תורה)", b: "noun" },

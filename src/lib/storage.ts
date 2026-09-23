@@ -95,6 +95,8 @@ const MODES = new Set<string>([
   "hearWord",
   "whichBinyan",
   "guessWord",
+  "verbMeaning",
+  "spotBinyan",
 ]);
 const isItem = (x: unknown): x is ShopItem =>
   typeof x === "string" &&

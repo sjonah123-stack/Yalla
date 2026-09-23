@@ -10,6 +10,8 @@ import { speedBestToday } from "../lib/speed";
 import { planLabel } from "../lib/plan";
 import { summaryExit } from "../lib/history";
 import { SECTION_BY_ID } from "../data/course";
+import { BINYAN_BY_ID } from "../data/binyanim";
+import { binyanStats } from "../lib/binyan";
 import { playCue } from "../lib/sound";
 import { Heb } from "../components/Heb";
 import { GOLD_SCORE, memorizedCount, unitTitle } from "../lib/course";
@@ -199,6 +201,7 @@ function ShukLine({ s, receipt }: { s: Session; receipt: Receipt }) {
 function lessonEyebrow(plan: Plan): string {
   if (plan.kind === "lesson") return `${unitTitle(COURSE.byId[plan.unit])} · lesson complete`;
   if (plan.kind === "daily") return "Root of the day · done";
+  if (plan.kind === "binyan") return `${plan.binyan} lesson · complete`;
   if (plan.kind === "practice") {
     if (plan.focus === "tricky") return "Tricky roots · round complete";
     if (plan.focus === "mistakes") return "Fix my mistakes · round complete";
@@ -248,7 +251,7 @@ function LessonSummary({ s }: { s: Session }) {
   const receipt = s.rewards;
   const unitDone = !!receipt?.unitChests.length;
   const perfect = !!receipt?.parts.perfect;
-  const headline = unitDone
+  const headline = unitDone && s.plan.kind !== "binyan"
     ? "Unit complete! כל הכבוד"
     : perfect
       ? "Flawless. מצוין!"
@@ -260,6 +263,16 @@ function LessonSummary({ s }: { s: Session }) {
   const toShuk = summaryExit(s.plan).view === "shuk";
   const exit = useChainExit(toShuk ? "Back to the Shuk" : "Continue");
   const daily = s.plan.kind === "daily" ? s.slots[0] : null;
+  // Binyan lessons count verbs known, not roots memorized.
+  const binyan = s.plan.kind === "binyan" ? s.plan.binyan : null;
+  const verbs = binyan ? binyanStats(binyan, ROOTS, p) : null;
+  const missedWords = binyan
+    ? [
+        ...new Map(
+          s.results.filter((r) => !r.ok).map((r) => [s.words![r.slot].h, s.words![r.slot]]),
+        ).values(),
+      ]
+    : [];
 
   return (
     <div className="shell view summary">
@@ -280,7 +293,18 @@ function LessonSummary({ s }: { s: Session }) {
       {claimed && <NewSeals receipt={receipt} />}
       {claimed && <Milestones s={s} />}
 
-      {(gained > 0 || pending > 0) && (
+      {verbs && binyan && (
+        <p className="note tnum">
+          <b>
+            {binyan} · {verbs.known} / {verbs.total} verbs known
+            {verbs.known > (s.knownBefore ?? 0) && ` (+${verbs.known - (s.knownBefore ?? 0)})`}
+          </b>
+          <br />
+          Two right answers make a verb known. The {BINYAN_BY_ID[binyan].he} page lists them all.
+        </p>
+      )}
+
+      {!binyan && (gained > 0 || pending > 0) && (
         <p className="note">
           {gained > 0 && (
             <>
@@ -299,18 +323,31 @@ function LessonSummary({ s }: { s: Session }) {
         </p>
       )}
 
-      {missed.length > 0 && (
-        <div className="sec">
-          <div className="eyebrow">Back soon</div>
-          <div className="chips">
-            {missed.map((r) => (
-              <span className="chip" key={r.r}>
-                <Heb>{rootDisplay(r)}</Heb> · {r.short}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {binyan
+        ? missedWords.length > 0 && (
+            <div className="sec">
+              <div className="eyebrow">Worth another look</div>
+              <div className="chips">
+                {missedWords.map((w) => (
+                  <span className="chip" key={w.h}>
+                    <Heb>{w.h}</Heb> · {w.g}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )
+        : missed.length > 0 && (
+            <div className="sec">
+              <div className="eyebrow">Back soon</div>
+              <div className="chips">
+                {missed.map((r) => (
+                  <span className="chip" key={r.r}>
+                    <Heb>{rootDisplay(r)}</Heb> · {r.short}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
       <button
         type="button"
@@ -330,7 +367,7 @@ function LessonSummary({ s }: { s: Session }) {
             if (!start(s.plan)) showToast("Nothing to study here right now.");
           }}
         >
-          {unit ? "Another lesson" : "Another round"}
+          {unit || binyan ? "Another lesson" : "Another round"}
         </button>
       )}
     </div>

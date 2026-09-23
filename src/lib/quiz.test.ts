@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  TYPE_MAX,
   canBuildWord,
   canCloze,
+  canTypeWord,
   makeQuestion,
   modeFor,
   pickWord,
   similarRoots,
   xpFor,
+  typeWords,
   verbForms,
 } from "./quiz";
-import { normLetters } from "./hebrew";
+import { isTypeable, stripNikud } from "./hebrew";
+import { isBinyan } from "../data/binyanim";
 import type { Root } from "../types";
 import { rootLetters } from "./hebrew";
 import { ROOTS } from "../data/roots";
@@ -123,10 +127,20 @@ describe("xpFor", () => {
 });
 
 describe("typeWord, cloze and known words", () => {
-  it("typeWord asks for the word's letters with finals normalised", () => {
-    const q = makeQuestion(byId("כתב"), ROOTS, "typeWord");
-    expect(q.answer).toBe(normLetters(q.word!.h));
-    expect(q.answer).not.toMatch(/[ְ-ׇ]/);
+  it("typeWord asks for the word's spelling, finals as written, and only ever one typeable word", () => {
+    // כתב has "כְּתַב יָד" (two words): dictation must never ask for it.
+    for (let i = 0; i < 40; i++) {
+      const q = makeQuestion(byId("כתב"), ROOTS, "typeWord");
+      expect(q.answer).toBe(stripNikud(q.word!.h));
+      expect(q.answer).toMatch(/^[א-ת]+$/);
+      expect(q.answer!.length).toBeLessThanOrEqual(TYPE_MAX);
+    }
+    for (const r of ROOTS) for (const w of typeWords(r)) expect(isTypeable(w.h)).toBe(true);
+  });
+  it("never offers typeWord for a root whose words are all phrases or too long", () => {
+    const phrasal: Root = { ...byId("כתב"), words: [{ h: "כְּתַב יָד", t: "", g: "", b: "noun" }] };
+    expect(canTypeWord(phrasal)).toBe(false);
+    for (let i = 0; i < 50; i++) expect(modeFor(phrasal, 5, { audio: true })).not.toBe("typeWord");
   });
   it("cloze only when a sentence exists, and then the sentence contains the word", () => {
     const r = ROOTS.find(canCloze);
@@ -155,3 +169,32 @@ describe("typeWord, cloze and known words", () => {
     }
   });
 });
+
+describe("cloze tiles and fixed words", () => {
+  const kind = (b: string) => (isBinyan(b) ? "verb" : b);
+  it("never offers another word of the same kind from the same family", () => {
+    for (const r of ROOTS.filter(canCloze).slice(0, 120)) {
+      const q = makeQuestion(r, ROOTS, "cloze");
+      const own = new Set(r.words.map((w) => w.h));
+      for (const o of q.opts!)
+        if (!o.ok && own.has(o.label)) expect(kind(o.w!.b)).not.toBe(kind(q.word!.b));
+      expect(q.opts!.filter((o) => o.ok)).toHaveLength(1);
+    }
+  });
+  it("uses the word it is given", () => {
+    const r = byId("כתב");
+    const w = r.words.find((x) => x.b === "hif'il")!;
+    for (const mode of ["buildWord", "wordRoot", "verbMeaning", "spotBinyan"] as const) {
+      const q = makeQuestion(r, ROOTS, mode, undefined, w);
+      expect(q.word).toBe(w);
+    }
+    const q = makeQuestion(r, ROOTS, "verbMeaning", undefined, w);
+    expect(q.binyan).toBe("hif'il");
+    expect(q.opts!.find((o) => o.ok)!.label).toBe(w.g);
+  });
+  it("pays spot-the-pattern like a cloze and a verb's meaning like recognition", () => {
+    expect(xpFor("spotBinyan", 0, true)).toBe(15);
+    expect(xpFor("verbMeaning", 0, true)).toBe(10);
+  });
+});
+

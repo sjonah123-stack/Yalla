@@ -88,7 +88,7 @@ export const FOOD = [
       { h: "הִבְרִיא", t: "hivri", g: "he recovered, got healthy", b: "hif'il" },
       { h: "בָּרִיא", t: "bari", g: "healthy", b: "adj" },
       { h: "בְּרִיאוּת", t: "bri'ut", g: "health", b: "noun" },
-      { h: "בָּרָא", t: "bara", g: "he created (root ברא)", b: "pa'al" },
+      { h: "בָּרָא", t: "bara", g: "he created", b: "pa'al" },
       { h: "בְּרִיאָה", t: "bri'a", g: "creation", b: "noun" },
     ],
   },

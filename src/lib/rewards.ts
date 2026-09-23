@@ -168,7 +168,7 @@ export const SEAL_BY_ID: Record<SealId, Seal> = Object.fromEntries(
 
 // ---------- Session end ----------
 export interface SessionEnd {
-  kind: "lesson" | "practice" | "test" | "speed" | "daily";
+  kind: "lesson" | "practice" | "test" | "speed" | "daily" | "binyan";
   /** A focused practice. */
   focus?: "tricky" | "mistakes" | "restock";
   ok: number;
@@ -322,7 +322,7 @@ export function settle(
 
 /** Sessions that feed the daily counters, pay sales and can start a rush hour. */
 const studies = (end: SessionEnd): boolean =>
-  end.kind === "lesson" || end.kind === "practice" || end.kind === "daily";
+  end.kind === "lesson" || end.kind === "practice" || end.kind === "daily" || end.kind === "binyan";
 
 /**
  * Fold a finished (or abandoned) session into progress: counters and today's quest counters,

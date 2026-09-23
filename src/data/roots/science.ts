@@ -118,7 +118,7 @@ export const SCIENCE = [
       { h: "שָׁוֶה", t: "shave", g: "equal; worth it", b: "adj" },
       { h: "שִׁוְיוֹן", t: "shivyon", g: "equality", b: "noun" },
       { h: "שֹׁוִי", t: "shovi", g: "value, worth", b: "noun" },
-      { h: "הִשְׁתַּוָּה", t: "hishtava", g: "they became equal", b: "hitpa'el" },
+      { h: "הִשְׁתַּוָּה", t: "hishtava", g: "it became equal, evened out", b: "hitpa'el" },
     ],
   },
   {
@@ -145,7 +145,7 @@ export const SCIENCE = [
     cat: "science & numbers",
     unit: "science-2",
     words: [
-      { h: "שָׁלוֹשׁ", t: "shalosh", g: "three", b: "adj" },
+      { h: "שָׁלוֹשׁ", t: "shalosh", g: "three (f.)", b: "adj" },
       { h: "שְׁלִישִׁי", t: "shlishi", g: "third (ordinal)", b: "adj" },
       { h: "שִׁלֵּשׁ", t: "shilesh", g: "he tripled", b: "pi'el" },
       { h: "מְשֻׁלָּשׁ", t: "meshulash", g: "triangle", b: "noun" },
@@ -160,7 +160,7 @@ export const SCIENCE = [
     cat: "science & numbers",
     unit: "science-2",
     words: [
-      { h: "אַרְבַּע", t: "arba", g: "four", b: "adj" },
+      { h: "אַרְבַּע", t: "arba", g: "four (f.)", b: "adj" },
       { h: "רֶבַע", t: "reva", g: "a quarter", b: "noun" },
       { h: "רְבִיעִי", t: "revi'i", g: "fourth", b: "adj" },
       { h: "מְרֻבָּע", t: "meruba", g: "square (shape)", b: "noun" },
@@ -219,7 +219,7 @@ export const SCIENCE = [
     words: [
       { h: "נְקֻדָּה", t: "nekuda", g: "point, dot", b: "noun" },
       { h: "נִקֵּד", t: "niked", g: "he added vowel marks", b: "pi'el" },
-      { h: "נִקּוּד", t: "nikud", g: "vowel marks", b: "noun" },
+      { h: "נִקּוּד", t: "nikud", g: "vowel pointing, vocalization", b: "noun" },
       { h: "מְנֻקָּד", t: "menukad", g: "vocalized", b: "adj" },
     ],
   },

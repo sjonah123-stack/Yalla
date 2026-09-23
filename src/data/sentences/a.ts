@@ -307,8 +307,8 @@ export const S_A: Readonly<Record<string, Sentence>> = {
     en: "He beautified the garden for the holiday.",
   },
   הִתְיַפָּה: {
-    he: "הִיא הִתְיַפָּה לִקְרַאת הַחֲתֻנָּה שֶׁל אֲחוֹתָהּ.",
-    en: "She got dressed up for her sister's wedding.",
+    he: "הוּא הִתְיַפָּה לִקְרַאת הַחֲתֻנָּה שֶׁל אֲחוֹתוֹ.",
+    en: "He spruced himself up for his sister's wedding.",
   },
   נִסָּה: {
     he: "הוּא נִסָּה לִפְתֹּחַ אֶת הַדֶּלֶת בְּכֹחַ.",
@@ -498,7 +498,7 @@ export const S_A: Readonly<Record<string, Sentence>> = {
     en: "He received a letter from the university in the mail.",
   },
   הִתְקַבֵּל: {
-    he: "הוּא הִתְקַבֵּל לָעֲבוֹדָה אַחֲרֵי שָׁלוֹשׁ פְּגִישׁוֹת.",
+    he: "הוּא הִתְקַבֵּל לָעֲבוֹדָה אַחֲרֵי שְׁלוֹשָׁה רֵאָיוֹנוֹת.",
     en: "He was accepted for the job after three interviews.",
   },
   עָזַר: { he: "הוּא עָזַר לִי לְהָזִיז אֶת הָאָרוֹן.", en: "He helped me move the closet." },
@@ -555,8 +555,8 @@ export const S_A: Readonly<Record<string, Sentence>> = {
     en: "The cold killed all the plants in the garden.",
   },
   מִשְׁפָּחָה: {
-    he: "כָּל הַמִשְׁפָּחָה נִפְגֶּשֶׁת אֵצֶל סַבְתָּא בְּשַׁבָּת.",
-    en: "The whole family meets at Grandma's on Shabbat.",
+    he: "אֲנַחְנוּ מִשְׁפָּחָה גְּדוֹלָה, וּבְשַׁבָּת כֻּלָּנוּ נִפְגָּשִׁים אֵצֶל סַבְתָּא.",
+    en: "We are a big family, and on Shabbat we all meet at Grandma's.",
   },
   מִשְׁפַּחְתִּי: {
     he: "בֵּית הַקָּפֶה הַזֶּה מְאוֹד מִשְׁפַּחְתִּי וְנָעִים.",
@@ -825,8 +825,8 @@ export const S_A: Readonly<Record<string, Sentence>> = {
   },
   גֵּאֶה: { he: "אַבָּא גֵּאֶה מְאוֹד בַּבֵּן שֶׁלּוֹ.", en: "Dad is very proud of his son." },
   גַּאֲוָה: {
-    he: "הוּא סִפֵּר עַל הַהֶשֵּׂגִים בְּגַּאֲוָה גְּדוֹלָה.",
-    en: "He talked about the achievements with great pride.",
+    he: "הוּא הִרְגִּישׁ גַּאֲוָה גְּדוֹלָה כְּשֶׁסִּפֵּר עַל הַהֶשֵּׂגִים שֶׁלּוֹ.",
+    en: "He felt great pride when he talked about his achievements.",
   },
   הִתְבַּיֵּשׁ: {
     he: "הוּא הִתְבַּיֵּשׁ לְדַבֵּר מוּל כָּל הַכִּתָּה.",
@@ -1034,7 +1034,7 @@ export const S_A: Readonly<Record<string, Sentence>> = {
     he: "הוּא לָקַח נְשִׁימָה עֲמֻקָּה לִפְנֵי הַצְּלִילָה.",
     en: "He took a deep breath before the dive.",
   },
-  פָּצַע: { he: "הַסַּכִּין פָּצַע אֶת הָאֶצְבַּע שֶׁלּוֹ.", en: "The knife cut his finger." },
+  פָּצַע: { he: "הַלַּהַב פָּצַע אֶת הָאֶצְבַּע שֶׁלּוֹ.", en: "The blade cut his finger." },
   נִפְצַע: {
     he: "הוּא נִפְצַע בָּרֶגֶל בְּמִשְׂחַק הַכַּדּוּרֶגֶל.",
     en: "He was injured in the leg in the soccer game.",

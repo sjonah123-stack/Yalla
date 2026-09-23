@@ -12,12 +12,15 @@ export function WordList({
   compact = false,
   showForm = true,
   examples = !compact,
+  hilite,
 }: {
   words: readonly Word[];
   compact?: boolean;
   showForm?: boolean;
   /** Example sentences and known-word ticks (default: only when not compact). */
   examples?: boolean;
+  /** The vocalized word to light up (the one a question was about). */
+  hilite?: string;
 }) {
   const nikud = useProgress((s) => s.p.settings.nikud);
   const stats = useProgress((s) => s.p.words);
@@ -27,7 +30,7 @@ export function WordList({
       {words.map((w) => {
         const ex = examples ? SENTENCES[w.h] : undefined;
         return (
-          <div className="w" key={w.h}>
+          <div className={"w" + (w.h === hilite ? " on" : "")} key={w.h}>
             <div className="g">
               <b>{w.g}</b>
               <div>

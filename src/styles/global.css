@@ -1545,15 +1545,34 @@ button.chip {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   text-align: center;
   padding: 8px 24px;
   min-height: 0;
   overflow: hidden;
   transition: opacity var(--dur-slow) var(--ease);
 }
+/* Two growing spacers centre the question. Once answered, the top one collapses, so the
+   question glides to the top of the stage and stays readable above the answer sheet instead of
+   sinking behind it (flex-grow animates; justify-content can't). Content taller than the stage
+   is clipped at the bottom, never the top. */
+.stage::before,
+.stage::after {
+  content: "";
+  flex: 1 1 0;
+  transition: flex-grow var(--dur-slow) var(--ease-out);
+}
 .stage.dim {
-  opacity: 0.25;
+  opacity: 0.45;
+}
+.stage.dim::before {
+  flex-grow: 0;
+}
+.stage .q-in {
+  transform-origin: 50% 0;
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+.stage.dim .q-in {
+  transform: scale(0.84);
 }
 .stage .title {
   font-size: 12px;
@@ -1798,25 +1817,42 @@ button.chip {
   height: 62px;
   font-size: 28px;
 }
+/* The on-screen keyboard mirrors a phone's Hebrew keyboard: ten keys across the middle row,
+   the top and bottom rows set in by half a key, delete at the end of the top row. It reads left
+   to right like the real one (dir="ltr"), and borrows a little of the answer zone's gutter so the
+   keys come out phone-sized (u = one key width, g = the gap). */
 .kb {
+  --g: 5px;
+  --u: calc((100% - 9 * var(--g)) / 10);
   display: grid;
-  gap: 7px;
-  direction: rtl;
+  gap: 8px;
+  margin: 0 -12px;
+  direction: ltr;
 }
 .kb .krow {
   display: flex;
-  gap: 6px;
+  gap: var(--g);
   justify-content: center;
 }
+.kb .krow.r1 {
+  justify-content: flex-start;
+  padding-left: calc((100% - 9 * var(--g)) / 20);
+}
 .kb button {
-  width: 38px;
+  flex: 0 0 var(--u);
+  min-width: 0;
   height: 46px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--paper);
+  color: var(--ink);
   font-family: var(--font-heb);
   font-size: 22px;
   font-weight: 700;
+  line-height: 1;
   box-shadow: var(--drop-xs);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition:
     transform var(--dur-fast),
     box-shadow var(--dur-fast);
@@ -1825,24 +1861,38 @@ button.chip {
   transform: translateY(2px);
   box-shadow: 0 1px 0 var(--stone-2);
 }
-.kb button.wide {
-  width: 96px;
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 800;
+.kb button.del {
+  flex: 1 1 auto;
+  background: var(--stone);
   color: var(--ink-2);
 }
+.kb button.del svg {
+  width: 24px;
+  height: 24px;
+}
+.kb .r4 button {
+  flex: 1 1 auto;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
 .kb button.go {
+  background: var(--stone);
+  color: var(--ink-3);
+  box-shadow: none;
+}
+.kb button.go.ready {
   background: var(--plum);
   color: var(--plum-ink);
   box-shadow: 0 3px 0 var(--plum-deep);
 }
 .kb .micro {
-  direction: ltr;
+  text-align: center;
+  margin-top: 2px;
 }
 @media (max-width: 400px) {
   .kb button {
-    width: 34px;
     height: 44px;
     font-size: 20px;
   }
@@ -1853,37 +1903,65 @@ button.chip {
   }
 }
 
-/* Feedback sheet slides over the answer zone; the stage never moves. */
+/* Feedback sheet slides over the answer zone. It is framed like a card: the verdict is pinned at
+   the top, Next is pinned at the bottom, and the details scroll between them — so the sheet can
+   never open scrolled past its own verdict, and Next is always in reach. */
 .sheet {
+  --sheet-bg: var(--paper);
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  max-height: 62dvh;
-  overflow: auto;
-  overscroll-behavior: contain;
+  max-height: 64dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 30px 30px 0 0;
-  padding: 22px 22px calc(28px + env(safe-area-inset-bottom));
   animation: sheetin 0.45s var(--ease-out);
-  background: var(--paper);
+  background: var(--sheet-bg);
   box-shadow: 0 -10px 30px rgba(42, 22, 48, 0.12);
 }
 .sheet.good {
-  background: var(--good-soft);
+  --sheet-bg: var(--good-soft);
 }
 .sheet.bad {
-  background: var(--bad-soft);
+  --sheet-bg: var(--bad-soft);
 }
 .sheet .head {
+  flex: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  padding: 20px 22px 0;
   font-family: var(--font-heb);
   font-weight: 900;
   font-size: 26px;
   /* room for nikud above and below */
   line-height: 1.3;
+}
+.sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0 22px;
+}
+/* A soft fade over whatever continues below the fold. It is sticky at the end of the content,
+   so once scrolled to the bottom it is just empty space after the flag link. */
+.sheet-body::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 22px;
+  margin-top: 4px;
+  background: linear-gradient(to bottom, transparent, var(--sheet-bg));
+  pointer-events: none;
+}
+.sheet-foot {
+  flex: none;
+  padding: 4px 22px calc(22px + env(safe-area-inset-bottom));
 }
 .sheet .xp {
   font-family: var(--font-ui);
@@ -1912,10 +1990,7 @@ button.chip {
   padding-left: var(--s3);
   margin-top: var(--s3);
 }
-.sheet .btn {
-  margin-top: 18px;
-}
-/* The flag control is a quiet afterthought under the primary button. */
+/* The flag control is a quiet afterthought at the end of the details. */
 .sheet .btn.text.flag {
   margin-top: 8px;
   font-size: var(--t-small);
@@ -3428,7 +3503,7 @@ button.chip {
 .kb button:focus-visible {
   box-shadow: var(--ring), var(--drop-xs);
 }
-.kb button.go:focus-visible {
+.kb button.go.ready:focus-visible {
   box-shadow:
     var(--ring),
     0 3px 0 var(--plum-deep);
@@ -7023,4 +7098,285 @@ button.chip {
 .panel.settings > .btn.text {
   display: flex;
   width: fit-content;
+}
+
+/* ---------- Binyan lessons: Patterns cards, the binyan page, lesson prompts ---------- */
+/* The Patterns card's skeleton opens the binyan's page, so it is a button. */
+.binyan .skel {
+  cursor: pointer;
+}
+.binyan .skel:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--plum-deep);
+}
+.bn-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.bn-meter {
+  display: block;
+  flex: 1;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--stone);
+  overflow: hidden;
+}
+.bn-meter > i {
+  display: block;
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  background: var(--coral);
+}
+.bn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.btn.sm.primary {
+  box-shadow: 0 3px 0 var(--coral-deep);
+}
+
+/* The binyan page. */
+.bn-page > section + section {
+  margin-top: var(--s4);
+}
+.bn-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.bn-skel {
+  font-family: var(--font-heb);
+  font-weight: 900;
+  font-size: 34px;
+  line-height: 1;
+  direction: rtl;
+  unicode-bidi: isolate;
+  padding: 16px 14px;
+  border-radius: 18px;
+  background: var(--on-dark-soft);
+  min-width: 112px;
+  text-align: center;
+}
+.bn-hero h2 {
+  font-size: 28px;
+  line-height: 1.1;
+}
+.bn-hero .bn-note {
+  margin: 14px 0 12px;
+  font-size: var(--t-small);
+  opacity: 0.85;
+}
+.bn-hero .bn-meter {
+  background: var(--on-dark-soft);
+  margin-bottom: 6px;
+}
+.bn-hero .bn-meter > i {
+  background: var(--gold);
+}
+.bn-hero .btn {
+  margin-top: 16px;
+}
+.bn-how p {
+  margin-top: 6px;
+  line-height: 1.5;
+}
+/* Past / present / future / infinitive of one root: four chips that wrap on narrow phones. */
+.bn-tenses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+  direction: rtl;
+}
+.bn-tenses > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: 14px;
+  background: var(--stone);
+}
+.bn-tenses .word {
+  font-size: 22px;
+  line-height: 1.3;
+}
+.bn-tenses .l {
+  direction: ltr;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.bn-uses {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  display: grid;
+  gap: 4px;
+}
+.bn-uses li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.bn-uses li + li {
+  border-top: 1px solid var(--hairline);
+}
+.bn-uses .word {
+  font-size: 24px;
+  line-height: 1.3;
+  min-width: 96px;
+  text-align: right;
+}
+.bn-uses .t {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+.bn-uses .t b {
+  color: var(--ink);
+  font-size: 15px;
+}
+.bn-fam-root {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 4px;
+  min-height: 44px;
+  padding: 4px 14px 4px 10px;
+  border-radius: var(--r-full);
+  background: var(--stone);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+.bn-fam-root .glyph {
+  font-size: 22px;
+  color: var(--plum);
+}
+.bn-verbs {
+  margin-top: var(--s5);
+}
+.bn-verbs h3 {
+  margin: var(--s4) 0 var(--s2);
+  font-size: 18px;
+  font-weight: 800;
+}
+.bn-verbs h3 span {
+  color: var(--ink-3);
+  font-weight: 700;
+}
+.bn-rows {
+  background: var(--paper);
+  border-radius: var(--r-lg);
+  box-shadow: var(--drop-xs);
+  padding: 4px 16px;
+}
+.bn-root {
+  position: relative;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--plum);
+  letter-spacing: 0.06em;
+}
+/* A small inline control: keep the 44px tap target without growing the row. */
+.bn-root::after {
+  content: "";
+  position: absolute;
+  inset: 50% -8px auto;
+  translate: 0 -50%;
+  block-size: 44px;
+}
+
+/* A word list row lit up: the verb the question was about. */
+.words .w.on {
+  margin: 0 -10px;
+  padding-inline: 10px;
+  border-radius: 12px;
+  background: var(--stone);
+}
+.words .w.on .g b {
+  color: var(--ink);
+}
+
+/* Lesson prompts: the root chip beside the binyan badge; "which one is pi'el?" */
+.bn-clues {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.bn-clues .guess-root,
+.bn-clues .form-badge {
+  margin: 0;
+}
+.bn-ask {
+  font-family: var(--font-heb);
+  font-weight: 900;
+  font-size: clamp(28px, 8vw, 36px);
+  line-height: 1.15;
+}
+.bn-ask b {
+  color: var(--plum);
+}
+.stage .bn-ask + .form-badge {
+  margin-top: var(--s3);
+}
+.bn-sub {
+  margin: 12px 0 2px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* The lesson's opening card sits on the learn card's plum ground. The pattern is a word with
+   vowels, not a spaced-out root, so it drops the hero glyph's tracking. */
+.bn-intro .glyph.hero {
+  direction: rtl;
+  text-align: left;
+  letter-spacing: 0;
+  padding-left: 0;
+}
+.bn-intro .bn-spot {
+  margin-top: 14px;
+  line-height: 1.5;
+}
+.bn-intro .bn-tenses > div {
+  background: var(--on-dark-soft);
+}
+.bn-intro .bn-tenses .l {
+  color: inherit;
+  opacity: 0.7;
+}
+.bn-intro .bn-uses {
+  margin-top: 14px;
+}
+.bn-intro .bn-uses li + li {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+.bn-intro .bn-uses .t,
+.bn-intro .bn-uses .t b {
+  color: inherit;
+}
+.bn-intro .bn-uses .t {
+  opacity: 0.85;
+}
+.bn-intro > .small {
+  margin-top: 12px;
+  opacity: 0.8;
 }

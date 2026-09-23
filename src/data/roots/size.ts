@@ -221,7 +221,7 @@ export const SIZE = [
       { h: "אָרֹךְ", t: "aroch", g: "long", b: "adj" },
       { h: "אֹרֶךְ", t: "orech", g: "length", b: "noun" },
       { h: "הַאֲרָכָה", t: "ha'aracha", g: "extension (of time)", b: "noun" },
-      { h: "אֲרֻכָּה", t: "aruka", g: "(f.) long; healing (biblical)", b: "adj" },
+      { h: "אֲרֻכָּה", t: "aruka", g: "long (f.)", b: "adj" },
     ],
   },
   {
@@ -286,7 +286,7 @@ export const SIZE = [
       { h: "רָם", t: "ram", g: "high, lofty", b: "adj" },
       { h: "רָמָה", t: "rama", g: "level; plateau", b: "noun" },
       { h: "תְּרוּמָה", t: "truma", g: "donation, contribution", b: "noun" },
-      { h: "מָרוֹם", t: "marom", g: "heights", b: "noun" },
+      { h: "מָרוֹם", t: "marom", g: "height, high place; heaven", b: "noun" },
     ],
   },
   {

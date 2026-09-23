@@ -246,7 +246,8 @@ export type View =
   | "story"
   | "listen"
   | "notebook"
-  | "league";
+  | "league"
+  | "binyan";
 
 export interface Progress {
   v: 3;
@@ -308,7 +309,11 @@ export type Mode =
   | "cloze"
   | "hearWord"
   | "whichBinyan"
-  | "guessWord";
+  | "guessWord"
+  /** Binyan lessons: a verb's meaning among its siblings in other binyanim. */
+  | "verbMeaning"
+  /** Binyan lessons: pick out the verb in a given binyan by its pattern alone. */
+  | "spotBinyan";
 
 export interface Option {
   /** Display label: English gloss, root display string, or vocalized word. */
@@ -329,9 +334,9 @@ export interface Question {
   word?: Word;
   /** Multiple-choice options (absent for typeRoot). */
   opts?: Option[];
-  /** For typeRoot: the expected letters. */
+  /** For typeRoot / typeWord: the expected spelling, final letters as written. */
   answer?: string;
-  /** For whichBinyan: the correct binyan. */
+  /** For whichBinyan / verbMeaning / spotBinyan: the verb's binyan. */
   binyan?: Binyan;
   /** For buildWord: the form asked for. */
   form?: Form;

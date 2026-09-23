@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Mode, Question, Root, UnitId } from "../types";
+import type { Binyan, Mode, Question, Root, UnitId, Word } from "../types";
 import { ROOTS } from "../data/roots";
 import { buildQueue, dayKey, isDue, mastery, seen, trickyQueue, twoPassQueue } from "../lib/srs";
 import { SECTION_BY_ID } from "../data/course";
@@ -8,6 +8,8 @@ import { mistakeRoots } from "../lib/mistakes";
 import { memorized } from "../lib/course";
 import { knownWords } from "../lib/words";
 import { makeQuestion, modeFor, xpFor } from "../lib/quiz";
+import { sameLetters } from "../lib/hebrew";
+import { binyanLesson, binyanStats } from "../lib/binyan";
 import { buildLesson, buildTest, testScore } from "../lib/lesson";
 import { placementSample } from "../lib/placement";
 import { memorizedCount } from "../lib/course";
@@ -30,16 +32,28 @@ export type Plan =
   | { kind: "daily" }
   | { kind: "test"; unit: UnitId }
   | { kind: "placement" }
-  | { kind: "speed" };
+  | { kind: "speed" }
+  /** A lesson on one binyan: its verbs met, then used (Patterns → a binyan). */
+  | { kind: "binyan"; binyan: Binyan };
 
 /** Behaviour flags derived from the plan. */
 export const planRules = (plan: Plan) => ({
   /** Show the feedback sheet after each question (else tick and move on, results at the end). */
-  feedbackEach: plan.kind === "lesson" || plan.kind === "practice" || plan.kind === "daily",
+  feedbackEach:
+    plan.kind === "lesson" ||
+    plan.kind === "practice" ||
+    plan.kind === "daily" ||
+    plan.kind === "binyan",
   /** Misses are re-queued a few questions later. */
-  requeue: plan.kind === "lesson" || plan.kind === "practice",
+  requeue: plan.kind === "lesson" || plan.kind === "practice" || plan.kind === "binyan",
   learnFirst: plan.kind === "lesson",
+  /** Answers count: XP, streak, word memory, the mistake notebook. */
   writesSrs: plan.kind !== "placement",
+  /**
+   * Answers move the root's review schedule. A binyan lesson teaches words and patterns, often of
+   * roots still ahead on the path, so it leaves the path's schedule alone.
+   */
+  rootSrs: plan.kind !== "placement" && plan.kind !== "binyan",
   xp: plan.kind !== "placement",
 });
 
@@ -56,6 +70,12 @@ export interface Session {
   slots: Root[];
   /** For test/placement: the mode fixed per slot. */
   modes?: Mode[];
+  /** Binyan lessons: the word fixed per slot. */
+  words?: Word[];
+  /** Binyan lessons: the pattern card shows before the first question. */
+  intro: boolean;
+  /** Binyan lessons: verbs of the binyan known when the lesson started. */
+  knownBefore?: number;
   ticks: Tick[];
   /** Working queue (slot indices); missed roots get re-inserted. */
   queue: number[];
@@ -143,7 +163,7 @@ function question(s: Session, root: Root, slot: number): Question {
       audio: speechAvailable() && prog.settings.audio,
       known: knownWords(prog),
     });
-  return makeQuestion(root, ROOTS, mode, knownWords(prog));
+  return makeQuestion(root, ROOTS, mode, knownWords(prog), s.words?.[slot]);
 }
 
 function load(s: Session): Session {
@@ -221,7 +241,7 @@ function finish(s: Session, completed = true): Session {
   return out;
 }
 
-function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[] } {
+function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[]; words?: Word[] } {
   const prog = useProgress.getState().p;
   switch (plan.kind) {
     case "lesson":
@@ -273,6 +293,14 @@ function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[] } {
       const modes = dailyModes(root, prog, knownWords(prog));
       return { slots: modes.map(() => root), modes };
     }
+    case "binyan": {
+      const lesson = binyanLesson(plan.binyan, ROOTS, prog);
+      return {
+        slots: lesson.map((x) => x.root),
+        modes: lesson.map((x) => x.mode),
+        words: lesson.map((x) => x.word),
+      };
+    }
     case "placement": {
       const sample = placementSample(COURSE);
       const order = sample.slice();
@@ -304,7 +332,7 @@ export const useSession = create<SessionStore>((set, get) => ({
     }
   },
   start: (plan) => {
-    const { slots, modes } = buildSlots(plan);
+    const { slots, modes, words } = buildSlots(plan);
     if (!slots.length) return false;
     const prog = useProgress.getState();
     if (plan.kind === "lesson") prog.setLastUnit(plan.unit);
@@ -312,6 +340,11 @@ export const useSession = create<SessionStore>((set, get) => ({
       plan,
       slots,
       modes,
+      words,
+      intro: plan.kind === "binyan",
+      ...(plan.kind === "binyan"
+        ? { knownBefore: binyanStats(plan.binyan, ROOTS, prog.p).known }
+        : {}),
       ticks: slots.map(() => "pending"),
       queue: slots.map((_, i) => i),
       i: 0,
@@ -346,7 +379,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
   dismissLearn: () => {
     const s = get().s;
-    if (s) set({ s: { ...s, learning: false } });
+    if (s) set({ s: { ...s, learning: false, intro: false } });
   },
   pickOption: (i) => {
     const s = get().s;
@@ -356,19 +389,17 @@ export const useSession = create<SessionStore>((set, get) => ({
   typeKey: (k) => {
     const s = get().s;
     if (!s || (s.q?.mode !== "typeRoot" && s.q?.mode !== "typeWord") || s.answered) return;
-    const L = s.q.answer!.length;
     if (k === "⌫") return set({ s: { ...s, typed: s.typed.slice(0, -1) } });
-    if (s.typed.length >= L) return;
-    const typed = [...s.typed, k];
-    if (typed.length === L)
-      answer({ ...s, typed }, typed.join("") === s.q.answer, null, typed.join(""), set);
-    else set({ s: { ...s, typed } });
+    // Filling the last slot doesn't submit: a slip can still be deleted before "check".
+    if (s.typed.length >= s.q.answer!.length) return;
+    set({ s: { ...s, typed: [...s.typed, k] } });
   },
   submitTyped: () => {
     const s = get().s;
     if (!s || (s.q?.mode !== "typeRoot" && s.q?.mode !== "typeWord") || s.answered) return;
+    const typed = s.typed.join("");
     if (s.typed.length === s.q.answer!.length)
-      answer(s, s.typed.join("") === s.q.answer, null, s.typed.join(""), set);
+      answer(s, sameLetters(typed, s.q.answer!), null, typed, set);
   },
   next: () => {
     const s = get().s;
@@ -390,6 +421,9 @@ export const useSession = create<SessionStore>((set, get) => ({
   quit: async () => {
     const s = get().s;
     if (!s || s.done) return;
+    // Nothing answered yet (still on a learn or pattern card): nothing to score, so no empty
+    // summary — just go back where the session came from.
+    if (!s.results.length) return get().leave();
     if (s.plan.kind === "test" || s.plan.kind === "placement") {
       const v = await useUi.getState().confirm(
         s.plan.kind === "test"
@@ -440,15 +474,18 @@ function answer(
   const id = q.root.r;
   const rules = planRules(s.plan);
   const first = !s.retried.has(s.slot);
-  // A root's SRS advances at most once per session; later slots are drills.
-  const srsFirst = first && !s.advanced.has(id);
+  // A root's SRS advances at most once per session; later slots are drills. A binyan lesson
+  // asks each root twice on purpose (meet the verb, then use it) and touches no schedule, so
+  // its second question is not a drill.
+  const srsFirst = first && (!rules.rootSrs || !s.advanced.has(id));
   const prog = useProgress.getState();
   const wasNew = !seen(prog.p.roots[id]);
   const combo = correct ? s.combo + 1 : 0;
   const xp = correct && rules.xp ? xpFor(q.mode, combo, srsFirst) : 0;
-  if (rules.writesSrs) prog.recordAnswer(id, correct, srsFirst, xp);
+  if (rules.writesSrs) prog.recordAnswer(id, correct, srsFirst, xp, rules.rootSrs);
   if (rules.writesSrs && q.word && q.mode !== "typeRoot") prog.recordWord(q.word.h, correct);
-  if (!correct && rules.writesSrs) {
+  // A binyan lesson's misses on roots still ahead are new words, not mistakes to fix.
+  if (!correct && rules.writesSrs && (rules.rootSrs || !wasNew)) {
     const rid = picked !== null ? q.opts?.[picked]?.rid : undefined;
     prog.recordMistake({
       at: Date.now(),
@@ -470,7 +507,7 @@ function answer(
   if (correct) {
     ticks[s.slot] = first ? "good" : "recovered";
     advanced.add(id);
-    if (wasNew && !learned.includes(id)) learned.push(id);
+    if (wasNew && rules.rootSrs && !learned.includes(id)) learned.push(id);
   } else {
     ticks[s.slot] = "bad";
     if (!missed.includes(id)) missed.push(id);

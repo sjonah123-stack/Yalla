@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { UnitId, View } from "../types";
+import type { Binyan, UnitId, View } from "../types";
 import { isShellView, PAGE_VIEWS, pushTrail, scrollKey, type ShellView } from "../lib/history";
 
 export type { View } from "../types";
@@ -20,7 +20,7 @@ export interface ConfirmSpec {
 export type BankChip = "all" | "due" | "learning" | "memorized" | "unmet" | "tricky" | "flagged";
 export type ToolView = "flashcards" | "match" | "familysort";
 export type DrillBinyan = "pa'al" | "pi'el" | "hif'il";
-export type PageView = "story" | "listen" | "notebook" | "league";
+export type PageView = "story" | "listen" | "notebook" | "league" | "binyan";
 
 interface UiStore {
   view: View;
@@ -40,6 +40,12 @@ interface UiStore {
   pageFrom: ShellView;
   /** Story open in the reader. */
   storyId: string | null;
+  /** The binyan whose page is open (or whose lesson is running: its summary returns there). */
+  binyan: Binyan | null;
+  /** Open a binyan's page: the pattern, its verbs, a lesson. */
+  openBinyan: (b: Binyan) => void;
+  /** Remember the binyan a lesson is for, without leaving the current view. */
+  setBinyan: (b: Binyan) => void;
   /** Window scroll offsets per view key (see scrollKey). */
   scrollMemory: Record<string, number>;
   rememberScroll: (key: string, y: number) => void;
@@ -100,6 +106,17 @@ export const useUi = create<UiStore>((set) => ({
   openConjugate: (conjBinyan) => set({ view: "conjugate", conjBinyan, unitSheet: null }),
   pageFrom: "home",
   storyId: null,
+  binyan: null,
+  openBinyan: (binyan) =>
+    set((s) => ({
+      view: "binyan",
+      binyan,
+      pageFrom: isShellView(s.view) ? s.view : s.pageFrom,
+      unitSheet: null,
+      toolUnit: null,
+    })),
+  setBinyan: (binyan) =>
+    set((s) => ({ binyan, pageFrom: isShellView(s.view) ? s.view : s.pageFrom })),
   openPage: (v, storyId) =>
     set((s) => ({
       view: v,

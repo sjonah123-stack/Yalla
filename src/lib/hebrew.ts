@@ -55,15 +55,27 @@ export const QWERTY: Record<string, string> = {
   ".": "ץ",
 };
 
-/** Israeli keyboard rows for the on-screen keyboard. */
-export const KEY_ROWS = ["קראטופ", "שדגכעיחל", "זסבהנמצת"] as const;
+/**
+ * The on-screen keyboard: the standard Israeli layout (SI-1452) read left to right, final
+ * letters included, exactly as a phone's Hebrew keyboard shows it (the QWERTY rows, minus the
+ * two punctuation keys at the start of the top row).
+ */
+export const KEY_ROWS = ["קראטוןםפ", "שדגכעיחלךף", "זסבהנמצתץ"] as const;
 
-/** Map a physical key to a Hebrew letter, or null. */
+/** Map a physical key to a Hebrew letter, or null. Final letters stay final. */
 export function keyToHebrew(key: string): string | null {
   if (isHebrewLetter(key)) return key;
   const k = QWERTY[key.toLowerCase()];
   return k && isHebrewLetter(k) ? k : null;
 }
+
+/** Typed letters match the answer, final and medial forms counting as the same letter. */
+export const sameLetters = (typed: string, answer: string): boolean =>
+  normLetters(typed) === normLetters(answer);
+
+/** A single word of plain letters (no space, geresh or maqaf) — something a learner can type. */
+export const isTypeable = (h: string): boolean =>
+  !/[\s־׳״"'-]/.test(h) && /^[א-ת]+$/.test(stripNikud(h));
 
 export const HEBREW_GREETING = (hour: number): string =>
   hour < 5 ? "לילה טוב" : hour < 12 ? "בוקר טוב" : hour < 18 ? "צהריים טובים" : "ערב טוב";

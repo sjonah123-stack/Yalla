@@ -61,7 +61,7 @@ export const MILITARY = [
       { h: "הִתְחַמֵּשׁ", t: "hitchamesh", g: "he armed himself", b: "hitpa'el" },
       { h: "תַּחְמֹשֶׁת", t: "tachmoshet", g: "ammunition", b: "noun" },
       { h: "חִמּוּשׁ", t: "chimush", g: "armament", b: "noun" },
-      { h: "חָמֵשׁ", t: "chamesh", g: "five", b: "adj" },
+      { h: "חָמֵשׁ", t: "chamesh", g: "five (f.)", b: "adj" },
       { h: "חֲמִישִׁי", t: "chamishi", g: "fifth", b: "adj" },
     ],
     note: "Same letters as 'five': the Israelites left Egypt חֲמֻשִׁים — 'armed', or 'in ranks of five' (Exodus 13:18).",

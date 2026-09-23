@@ -93,6 +93,7 @@ describe("summaryExit / scrollKey", () => {
     expect(summaryExit({ kind: "practice" })).toEqual({ view: "path" });
     expect(summaryExit({ kind: "placement" })).toEqual({ view: "path" });
     expect(summaryExit({ kind: "speed" })).toEqual({ view: "home" });
+    expect(summaryExit({ kind: "binyan" })).toEqual({ view: "binyan" });
     expect(scrollKey("bank", " Ab ", "due")).toBe("bank|ab|due");
     expect(scrollKey("path", "x", "due")).toBe("path");
   });

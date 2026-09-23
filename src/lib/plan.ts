@@ -46,5 +46,7 @@ export function planLabel(plan: Plan): string {
       return "Placement";
     case "speed":
       return "Speed round";
+    case "binyan":
+      return `${plan.binyan} lesson`;
   }
 }

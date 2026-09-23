@@ -36,7 +36,7 @@ export type Layer =
   | { kind: "confirm" };
 
 /** Full-screen pages that don't belong to a unit; they return to the tab they came from. */
-export const PAGE_VIEWS: readonly View[] = ["story", "listen", "notebook", "league"];
+export const PAGE_VIEWS: readonly View[] = ["story", "listen", "notebook", "league", "binyan"];
 export const TOOL_VIEWS: readonly View[] = [
   "flashcards",
   "match",
@@ -96,10 +96,12 @@ export function reduceBack(s: NavState): BackAction {
 
 /** Where a finished session lands when left; Summary's buttons and Back agree. */
 export function summaryExit(plan: { kind: string; unit?: UnitId; focus?: string }): {
-  view: "path" | "home" | "shuk";
+  view: "path" | "home" | "shuk" | "binyan";
   unit?: UnitId;
 } {
   if (plan.focus === "restock") return { view: "shuk" };
+  // Back to the binyan's page, to see the verbs it just taught.
+  if (plan.kind === "binyan") return { view: "binyan" };
   if (plan.kind === "speed" || plan.kind === "daily" || plan.focus === "mistakes")
     return { view: "home" };
   if ((plan.kind === "lesson" || plan.kind === "test") && plan.unit)

@@ -298,7 +298,7 @@ export const CITY = [
     unit: "city-3",
     words: [
       { h: "נָמָל", t: "namal", g: "harbor, port", b: "noun" },
-      { h: "נְמַל תְּעוּפָה", t: "nemal te'ufa", g: "airport terminal", b: "phrase" },
+      { h: "נְמַל תְּעוּפָה", t: "nemal te'ufa", g: "airport (formal)", b: "phrase" },
       { h: "נַמָּל", t: "namal", g: "dockworker", b: "noun" },
       { h: "נְמָלָה", t: "nemala", g: "ant", b: "noun" },
     ],
@@ -342,7 +342,7 @@ export const CITY = [
       { h: "רַמְזוֹר", t: "ramzor", g: "traffic light", b: "noun" },
       { h: "רָמַז", t: "ramaz", g: "he hinted", b: "pa'al" },
       { h: "רֶמֶז", t: "remez", g: "hint, clue", b: "noun" },
-      { h: "נִרְמָז", t: "nirmaz", g: "it was implied", b: "nif'al" },
+      { h: "נִרְמַז", t: "nirmaz", g: "it was implied", b: "nif'al" },
       { h: "רְמִיזָה", t: "rmiza", g: "gesturing, allusion", b: "noun" },
     ],
   },

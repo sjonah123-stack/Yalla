@@ -70,6 +70,27 @@ describe("root bank integrity", () => {
   });
 });
 
+describe("verb glosses match the form's person and number", () => {
+  // Verbs are listed as "he …" (3ms past). A gloss for another person has to be backed by the form.
+  const clusters = (h: string) =>
+    [...h.matchAll(/([א-ת])([֑-ׇ]*)/g)].map((m) => ({ l: m[1], n: m[2] }));
+  /** 3fs past: …ְXָה (כָּתְבָה), …תָה (עָנְתָה), or …ִיXָה (הִכְתִּיבָה). */
+  const feminine = (h: string) => {
+    const c = clusters(h);
+    const [x3, x2, x1] = [c.at(-3), c.at(-2), c.at(-1)];
+    if (!x1 || !x2 || x1.l !== "ה" || !x2.n.includes("ָ")) return false;
+    return x2.l === "ת" || !!x3?.n.includes("ְ") || (x3?.l === "י" && !!c.at(-4)?.n.includes("ִ"));
+  };
+  it("'she' is a feminine form and 'they' a plural one", () => {
+    for (const r of ROOTS)
+      for (const w of r.words) {
+        if (!FORMS.slice(0, 7).includes(w.b)) continue;
+        if (/^she\b/i.test(w.g)) expect(feminine(w.h), `${r.r} ${w.h} "${w.g}"`).toBe(true);
+        if (/^they\b/i.test(w.g)) expect(w.h.endsWith("וּ"), `${r.r} ${w.h} "${w.g}"`).toBe(true);
+      }
+  });
+});
+
 describe("course integrity", () => {
   it("every root's unit exists in its section and its cat matches", () => {
     const ids = new Set(UNIT_IDS);

@@ -208,7 +208,7 @@ export const WEATHER = [
     words: [
       { h: "קַיִץ", t: "kayitz", g: "summer", b: "noun" },
       { h: "קֵיצִי", t: "keitzi", g: "summery", b: "adj" },
-      { h: "הֵקִיץ", t: "hekitz", g: "he awoke (also spelled יקץ)", b: "hif'il" },
+      { h: "הֵקִיץ", t: "hekitz", g: "he awoke", b: "hif'il" },
       { h: "קַיְטָנָה", t: "kaytana", g: "summer day camp (variant קיט)", b: "noun" },
     ],
   },

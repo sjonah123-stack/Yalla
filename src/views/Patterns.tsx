@@ -1,14 +1,17 @@
 import { BINYANIM } from "../data/binyanim";
 import { ROOTS } from "../data/roots";
 import { rootLetters } from "../lib/hebrew";
+import { binyanStats } from "../lib/binyan";
+import { useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
 import { SpeakButton } from "../components/SpeakButton";
 import { HeaderGear } from "../components/HeaderGear";
-import { Heb } from "../components/Heb";
+import { startBinyanLesson } from "./Binyan";
 
 export default function Patterns() {
-  const openRoot = useUi((s) => s.openRoot);
   const openConjugate = useUi((s) => s.openConjugate);
+  const openBinyan = useUi((s) => s.openBinyan);
+  const p = useProgress((s) => s.p);
   return (
     <>
       <div className="view-h">
@@ -23,13 +26,20 @@ export default function Patterns() {
       </p>
       <div className="binyans">
         {BINYANIM.map((b) => {
-          const roots = ROOTS.filter((r) => r.words.some((w) => w.b === b.id));
           const ex = ROOTS.find((r) => rootLetters(r) === b.example.root)?.words.find(
             (w) => w.h === b.example.word,
           );
+          const st = binyanStats(b.id, ROOTS, p);
           return (
             <section className="binyan" key={b.id}>
-              <div className="skel">{b.skeleton}</div>
+              <button
+                type="button"
+                className="skel"
+                onClick={() => openBinyan(b.id)}
+                aria-label={`${b.id}: the pattern and all its verbs`}
+              >
+                {b.skeleton}
+              </button>
               <div>
                 <h3>
                   {b.id} <span className="muted">· {b.gloss}</span>
@@ -40,22 +50,32 @@ export default function Patterns() {
                   <span className="g">{ex?.g ?? b.example.gloss}</span>
                   <SpeakButton text={b.example.word} />
                 </div>
-                {(b.id === "pa'al" || b.id === "pi'el" || b.id === "hif'il") && (
+                <div className="bn-line tnum">
+                  <span className="bn-meter" aria-hidden="true">
+                    <i style={{ width: (st.total ? (st.known / st.total) * 100 : 0) + "%" }} />
+                  </span>
+                  {st.known} / {st.total} verbs known
+                </div>
+                <div className="bn-actions">
                   <button
                     type="button"
-                    className="btn sm plum"
-                    style={{ marginTop: 10 }}
-                    onClick={() => openConjugate(b.id as "pa'al" | "pi'el" | "hif'il")}
+                    className="btn sm primary"
+                    onClick={() => startBinyanLesson(b.id)}
                   >
-                    Drill {b.id}
+                    Lesson
                   </button>
-                )}
-                <div className="roots-inline">
-                  {roots.map((r) => (
-                    <button type="button" key={r.r} onClick={() => openRoot(r.r)} title={r.m}>
-                      <Heb>{rootLetters(r)}</Heb>
+                  <button type="button" className="btn sm quiet" onClick={() => openBinyan(b.id)}>
+                    All verbs
+                  </button>
+                  {(b.id === "pa'al" || b.id === "pi'el" || b.id === "hif'il") && (
+                    <button
+                      type="button"
+                      className="btn sm plum"
+                      onClick={() => openConjugate(b.id as "pa'al" | "pi'el" | "hif'il")}
+                    >
+                      Conjugate
                     </button>
-                  ))}
+                  )}
                 </div>
               </div>
             </section>

@@ -232,7 +232,7 @@ export const WORK = [
     words: [
       { h: "הִפְסִיד", t: "hifsid", g: "he lost (a game, money)", b: "hif'il" },
       { h: "הֶפְסֵד", t: "hefsed", g: "loss", b: "noun" },
-      { h: "נִפְסַד", t: "nifsad", g: "corrupt, spoiled", b: "adj" },
+      { h: "נִפְסָד", t: "nifsad", g: "corrupt, spoiled", b: "adj" },
     ],
   },
 ] as const satisfies readonly Root[];

@@ -33,7 +33,7 @@ export const S_B: Readonly<Record<string, Sentence>> = {
     en: "The weather suddenly changed in the afternoon.",
   },
   שָׁבַר: {
-    he: "הוּא שָׁבַר אֶת הַיָּד בְּמִשְׂחָק כַּדּוּרֶגֶל.",
+    he: "הוּא שָׁבַר אֶת הַיָּד בְּמִשְׂחַק כַּדּוּרֶגֶל.",
     en: "He broke his arm in a soccer game.",
   },
   נִשְׁבַּר: {
@@ -296,8 +296,8 @@ export const S_B: Readonly<Record<string, Sentence>> = {
     en: "There was only one referee on the field.",
   },
   מָלַךְ: {
-    he: "דָּוִד מָלַךְ בִּירוּשָׁלַיִם אַרְבָּעִים שָׁנָה.",
-    en: "David reigned in Jerusalem for forty years.",
+    he: "דָּוִד מָלַךְ עַל יִשְׂרָאֵל אַרְבָּעִים שָׁנָה.",
+    en: "David reigned over Israel for forty years.",
   },
   הִמְלִיךְ: {
     he: "הָעָם הִמְלִיךְ אוֹתוֹ בְּטֶקֶס גָּדוֹל.",
@@ -318,7 +318,7 @@ export const S_B: Readonly<Record<string, Sentence>> = {
   },
   חוֹקֵק: {
     he: "הַפַּרְלָמֶנְט חוֹקֵק כְּלָלִים חֲדָשִׁים לְכֻלָּם.",
-    en: "Parliament legislates new rules for everyone.",
+    en: "Parliament legislated new rules for everyone.",
   },
   חֹק: {
     he: "יֵשׁ חֹק שֶׁאוֹסֵר לְעַשֵּׁן בַּמָּקוֹם הַזֶּה.",
@@ -362,11 +362,11 @@ export const S_B: Readonly<Record<string, Sentence>> = {
     en: "A driver was killed in a bad road accident.",
   },
   רָצַח: {
-    he: "הוּא רָצַח אָדָם וְנִשְׁלַח לְמַאֲסָר עוֹלָם.",
+    he: "הוּא רָצַח אָדָם וְנִשְׁלַח לְמַאֲסַר עוֹלָם.",
     en: "He murdered a man and was sent to life in prison.",
   },
   רֶצַח: {
-    he: "הַמִּשְׁטָרָה חוֹקֶרֶת מִקְרֶה רֶצַח בַּשְּׁכוּנָה.",
+    he: "הַמִּשְׁטָרָה חוֹקֶרֶת מִקְרֵה רֶצַח בַּשְּׁכוּנָה.",
     en: "The police are investigating a murder in the neighborhood.",
   },
   הֶאֱשִׁים: {
@@ -420,7 +420,7 @@ export const S_B: Readonly<Record<string, Sentence>> = {
   },
   מֶמְשָׁלָה: {
     he: "יֵשׁ מֶמְשָׁלָה חֲדָשָׁה מֵאָז הַבְּחִירוֹת.",
-    en: "There is a new government since the elections.",
+    en: "There has been a new government since the elections.",
   },
   אֶזְרָח: { he: "כָּל אֶזְרָח חַיָּב לְשַׁלֵּם מִסִּים.", en: "Every citizen has to pay taxes." },
   אֶזְרָחוּת: {
@@ -541,7 +541,7 @@ export const S_B: Readonly<Record<string, Sentence>> = {
   סָלַח: { he: "הוּא סָלַח לִי עַל הָאִחוּר.", en: "He forgave me for being late." },
   נִסְלַח: {
     he: "הַכֹּל נִסְלַח בְּסוֹף הַיּוֹם.",
-    en: "Everything is forgiven at the end of the day.",
+    en: "At the end of the day, everything was forgiven.",
   },
   כִּפֵּר: {
     he: "הוּא כִּפֵּר עַל הַטָּעוּת בְּמַעֲשִׂים טוֹבִים.",
@@ -830,7 +830,10 @@ export const S_B: Readonly<Record<string, Sentence>> = {
     he: "הוּא כִּסָּה אֶת הַיֶּלֶד בִּשְׂמִיכָה חַמָּה.",
     en: "He covered the boy with a warm blanket.",
   },
-  כִּסּוּי: { he: "אֵין כִּסּוּי לַסִּיר הַגָּדוֹל.", en: "There is no lid for the big pot." },
+  כִּסּוּי: {
+    he: "אֵין כִּסּוּי לַסַּפָּה הַגְּדוֹלָה.",
+    en: "There is no cover for the big sofa.",
+  },
   תָּפַר: {
     he: "הוּא תָּפַר כַּפְתּוֹר לַחֻלְצָה שֶׁלּוֹ.",
     en: "He sewed a button onto his shirt.",
@@ -935,7 +938,7 @@ export const S_B: Readonly<Record<string, Sentence>> = {
   },
   שִׁמְשִׁי: {
     he: "הִתְקַנּוּ דּוּד שִׁמְשִׁי עַל הַגַּג.",
-    en: "They installed a solar water heater on the roof.",
+    en: "We installed a solar water heater on the roof.",
   },
   עָנָן: { he: "עָנָן אֶחָד גָּדוֹל הִסְתִּיר אֶת הָהָר.", en: "One big cloud hid the mountain." },
   מְעֻנָּן: {
@@ -947,8 +950,8 @@ export const S_B: Readonly<Record<string, Sentence>> = {
     en: "A strong storm passed through here last night.",
   },
   סַעַר: {
-    he: "רוּחַ סַעַר הִפִּילָה עֵצִים בָּרְחוֹב.",
-    en: "A gale knocked trees down in the street.",
+    he: "סַעַר חָזָק הִפִּיל עֵצִים בָּרְחוֹב.",
+    en: "A strong gale knocked trees down in the street.",
   },
   שֶׁלֶג: { he: "יָרַד שֶׁלֶג לָבָן עַל הָהָר.", en: "White snow fell on the mountain." },
   הִשְׁלִיג: {
@@ -1014,7 +1017,7 @@ export const S_B: Readonly<Record<string, Sentence>> = {
     he: "חֹרֶף כָּזֶה גָּשׁוּם לֹא הָיָה שָׁנִים.",
     en: "There has not been such a rainy winter in years.",
   },
-  חָרְפִּי: { he: "לָבַשְׁתִּי מְעִיל חָרְפִּי כָּבֵד.", en: "I put on a heavy winter coat." },
+  חָרְפִּי: { he: "לָבַשְׁתִּי מְעִיל חָרְפִּי וְכָבֵד.", en: "I put on a heavy, wintry coat." },
   קַיִץ: {
     he: "קַיִץ בָּאָרֶץ הוּא חַם וְלַח מְאוֹד.",
     en: "Summer in Israel is very hot and humid.",
@@ -1022,8 +1025,8 @@ export const S_B: Readonly<Record<string, Sentence>> = {
   קֵיצִי: { he: "לָבַשְׁתִּי בֶּגֶד קֵיצִי וְקַל.", en: "I wore a light summer outfit." },
   סְתָו: { he: "סְתָו הוּא הָעוֹנָה הָאֲהוּבָה עָלַי.", en: "Autumn is my favorite season." },
   סְתָוִי: {
-    he: "יֵשׁ בַּחוּץ אֲוִיר סְתָוִי נָעִים.",
-    en: "There is pleasant autumn air outside.",
+    he: "יֵשׁ בַּחוּץ אֲוִיר סְתָוִי וְנָעִים.",
+    en: "There is pleasant, autumnal air outside.",
   },
   אָבִיב: { he: "אָבִיב הוּא זְמַן טוֹב לְטִיּוּלִים.", en: "Spring is a good time for hikes." },
   אֲבִיבִי: {

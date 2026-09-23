@@ -28,7 +28,7 @@ export const SENSES = [
     words: [
       { h: "שָׁמַע", t: "shama", g: "he heard", b: "pa'al" },
       { h: "הִשְׁמִיעַ", t: "hishmi'a", g: "he sounded, played (audio)", b: "hif'il" },
-      { h: "נִשְׁמַע", t: "nishma", g: "it sounds; was heard (מה נשמע?)", b: "nif'al" },
+      { h: "נִשְׁמָע", t: "nishma", g: "it sounds; is heard (מה נשמע?)", b: "nif'al" },
       { h: "שְׁמוּעָה", t: "shmu'a", g: "rumor", b: "noun" },
       { h: "מִשְׁמַעַת", t: "mishma'at", g: "discipline", b: "noun" },
       { h: "מַשְׁמָעוּת", t: "mashma'ut", g: "meaning, significance", b: "noun" },
@@ -171,7 +171,7 @@ export const SENSES = [
     unit: "senses-2",
     words: [
       { h: "יִפָּה", t: "yipa", g: "he beautified", b: "pi'el" },
-      { h: "הִתְיַפָּה", t: "hityapa", g: "she prettied herself up", b: "hitpa'el" },
+      { h: "הִתְיַפָּה", t: "hityapa", g: "he prettied himself up", b: "hitpa'el" },
       { h: "יָפֶה", t: "yafe", g: "beautiful; nice", b: "adj" },
       { h: "יֹפִי", t: "yofi", g: "beauty; great!", b: "noun" },
       { h: "יְפֵהפֶה", t: "yefeife", g: "gorgeous", b: "adj" },

@@ -101,7 +101,7 @@ export const NATURE = [
       { h: "יָם", t: "yam", g: "sea", b: "noun" },
       { h: "יַמַּאי", t: "yamai", g: "sailor", b: "noun" },
       { h: "יַמִּי", t: "yami", g: "marine, naval", b: "adj" },
-      { h: "יַמָּה", t: "yama", g: "westward; lake (biblical)", b: "adv" },
+      { h: "יַמָּה", t: "yama", g: "lake", b: "noun" },
     ],
   },
   {

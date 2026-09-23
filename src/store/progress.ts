@@ -4,7 +4,6 @@ import type {
   FlagReason,
   Mistake,
   Progress,
-  RootState,
   Settings,
   ShopItem,
   UnitId,
@@ -71,8 +70,11 @@ interface ProgressStore {
   setSettings: (patch: Partial<Settings>) => void;
   toggleCat: (cat: string) => void;
   setLastUnit: (id: UnitId) => void;
-  /** Record an answer: SRS update, history, xp, streak, lazy unit completion. */
-  recordAnswer: (id: string, correct: boolean, first: boolean, xp: number) => RootState;
+  /**
+   * Record an answer: SRS update, history, xp, streak, lazy unit completion. With `srs` false the
+   * root's review state is left alone (binyan lessons): only the day's counters, XP and streak.
+   */
+  recordAnswer: (id: string, correct: boolean, first: boolean, xp: number, srs?: boolean) => void;
   /** Best test score for a unit; returns true when this run turned it gold. */
   recordTest: (unit: UnitId, score: number) => boolean;
   /** Best Match time for a unit; returns true on a new record (XP awarded). */
@@ -189,10 +191,12 @@ export const useProgress = create<ProgressStore>((set, get) => ({
   setLastUnit: (lastUnit) => {
     if (get().p.lastUnit !== lastUnit) set({ p: persist({ ...get().p, lastUnit }, set) });
   },
-  recordAnswer: (id, correct, first, xp) => {
+  recordAnswer: (id, correct, first, xp, srs = true) => {
     const p = get().p;
     const now = Date.now();
-    const st = applyAnswer(p.roots[id], correct, first, now);
+    const roots = srs
+      ? { ...p.roots, [id]: applyAnswer(p.roots[id], correct, first, now) }
+      : p.roots;
     const day = dayKey();
     const h = { ...(p.history[day] ?? { ok: 0, bad: 0, xp: 0 }) };
     if (correct) h.ok++;
@@ -208,13 +212,12 @@ export const useProgress = create<ProgressStore>((set, get) => ({
         xp: p.xp + xp,
         streak,
         lastPlay,
-        roots: { ...p.roots, [id]: st },
+        roots,
         history: { ...p.history, [day]: h },
       },
       now,
     );
     set({ p: persist(next, set) });
-    return st;
   },
   recordTest: (unit, score) => {
     const p = get().p;

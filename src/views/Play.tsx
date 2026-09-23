@@ -3,7 +3,7 @@ import type React from "react";
 import { planRules, useSession, type Plan } from "../store/session";
 import { useFlag, useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
-import { KEY_ROWS, PRAISE, FINALS, keyToHebrew, rootDisplay, stripNikud } from "../lib/hebrew";
+import { KEY_ROWS, PRAISE, keyToHebrew, rootDisplay, sameLetters, stripNikud } from "../lib/hebrew";
 import { mastery } from "../lib/srs";
 import { unitTitle } from "../lib/course";
 import { COURSE } from "../store/course";
@@ -14,17 +14,20 @@ import { FLAG_LABEL, isActiveFlag } from "../lib/flags";
 import { SPEED_MISS_MS, SPEED_MS } from "../lib/speed";
 import { BINYAN_BY_ID } from "../data/binyanim";
 import { SECTION_BY_ID } from "../data/course";
+import { SENTENCES } from "../data/sentences";
+import { verbsInOrder } from "../lib/binyan";
 import { WordList } from "../components/WordList";
 import { SpeakButton } from "../components/SpeakButton";
-import { Heb } from "../components/Heb";
+import { Heb, Mixed } from "../components/Heb";
 import Summary from "./Summary";
-import type { FlagReason } from "../types";
+import type { FlagReason, Sentence } from "../types";
 
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
 /** A small tag over the question for the focused session kinds. */
 function planTag(plan: Plan): string | null {
   if (plan.kind === "daily") return "Root of the day";
+  if (plan.kind === "binyan") return `${plan.binyan} lesson`;
   if (plan.kind !== "practice") return null;
   if (plan.focus === "tricky") return "Tricky roots";
   if (plan.focus === "mistakes") return "Fix my mistakes";
@@ -50,7 +53,7 @@ export default function Play() {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const st = useSession.getState().s;
       if (!st || st.done) return;
-      if (st.learning) {
+      if (st.learning || st.intro) {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           dismissLearn();
@@ -72,7 +75,7 @@ export default function Play() {
         } else if (e.key === "Enter") submitTyped();
         else {
           const h = keyToHebrew(e.key);
-          if (h) typeKey(FINALS[h] ?? h);
+          if (h) typeKey(h);
         }
       } else if (/^[1-4]$/.test(e.key)) pickOption(+e.key - 1);
     };
@@ -238,6 +241,7 @@ export default function Play() {
         {s.answered && feedbackEach && <Sheet />}
       </div>
       {s.learning && <Learn />}
+      {s.intro && s.plan.kind === "binyan" && <BinyanIntro />}
     </div>
   );
 
@@ -317,6 +321,46 @@ export default function Play() {
             <div className="sub">You know the root. What does this one mean?</div>
           </>
         );
+      case "verbMeaning": {
+        const b = BINYAN_BY_ID[q.binyan!];
+        return (
+          <>
+            <div className="bn-clues">
+              <span className="guess-root">
+                <span className="glyph" lang="he">
+                  {rootDisplay(root)}
+                </span>
+                <span className="s">{root.short}</span>
+              </span>
+              <span className="form-badge">
+                <Heb>{b.he}</Heb>
+                <span className="id">{b.id}</span>
+              </span>
+            </div>
+            <div className="row" style={{ justifyContent: "center" }}>
+              <div className="word" lang="he">
+                {wordText(q.word!.h)}
+              </div>
+              <SpeakButton text={q.word!.h} />
+            </div>
+            <div className="sub">The root says what; the {b.id} pattern says how.</div>
+          </>
+        );
+      }
+      case "spotBinyan": {
+        const b = BINYAN_BY_ID[q.binyan!];
+        return (
+          <>
+            <div className="bn-ask">
+              Which one is <b>{b.id}</b>?
+            </div>
+            <div className="form-badge">
+              <Heb>{b.he}</Heb>
+              <span className="g">{b.gloss}</span>
+            </div>
+          </>
+        );
+      }
       case "wordRoot":
       case "whichBinyan":
       case "typeRoot":
@@ -336,13 +380,15 @@ export default function Play() {
 
   function Tiles() {
     const kind =
-      q.mode === "rootMeaning" || q.mode === "guessWord"
+      q.mode === "rootMeaning" || q.mode === "guessWord" || q.mode === "verbMeaning"
         ? "en"
         : q.mode === "buildWord" || q.mode === "cloze"
           ? "word"
           : q.mode === "whichBinyan"
             ? "binyan"
-            : "root";
+            : q.mode === "spotBinyan"
+              ? "pattern"
+              : "root";
     return (
       <div className="tiles">
         {q.opts!.map((o, i) => {
@@ -376,6 +422,12 @@ export default function Play() {
                   <span className="sub">{o.sub}</span>
                 </>
               )}
+              {/* The pattern is in the vowels: always vocalized, and no gloss to give it away. */}
+              {kind === "pattern" && (
+                <span className="word" lang="he">
+                  {o.label}
+                </span>
+              )}
             </button>
           );
         })}
@@ -384,14 +436,16 @@ export default function Play() {
   }
 
   function Typing() {
-    const L = q.answer!.length;
+    const answer = q.answer!;
+    const L = answer.length;
+    const full = s.typed.length === L;
     return (
       <>
         <div className="slots">
           {Array.from({ length: L }, (_, i) => {
             const c = s.typed[i];
             let cls = "slot";
-            if (s.answered) cls += c === q.answer![i] ? " correct" : " wrong";
+            if (s.answered) cls += c && sameLetters(c, answer[i]) ? " correct" : " wrong";
             else if (!c) cls += " empty";
             return (
               <div key={i} className={cls}>
@@ -401,26 +455,39 @@ export default function Play() {
           })}
         </div>
         {!s.answered && (
-          <div className="kb">
-            {KEY_ROWS.map((r) => (
-              <div className="krow" key={r}>
-                {r.split("").map((c) => (
-                  <button key={c} type="button" onClick={() => typeKey(c)}>
+          // The phone's Hebrew keyboard, key for key: laid out left to right like the real one.
+          <div className="kb" role="group" aria-label="Hebrew keyboard" dir="ltr">
+            {KEY_ROWS.map((r, ri) => (
+              <div className={`krow r${ri + 1}`} key={r}>
+                {[...r].map((c) => (
+                  <button key={c} type="button" lang="he" onClick={() => typeKey(c)}>
                     {c}
                   </button>
                 ))}
+                {ri === 0 && (
+                  <button
+                    type="button"
+                    className="del"
+                    aria-label="Delete"
+                    onClick={() => typeKey("⌫")}
+                  >
+                    <IconBackspace />
+                  </button>
+                )}
               </div>
             ))}
-            <div className="krow">
-              <button type="button" className="wide" onClick={() => typeKey("⌫")}>
-                delete
-              </button>
-              <button type="button" className="wide go" onClick={() => submitTyped()}>
+            <div className="krow r4">
+              <button
+                type="button"
+                className={"go" + (full ? " ready" : "")}
+                disabled={!full}
+                onClick={() => submitTyped()}
+              >
                 check
               </button>
             </div>
-            <p className="micro muted" style={{ textAlign: "center", marginTop: 6 }}>
-              Tap letters, or type — Hebrew or the English keys in the same spots.
+            <p className="micro muted">
+              Tap the letters, or type on a keyboard: Hebrew, or the English keys in the same spots.
             </p>
           </div>
         )}
@@ -432,7 +499,10 @@ export default function Play() {
     const good = s.lastCorrect;
     const st = useProgress.getState().p.roots[root.r];
     const flagged = isActiveFlag(useFlag(root.r));
-    let head: React.ReactNode = pick(PRAISE);
+    // One praise per answer, not a new one on every re-render (flagging re-renders the sheet).
+    const [praise] = useState(() => pick(PRAISE));
+    const nextRef = useFocusNoScroll<HTMLButtonElement>();
+    let head: React.ReactNode = praise;
     if (!good) {
       if (q.mode === "whichBinyan" && q.binyan) {
         head = (
@@ -454,10 +524,16 @@ export default function Play() {
             The word is <Heb>{wordText(q.word.h)}</Heb> ({q.word.g})
           </span>
         );
-      } else if (q.mode === "guessWord" && q.word) {
+      } else if ((q.mode === "guessWord" || q.mode === "verbMeaning") && q.word) {
         head = (
           <span>
             <Heb>{wordText(q.word.h)}</Heb> means “{q.word.g}”
+          </span>
+        );
+      } else if (q.mode === "spotBinyan" && q.word && q.binyan) {
+        head = (
+          <span>
+            <Heb>{q.word.h}</Heb> is the {q.binyan}
           </span>
         );
       } else {
@@ -468,46 +544,60 @@ export default function Play() {
         );
       }
     } else if (q.mode === "guessWord") {
-      head = <span>{pick(PRAISE)} New word</span>;
+      head = <span>{praise} New word</span>;
     } else if (q.mode === "hearWord") {
       head = (
         <span>
-          {pick(PRAISE)} <Heb>{wordText(q.word!.h)}</Heb> — {q.word!.g}
+          {praise} <Heb>{wordText(q.word!.h)}</Heb> — {q.word!.g}
         </span>
       );
     }
     const last = s.i + 1 >= s.queue.length;
+    // Framed like a card: the verdict pinned on top, Next pinned below, the details scroll
+    // between them — the sheet never opens scrolled past its own verdict.
     return (
-      <div className={"sheet " + (good ? "good" : "bad")}>
+      <div className={"sheet " + (good ? "good" : "bad")} role="region" aria-label="Answer">
         <div className="head">
           <span>{head}</span>
           <span className="xp tnum">{good ? `+${s.lastXp} XP` : "again soon"}</span>
         </div>
-        <div className="meta">
-          {good && (
+        <div className="sheet-body">
+          {s.plan.kind === "binyan" ? (
+            <BinyanDetails />
+          ) : (
             <>
-              <Heb className="tracked">{rootDisplay(root)}</Heb> · {root.m} ·{" "}
+              <div className="meta">
+                {good && (
+                  <>
+                    <Heb className="tracked">{rootDisplay(root)}</Heb> · {root.m} ·{" "}
+                  </>
+                )}
+                {root.cat} · mastery {mastery(st)}/5
+              </div>
+              {q.mode === "cloze" && q.sentence && q.word && (
+                <Example sentence={q.sentence} word={q.word.h} />
+              )}
+              {q.mode === "guessWord" && q.word && <NewWord />}
+              <WordList
+                words={
+                  q.mode === "guessWord" && q.word
+                    ? root.words.filter((w) => w.h !== q.word!.h).slice(0, 4)
+                    : root.words.slice(0, 6)
+                }
+                compact
+              />
             </>
           )}
-          {root.cat} · mastery {mastery(st)}/5
+          {root.note && <div className="note">{root.note}</div>}
+          <button type="button" className="btn text flag" onClick={() => toggleFlag(flagged)}>
+            {flagged ? "Flagged ✓ · tap to clear" : "Something wrong with this root?"}
+          </button>
         </div>
-        {q.mode === "cloze" && q.sentence && q.word && <Example />}
-        {q.mode === "guessWord" && q.word && <NewWord />}
-        <WordList
-          words={
-            q.mode === "guessWord" && q.word
-              ? root.words.filter((w) => w.h !== q.word!.h).slice(0, 4)
-              : root.words.slice(0, 6)
-          }
-          compact
-        />
-        {root.note && <div className="note">{root.note}</div>}
-        <button type="button" className="btn text flag" onClick={() => toggleFlag(flagged)}>
-          {flagged ? "Flagged ✓ · tap to clear" : "Something wrong with this root?"}
-        </button>
-        <button type="button" className="btn primary block" onClick={() => next()} autoFocus>
-          {last ? "Finish" : "Next"}
-        </button>
+        <div className="sheet-foot">
+          <button type="button" className="btn primary block" onClick={() => next()} ref={nextRef}>
+            {last ? "Finish" : "Next"}
+          </button>
+        </div>
       </div>
     );
   }
@@ -531,26 +621,141 @@ export default function Play() {
     );
   }
 
-  /** The cloze sentence in full, the blanked word filled back in. */
-  function Example() {
-    const w = q.word!.h;
-    const parts = q.sentence!.he.split(w);
+  /** A sentence using the word (the cloze's, filled back in), the word picked out. */
+  function Example({ sentence, word }: { sentence: Sentence; word: string }) {
+    const parts = sentence.he.split(word);
     return (
       <div className="example">
         <span lang="he" dir="rtl">
           {parts.map((part, i) => (
             <Fragment key={i}>
-              {i > 0 && <b>{wordText(w)}</b>}
+              {i > 0 && <b>{wordText(word)}</b>}
               {wordText(part)}
             </Fragment>
           ))}
         </span>
-        <span className="en">{q.sentence!.en}</span>
+        <span className="en">{sentence.en}</span>
+      </div>
+    );
+  }
+
+  /**
+   * Binyan lessons: the verb in a sentence, then its siblings — the same root in the other
+   * binyanim (or, after "spot the pattern", the four verbs that were on the tiles), this one lit.
+   */
+  function BinyanDetails() {
+    const w = q.word!;
+    const b = BINYAN_BY_ID[w.b as keyof typeof BINYAN_BY_ID];
+    const sentence = q.sentence ?? SENTENCES[w.h];
+    const siblings = verbsInOrder(root);
+    const tiles = q.mode === "spotBinyan" ? q.opts!.flatMap((o) => (o.w ? [o.w] : [])) : null;
+    return (
+      <>
+        <div className="meta">
+          <Heb className="tracked">{rootDisplay(root)}</Heb> · {root.m}
+          {b && (
+            <>
+              {" "}
+              · <Heb>{b.he}</Heb> {b.id}
+            </>
+          )}
+        </div>
+        {tiles ? (
+          <>
+            <div className="bn-sub">The four verbs</div>
+            <WordList words={tiles} compact hilite={w.h} />
+          </>
+        ) : (
+          <>
+            {sentence && <Example sentence={sentence} word={w.h} />}
+            <div className="bn-sub">
+              {siblings.length > 1 ? "Same root, other binyanim" : "The family"}
+            </div>
+            <WordList
+              words={siblings.length > 1 ? siblings : root.words.slice(0, 6)}
+              compact
+              hilite={w.h}
+            />
+          </>
+        )}
+      </>
+    );
+  }
+
+  /** Binyan lessons open on the pattern: how to spot it, its tenses, what it tends to mean. */
+  function BinyanIntro() {
+    const goRef = useFocusNoScroll<HTMLButtonElement>();
+    if (s.plan.kind !== "binyan") return null;
+    const b = BINYAN_BY_ID[s.plan.binyan];
+    const verbs = new Set(s.words?.map((w) => w.h)).size;
+    const tenses: [string, string | undefined][] = [
+      ["past", b.forms.past],
+      ["present", b.forms.present],
+      ["future", b.forms.future],
+      ["to …", b.forms.inf],
+    ];
+    return (
+      <div className="learn bn-intro">
+        <div className="eyebrow">Binyan lesson</div>
+        <div className="glyph hero" lang="he">
+          {b.skeleton}
+        </div>
+        <div className="m">{b.id}</div>
+        <div className="muted">{b.gloss}</div>
+        <div className="bn-spot">
+          <Mixed text={b.spot} />
+        </div>
+        <div className="bn-tenses" aria-label={`${b.id} of ${b.forms.root}`}>
+          {tenses
+            .filter(([, he]) => !!he)
+            .map(([label, he]) => (
+              <div key={label}>
+                <span className="word" lang="he">
+                  {he}
+                </span>
+                <span className="l">{label}</span>
+              </div>
+            ))}
+        </div>
+        <ul className="bn-uses">
+          {b.uses.map((u) => (
+            <li key={u.he}>
+              <span className="word" lang="he">
+                {u.he}
+              </span>
+              <span>
+                <b>{u.en}</b> · <Mixed text={u.what} />
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="muted small">{verbs} verbs: meet each one, then use it.</div>
+        <div className="spacer" />
+        <button
+          type="button"
+          className="btn primary block big"
+          onClick={() => dismissLearn()}
+          ref={goRef}
+        >
+          Start
+        </button>
+        <button
+          type="button"
+          className="btn ghost block"
+          style={{ marginTop: 10 }}
+          onClick={() => {
+            useSession.getState().clear();
+            setView("binyan");
+          }}
+        >
+          Not now
+        </button>
       </div>
     );
   }
 
   function Learn() {
+    const goRef = useFocusNoScroll<HTMLButtonElement>();
     return (
       <div className="learn">
         <div className="eyebrow">New root</div>
@@ -572,7 +777,7 @@ export default function Play() {
           type="button"
           className="btn primary block big"
           onClick={() => dismissLearn()}
-          autoFocus
+          ref={goRef}
         >
           Got it — quiz me
         </button>
@@ -591,6 +796,36 @@ export default function Play() {
     );
   }
 }
+
+/**
+ * Focus an element once it mounts without scrolling it into view. `autoFocus` scrolls its
+ * nearest scroller, which opened the answer sheet and the learn card scrolled to their buttons,
+ * past the verdict and the root.
+ */
+function useFocusNoScroll<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => ref.current?.focus({ preventScroll: true }), []);
+  return ref;
+}
+
+/** The keyboard's delete key: the platform's backspace glyph. */
+const IconBackspace = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      d="M9 5h10a2 2 0 012 2v10a2 2 0 01-2 2H9l-6-7 6-7z"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12 9.5l5 5M17 9.5l-5 5"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    />
+  </svg>
+);
 
 function HearPrompt({ text }: { text: string }) {
   const played = useRef(false);

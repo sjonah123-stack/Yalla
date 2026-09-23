@@ -187,7 +187,7 @@ export const EDUCATION = [
     cat: "education",
     unit: "education-2",
     words: [
-      { h: "צִיּוּן", t: "tziyun", g: "mark, score; Zion", b: "noun" },
+      { h: "צִיּוּן", t: "tziyun", g: "mark, score; marker", b: "noun" },
       { h: "צִיֵּן", t: "tziyen", g: "he noted, pointed out", b: "pi'el" },
       { h: "הִצְטַיֵּן", t: "hitztayen", g: "he excelled", b: "hitpa'el" },
       { h: "מְצֻיָּן", t: "metzuyan", g: "excellent", b: "adj" },
@@ -338,7 +338,7 @@ export const EDUCATION = [
     words: [
       { h: "בָּגַר", t: "bagar", g: "he matured, grew up", b: "pa'al" },
       { h: "בּוֹגֵר", t: "boger", g: "graduate; adult", b: "noun" },
-      { h: "בַּגְרוּת", t: "bagrut", g: "matriculation exams; adulthood", b: "noun" },
+      { h: "בַּגְרוּת", t: "bagrut", g: "matriculation exam; adulthood", b: "noun" },
       { h: "מְבֻגָּר", t: "mevugar", g: "grown-up, adult", b: "adj" },
       { h: "הִתְבַּגֵּר", t: "hitbager", g: "he came of age", b: "hitpa'el" },
       { h: "הִתְבַּגְּרוּת", t: "hitbagrut", g: "adolescence, puberty", b: "noun" },

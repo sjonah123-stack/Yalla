@@ -114,7 +114,7 @@ export const ANIMALS = [
     unit: "animals-1",
     words: [
       { h: "שָׁתַל", t: "shatal", g: "he planted", b: "pa'al" },
-      { h: "שְׁתִיל", t: "shatil", g: "seedling", b: "noun" },
+      { h: "שָׁתִיל", t: "shatil", g: "seedling", b: "noun" },
       { h: "שְׁתִילָה", t: "shtila", g: "planting out", b: "noun" },
       { h: "מַשְׁתֵּלָה", t: "mashtela", g: "plant nursery", b: "noun" },
       { h: "הִשְׁתִּיל", t: "hishtil", g: "he transplanted", b: "hif'il" },
@@ -278,7 +278,7 @@ export const ANIMALS = [
     unit: "animals-3",
     words: [
       { h: "קָטַף", t: "kataf", g: "he picked fruit", b: "pa'al" },
-      { h: "קְטִיף", t: "katif", g: "fruit picking", b: "noun" },
+      { h: "קָטִיף", t: "katif", g: "fruit picking", b: "noun" },
       { h: "נִקְטַף", t: "niktaf", g: "it was picked", b: "nif'al" },
       { h: "קְטִיפָה", t: "ktifa", g: "velvet", b: "noun" },
     ],

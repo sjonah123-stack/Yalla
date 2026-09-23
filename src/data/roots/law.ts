@@ -108,7 +108,6 @@ export const LAW = [
     words: [
       { h: "צָבָא", t: "tzava", g: "army", b: "noun" },
       { h: "צְבָאִי", t: "tzva'i", g: "military", b: "adj" },
-      { h: "צָבָר", t: "tzavar", g: "(different root: accumulated)", b: "pa'al" },
     ],
   },
   {

@@ -5,7 +5,7 @@ export const S_C: Readonly<Record<string, Sentence>> = {
   // technology & media
   חַשְׁמַל: {
     he: "אֵין חַשְׁמַל בַּבַּיִת מֵאָז הַסְּעָרָה.",
-    en: "There is no electricity in the house since the storm.",
+    en: "There has been no electricity in the house since the storm.",
   },
   חַשְׁמַלִּי: {
     he: "קָנִינוּ קֻמְקוּם חַשְׁמַלִּי חָדָשׁ לַמִּטְבָּח.",
@@ -315,7 +315,7 @@ export const S_C: Readonly<Record<string, Sentence>> = {
     he: "אֵין שׁוּם הוֹכָחָה שֶׁהוּא הָיָה שָׁם.",
     en: "There is no proof that he was there.",
   },
-  בָּגַר: { he: "הוּא בָּגַר מְאוֹד מֵאָז הַצָּבָא.", en: "He matured a lot since the army." },
+  בָּגַר: { he: "הוּא בָּגַר מְאוֹד מֵאָז הַצָּבָא.", en: "He has matured a lot since the army." },
   בּוֹגֵר: {
     he: "אָחִי בּוֹגֵר טֶכְנִיּוֹן וְעוֹבֵד בְּחֵיפָה.",
     en: "My brother is a Technion graduate and works in Haifa.",
@@ -520,8 +520,8 @@ export const S_C: Readonly<Record<string, Sentence>> = {
     en: "The librarian catalogued all the new books.",
   },
   מֶרְכָּז: {
-    he: "נִפְגַּשְׁנוּ בְּמֶרְכָּז הָעִיר לְיַד הַשָּׁעוֹן.",
-    en: "We met in the city center by the clock.",
+    he: "נִפְגַּשְׁנוּ בְּמֶרְכָּז מִסְחָרִי לְיַד מִגְדַּל הַשָּׁעוֹן.",
+    en: "We met at a shopping centre by the clock tower.",
   },
   מֶרְכָּזִי: {
     he: "הַמָּלוֹן נִמְצָא בְּמָקוֹם מֶרְכָּזִי מְאוֹד.",
@@ -541,7 +541,7 @@ export const S_C: Readonly<Record<string, Sentence>> = {
   },
   לָן: {
     he: "הוּא לָן אֵצֶל חֲבֵרִים בַּצָּפוֹן.",
-    en: "He stayed overnight at friends in the north.",
+    en: "He stayed overnight with friends in the north.",
   },
   עָף: {
     he: "הַכּוֹבַע שֶׁלִּי עָף בָּרוּחַ הַחֲזָקָה.",
@@ -940,8 +940,8 @@ export const S_C: Readonly<Record<string, Sentence>> = {
     he: "הוּא שָׁתַל פְּרָחִים לְיַד הַכְּנִיסָה.",
     en: "He planted flowers by the entrance.",
   },
-  שְׁתִיל: {
-    he: "כָּל שְׁתִיל צָרִיךְ מַיִם וְשֶׁמֶשׁ.",
+  שָׁתִיל: {
+    he: "כָּל שָׁתִיל צָרִיךְ מַיִם וְשֶׁמֶשׁ.",
     en: "Every seedling needs water and sun.",
   },
   חָרַשׁ: {
@@ -1013,9 +1013,9 @@ export const S_C: Readonly<Record<string, Sentence>> = {
     he: "הַיֶּלֶד קָטַף תַּפּוּחַ מִן הָעֵץ.",
     en: "The boy picked an apple from the tree.",
   },
-  קְטִיף: {
-    he: "יָצָאנוּ לִקְטִיף דֻּבְדְּבָנִים בַּצָּפוֹן.",
-    en: "We went out cherry picking in the north.",
+  קָטִיף: {
+    he: "בְּסוֹף הַקַּיִץ יָצָאנוּ לְקָטִיף בַּקִּבּוּץ.",
+    en: "At the end of the summer we went fruit picking on the kibbutz.",
   },
   גָּזַז: {
     he: "הָרוֹעֶה גָּזַז אֶת הַצֹּאן בָּאָבִיב.",
@@ -1080,7 +1080,7 @@ export const S_C: Readonly<Record<string, Sentence>> = {
   },
   נִמְדַּד: {
     he: "כָּל תַּלְמִיד נִמְדַּד לְפִי הַמַּאֲמָץ שֶׁלּוֹ.",
-    en: "Every pupil is measured by his own effort.",
+    en: "Every pupil was measured by his own effort.",
   },
   חִלֵּק: {
     he: "הַמּוֹרֶה חִלֵּק אֶת הַדַּפִּים לַתַּלְמִידִים.",
@@ -1100,8 +1100,8 @@ export const S_C: Readonly<Record<string, Sentence>> = {
   },
   הוֹסִיף: { he: "הוּא הוֹסִיף עוֹד מֶלַח לַמָּרָק.", en: "He added more salt to the soup." },
   הוֹסָפָה: {
-    he: "בִּקַּשְׁתִּי הוֹסָפָה שֶׁל אֹרֶז בַּצַּלַּחַת.",
-    en: "I asked for an extra helping of rice on the plate.",
+    he: "הוֹסָפָה שֶׁל שֵׁם לָרְשִׁימָה לוֹקַחַת רַק דַּקָּה.",
+    en: "Adding a name to the list takes only a minute.",
   },
   חִסֵּר: {
     he: "הַיֶּלֶד חִסֵּר שְׁתַּיִם מֵעֶשֶׂר וְקִבֵּל שְׁמוֹנֶה.",
@@ -1159,8 +1159,8 @@ export const S_C: Readonly<Record<string, Sentence>> = {
     en: "We paid two hundred shekels for the tickets.",
   },
   אָחוּז: {
-    he: "רַק אָחוּז אֶחָד מִן הַכִּתָּה נִכְשַׁל.",
-    en: "Only one percent of the class failed.",
+    he: "רַק אָחוּז אֶחָד מִן הַתַּלְמִידִים בָּאָרֶץ נִכְשַׁל.",
+    en: "Only one percent of the pupils in the country failed.",
   },
   אָחַז: {
     he: "הוּא אָחַז בַּיָּד שֶׁל הַיֶּלֶד בַּכְּבִישׁ.",
@@ -1171,7 +1171,7 @@ export const S_C: Readonly<Record<string, Sentence>> = {
     en: "A young couple with a baby sat next to us.",
   },
   זוּגִי: {
-    he: "מִסְפָּר זוּגִי מִתְחַלֵּק תָּמִיד בִּשְׁנַיִם.",
+    he: "מִסְפָּר זוּגִי מִתְחַלֵּק תָּמִיד בִּשְׁתַּיִם.",
     en: "An even number is always divisible by two.",
   },
   נְקֻדָּה: { he: "יֵשׁ נְקֻדָּה שְׁחֹרָה עַל הַקִּיר.", en: "There is a black dot on the wall." },

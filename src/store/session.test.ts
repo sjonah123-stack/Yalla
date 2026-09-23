@@ -8,6 +8,7 @@ import { SPEED_LEN } from "../lib/speed";
 import { dayKey } from "../lib/srs";
 import { applyAnswer, isTricky } from "../lib/srs";
 import { ROOTS } from "../data/roots";
+import { makeQuestion } from "../lib/quiz";
 
 /** Drive a whole session through the store the way the Play view does. */
 function playThrough(alwaysRight: boolean): void {
@@ -293,3 +294,131 @@ describe("v1.0 sessions", () => {
     ).toBe(false);
   });
 });
+
+describe("typing", () => {
+  beforeEach(() => {
+    useProgress.getState().adopt({ ...defaultProgress(), onboardedAt: 1 });
+    useSession.getState().clear();
+  });
+
+  /** Start a lesson and swap its first question for a typeRoot on `id`. */
+  function typeRootOn(id: string) {
+    useSession.getState().start({ kind: "lesson", unit: COURSE.units[0].id });
+    const s = useSession.getState().s!;
+    const root = ROOTS.find((r) => r.r === id)!;
+    useSession.setState({
+      s: { ...s, learning: false, q: makeQuestion(root, ROOTS, "typeRoot") },
+    });
+  }
+  const type = (letters: string) => {
+    for (const c of letters) useSession.getState().typeKey(c);
+  };
+
+  it("filling the last slot waits for check, so a slip can still be deleted", () => {
+    typeRootOn("כתב");
+    type("כתפ");
+    expect(useSession.getState().s!.answered).toBe(false);
+    useSession.getState().typeKey("⌫");
+    type("בב"); // the extra letter is ignored
+    expect(useSession.getState().s!.typed.join("")).toBe("כתב");
+    useSession.getState().submitTyped();
+    expect(useSession.getState().s!.answered).toBe(true);
+    expect(useSession.getState().s!.lastCorrect).toBe(true);
+  });
+
+  it("a root spelled with a final letter is right typed with the final or the medial form", () => {
+    typeRootOn("גוף");
+    type("גוף");
+    useSession.getState().submitTyped();
+    expect(useSession.getState().s!.lastCorrect).toBe(true);
+
+    typeRootOn("גוף");
+    type("גופ");
+    useSession.getState().submitTyped();
+    expect(useSession.getState().s!.lastCorrect).toBe(true);
+
+    typeRootOn("גוף");
+    type("גוב");
+    useSession.getState().submitTyped();
+    expect(useSession.getState().s!.lastCorrect).toBe(false);
+  });
+
+  it("check does nothing until every slot is filled", () => {
+    typeRootOn("כתב");
+    type("כת");
+    useSession.getState().submitTyped();
+    expect(useSession.getState().s!.answered).toBe(false);
+  });
+});
+
+describe("binyan lessons", () => {
+  beforeEach(() => {
+    useProgress.getState().adopt({ ...defaultProgress(), onboardedAt: 1 });
+    useSession.getState().clear();
+  });
+
+  it("opens on the pattern card, fixes a verb of the binyan per question, and pays like practice", () => {
+    expect(useSession.getState().start({ kind: "binyan", binyan: "pi'el" })).toBe(true);
+    const s0 = useSession.getState().s!;
+    expect(s0.intro).toBe(true);
+    expect(s0.words!.every((w) => w.b === "pi'el")).toBe(true);
+    useSession.getState().dismissLearn();
+    expect(useSession.getState().s!.intro).toBe(false);
+    const asked = new Set<string>();
+    for (let guard = 0; guard < 60 && !useSession.getState().s!.done; guard++) {
+      const s = useSession.getState().s!;
+      if (s.answered) {
+        useSession.getState().next();
+        continue;
+      }
+      asked.add(s.q!.word!.h);
+      expect(s.q!.word!.b).toBe("pi'el");
+      useSession.getState().pickOption(s.q!.opts!.findIndex((o) => o.ok));
+    }
+    const s = useSession.getState().s!;
+    expect(s.done).toBe(true);
+    expect(s.bad).toBe(0);
+    expect(s.rewards!.parts.base).toBe(GEM_BASE);
+    expect(s.rewards!.parts.perfect).toBe(GEM_PERFECT);
+    const p = useProgress.getState().p;
+    // Words are remembered (met, then used: two right answers = known)…
+    for (const h of asked) expect(p.words[h]).toEqual({ ok: 2, bad: 0 });
+    // …while the path's review schedule is untouched.
+    expect(Object.keys(p.roots)).toHaveLength(0);
+    expect(p.history[dayKey()].sessions).toBe(1);
+  });
+
+  it("keeps misses on roots still ahead out of the mistake notebook", () => {
+    useSession.getState().start({ kind: "binyan", binyan: "hif'il" });
+    useSession.getState().dismissLearn();
+    const s = useSession.getState().s!;
+    useSession.getState().pickOption(s.q!.opts!.findIndex((o) => !o.ok));
+    const p = useProgress.getState().p;
+    expect(p.words[s.q!.word!.h]).toEqual({ ok: 0, bad: 1 });
+    expect(p.mistakes).toHaveLength(0);
+    expect(p.roots[s.q!.root.r]).toBeUndefined();
+    // The miss comes back later in the lesson.
+    expect(useSession.getState().s!.queue.length).toBe(s.queue.length + 1);
+  });
+});
+
+describe("quitting", () => {
+  beforeEach(() => {
+    useProgress.getState().adopt({ ...defaultProgress(), onboardedAt: 1 });
+    useSession.getState().clear();
+  });
+  it("before any answer leaves without a summary; after one, ends on the summary", async () => {
+    useSession.getState().start({ kind: "binyan", binyan: "pi'el" });
+    await useSession.getState().quit();
+    expect(useSession.getState().s).toBeNull();
+    expect(useProgress.getState().p.history[dayKey()]).toBeUndefined();
+
+    useSession.getState().start({ kind: "binyan", binyan: "pi'el" });
+    useSession.getState().dismissLearn();
+    const s = useSession.getState().s!;
+    useSession.getState().pickOption(s.q!.opts!.findIndex((o) => o.ok));
+    await useSession.getState().quit();
+    expect(useSession.getState().s!.done).toBe(true);
+  });
+});
+

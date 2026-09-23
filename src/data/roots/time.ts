@@ -209,7 +209,7 @@ export const TIME = [
       { h: "רִגְעִי", t: "rig'i", g: "momentary", b: "adj" },
       { h: "כְּרֶגַע", t: "karega", g: "at the moment", b: "adv" },
       { h: "הִרְגִּיעַ", t: "hirgi'a", g: "he calmed (someone)", b: "hif'il" },
-      { h: "נִרְגָּע", t: "nirga", g: "he calmed down", b: "nif'al" },
+      { h: "נִרְגַּע", t: "nirga", g: "he calmed down", b: "nif'al" },
     ],
   },
   {

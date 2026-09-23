@@ -78,6 +78,7 @@ export const HOME = [
     words: [
       { h: "סִדֵּר", t: "sider", g: "he arranged, tidied; (slang) fixed someone", b: "pi'el" },
       { h: "הִסְתַּדֵּר", t: "histader", g: "he managed, got along", b: "hitpa'el" },
+      { h: "הִסְדִּיר", t: "hisdir", g: "he regulated, arranged", b: "hif'il" },
       { h: "סֵדֶר", t: "seder", g: "order; Passover seder", b: "noun" },
       { h: "בְּסֵדֶר", t: "beseder", g: "okay, fine", b: "adv" },
       { h: "סִדּוּר", t: "sidur", g: "arrangement; prayer book", b: "noun" },
@@ -215,7 +216,6 @@ export const HOME = [
       { h: "דּוֹר", t: "dor", g: "generation", b: "noun" },
       { h: "דִּירָה", t: "dira", g: "apartment", b: "noun" },
       { h: "מָדוֹר", t: "mador", g: "section, column (newspaper)", b: "noun" },
-      { h: "הִסְדִּיר", t: "hisdir", g: "(different root סדר: regulated)", b: "hif'il" },
     ],
   },
   {
