@@ -87,8 +87,9 @@ export const WEATHER = [
       { h: "רַעַם", t: "ra'am", g: "thunder", b: "noun" },
       { h: "רָעַם", t: "ra'am", g: "it thundered", b: "pa'al" },
       { h: "הִרְעִים", t: "hir'im", g: "he thundered, boomed", b: "hif'il" },
-      { h: "רַעֲמָה", t: "ra'ama", g: "mane (same letters, different origin)", b: "noun" },
+      { h: "רַעֲמָה", t: "ra'ama", g: "mane", b: "noun" },
     ],
+    note: "Same letters, different origin: רַעֲמָה is a mane.",
   },
   {
     r: "יבש",
@@ -117,9 +118,10 @@ export const WEATHER = [
       { h: "לַח", t: "lach", g: "humid, damp", b: "adj" },
       { h: "לַחוּת", t: "lachut", g: "humidity", b: "noun" },
       { h: "לֵחָה", t: "lecha", g: "moisture; phlegm", b: "noun" },
-      { h: "לִחְלֵחַ", t: "lichle'ach", g: "he moistened (reduplicated)", b: "pi'el" },
+      { h: "לִחְלֵחַ", t: "lichle'ach", g: "he moistened", b: "pi'el" },
       { h: "לַחְלוּחִית", t: "lachluchit", g: "dampness", b: "noun" },
     ],
+    note: "Doubled forms: לִחְלֵחַ and לַחְלוּחִית repeat the core לח.",
   },
   {
     r: "קפא",
@@ -209,8 +211,8 @@ export const WEATHER = [
       { h: "קַיִץ", t: "kayitz", g: "summer", b: "noun" },
       { h: "קֵיצִי", t: "keitzi", g: "summery", b: "adj" },
       { h: "הֵקִיץ", t: "hekitz", g: "he awoke", b: "hif'il" },
-      { h: "קַיְטָנָה", t: "kaytana", g: "summer day camp (variant קיט)", b: "noun" },
     ],
+    note: "קַיְטָנָה (summer camp) comes from קַיִט, the Aramaic form of קַיִץ.",
   },
   {
     r: "סתו",

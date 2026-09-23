@@ -221,8 +221,10 @@ export const SENSES = [
       { h: "אִמּוּן", t: "imun", g: "training, practice", b: "noun" },
       { h: "אָמֵן", t: "amen", g: "amen", b: "interj" },
       { h: "נֶאֱמָן", t: "ne'eman", g: "loyal, faithful", b: "adj" },
-      { h: "אֻמְנוּת", t: "umanut", g: "craft; art (אמנות)", b: "noun" },
+      { h: "אֻמָּנוּת", t: "umanut", g: "craft, trade", b: "noun" },
+      { h: "אָמָּנוּת", t: "omanut", g: "art", b: "noun" },
     ],
+    note: "Art (אָמָּנוּת) and craft (אֻמָּנוּת) are one vowel apart.",
   },
   {
     r: "טעה",
@@ -266,8 +268,8 @@ export const SENSES = [
       { h: "רַע", t: "ra", g: "bad, evil", b: "adj" },
       { h: "רָעָה", t: "ra'a", g: "evil, harm", b: "noun" },
       { h: "הֵרַע", t: "hera", g: "he harmed, did evil", b: "hif'il" },
-      { h: "רָשָׁע", t: "rasha", g: "wicked person (root רשע)", b: "noun" },
     ],
+    note: "רָשָׁע (wicked) sounds close, but it has its own root, רשע.",
   },
   {
     r: "נעם",

@@ -12,10 +12,11 @@ export const MOVEMENT = [
     words: [
       { h: "הָלַךְ", t: "halach", g: "he went, walked", b: "pa'al" },
       { h: "הֲלִיכָה", t: "halicha", g: "walking; a walk", b: "noun" },
-      { h: "הֲלָכָה", t: "halacha", g: "Jewish law (the 'way to go')", b: "noun" },
+      { h: "הֲלָכָה", t: "halacha", g: "Jewish law", b: "noun" },
       { h: "תַּהֲלִיךְ", t: "tahalich", g: "process", b: "noun" },
       { h: "מַהֲלָךְ", t: "mahalach", g: "course, move (e.g. in chess)", b: "noun" },
     ],
+    note: "Jewish law, הֲלָכָה, is literally 'the way to go'.",
   },
   {
     r: "בוא",
@@ -92,8 +93,9 @@ export const MOVEMENT = [
       { h: "הוֹרִיד", t: "horid", g: "he lowered, downloaded, took off", b: "hif'il" },
       { h: "יְרִידָה", t: "yerida", g: "descent; leaving Israel; decline", b: "noun" },
       { h: "הוֹרָדָה", t: "horada", g: "download; reduction", b: "noun" },
-      { h: "יַרְדֵּן", t: "yarden", g: "Jordan (river that 'descends')", b: "noun" },
+      { h: "יַרְדֵּן", t: "yarden", g: "Jordan (river)", b: "noun" },
     ],
+    note: "The Jordan, יַרְדֵּן, is the river that goes down: the Talmud reads it יוֹרֵד מִדָּן, 'descending from Dan'.",
   },
   {
     r: "ישב",
@@ -214,13 +216,9 @@ export const MOVEMENT = [
       { h: "עָבָר", t: "avar", g: "the past", b: "noun" },
       { h: "עֲבֵרָה", t: "avera", g: "transgression, offense", b: "noun" },
       { h: "מַעֲבָר", t: "ma'avar", g: "passage, transition, crossing", b: "noun" },
-      {
-        h: "עִבְרִית",
-        t: "ivrit",
-        g: "Hebrew (language of those 'from across' the river)",
-        b: "noun",
-      },
+      { h: "עִבְרִית", t: "ivrit", g: "Hebrew", b: "noun" },
     ],
+    note: "עִבְרִית is the language of the עִבְרִים, traditionally 'those from across' the river, like Abraham הָעִבְרִי.",
   },
   {
     r: "חזר",
@@ -282,6 +280,7 @@ export const MOVEMENT = [
       { h: "מִנְהָג", t: "minhag", g: "custom", b: "noun" },
       { h: "נְהִיגָה", t: "nehiga", g: "driving", b: "noun" },
       { h: "מַנְהִיג", t: "manhig", g: "leader", b: "noun" },
+      { h: "הִתְנַהֲגוּת", t: "hitnahagut", g: "behavior", b: "noun" },
     ],
   },
   {
@@ -312,7 +311,6 @@ export const MOVEMENT = [
       { h: "הִסְתּוֹבֵב", t: "histovev", g: "he turned around; wandered", b: "hitpa'el" },
       { h: "סִבָּה", t: "siba", g: "reason, cause", b: "noun" },
       { h: "סְבִיבָה", t: "sviva", g: "environment, surroundings", b: "noun" },
-      { h: "מֵסָב", t: "mesav", g: "circular (memo); around", b: "noun" },
       { h: "סִבּוּב", t: "sivuv", g: "a turn, round, lap", b: "noun" },
     ],
   },

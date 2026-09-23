@@ -131,8 +131,8 @@ export const NATURE = [
       { h: "הִפְרִיחַ", t: "hifri'ach", g: "he made bloom; launched", b: "hif'il" },
       { h: "פֶּרַח", t: "perach", g: "flower", b: "noun" },
       { h: "פְּרִיחָה", t: "pricha", g: "blossoming; flourishing", b: "noun" },
-      { h: "פַּרְפַּר", t: "parpar", g: "butterfly (related, reduplicated)", b: "noun" },
     ],
+    note: "פַּרְפַּר (butterfly) isn't from this root: it has its own four-letter root, פרפר (פִּרְפֵּר, it fluttered).",
   },
   {
     r: "זרע",
@@ -145,8 +145,9 @@ export const NATURE = [
       { h: "זָרַע", t: "zara", g: "he sowed", b: "pa'al" },
       { h: "זֶרַע", t: "zera", g: "seed; offspring", b: "noun" },
       { h: "מִזְרָע", t: "mizra", g: "sown field", b: "noun" },
-      { h: "זְרוֹעַ", t: "zro'a", g: "arm (different origin)", b: "noun" },
+      { h: "זְרוֹעַ", t: "zro'a", g: "arm", b: "noun" },
     ],
+    note: "Same letters, different origin: זְרוֹעַ is an arm.",
   },
   {
     r: "פרה",

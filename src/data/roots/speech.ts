@@ -108,8 +108,9 @@ export const SPEECH = [
       { h: "עָנָה", t: "ana", g: "he answered", b: "pa'al" },
       { h: "נַעֲנָה", t: "na'ana", g: "he responded (to a request)", b: "nif'al" },
       { h: "מַעֲנֶה", t: "ma'ane", g: "response, reply", b: "noun" },
-      { h: "תַּעֲנִית", t: "ta'anit", g: "fast day (from a related sense: afflict)", b: "noun" },
+      { h: "תַּעֲנִית", t: "ta'anit", g: "fast day", b: "noun" },
     ],
+    note: "תַּעֲנִית (fast day) comes from a homograph, ענה 'afflict': on Yom Kippur you 'afflict your souls' (Leviticus 16:29).",
   },
   {
     r: "בקש",

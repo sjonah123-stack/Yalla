@@ -148,8 +148,8 @@ export const JEWISH = [
       { h: "דָּת", t: "dat", g: "religion", b: "noun" },
       { h: "דָּתִי", t: "dati", g: "religious, observant", b: "adj" },
       { h: "דָּתִיּוּת", t: "datiyut", g: "religiosity", b: "noun" },
-      { h: "חִלּוֹנִי", t: "chiloni", g: "secular (from חול)", b: "adj" },
     ],
+    note: "The opposite of דָּתִי is חִלּוֹנִי (secular), from a different root: חלל, 'profane'.",
   },
   {
     r: "צום",
@@ -219,8 +219,9 @@ export const JEWISH = [
       { h: "כִּפֵּר", t: "kiper", g: "he atoned", b: "pi'el" },
       { h: "כַּפָּרָה", t: "kapara", g: "atonement", b: "noun" },
       { h: "יוֹם כִּפּוּר", t: "yom kipur", g: "Yom Kippur", b: "noun" },
-      { h: "כְּפָר", t: "kfar", g: "village (same letters)", b: "noun" },
+      { h: "כְּפָר", t: "kfar", g: "village", b: "noun" },
     ],
+    note: "Same letters, unrelated meaning: כְּפָר is a village.",
   },
   {
     r: "טהר",

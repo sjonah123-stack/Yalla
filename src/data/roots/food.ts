@@ -89,8 +89,8 @@ export const FOOD = [
       { h: "בָּרִיא", t: "bari", g: "healthy", b: "adj" },
       { h: "בְּרִיאוּת", t: "bri'ut", g: "health", b: "noun" },
       { h: "בָּרָא", t: "bara", g: "he created", b: "pa'al" },
-      { h: "בְּרִיאָה", t: "bri'a", g: "creation", b: "noun" },
     ],
+    note: "בָּרָא (he created) only shares the letters. Its noun, בְּרִיאָה (creation), looks exactly like בְּרִיאָה, 'healthy' (f.).",
   },
   {
     r: "נשם",

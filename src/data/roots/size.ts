@@ -45,10 +45,11 @@ export const SIZE = [
       { h: "חִדֵּשׁ", t: "chidesh", g: "he renewed, innovated", b: "pi'el" },
       { h: "הִתְחַדֵּשׁ", t: "hitchadesh", g: "it was renewed", b: "hitpa'el" },
       { h: "חָדָשׁ", t: "chadash", g: "new", b: "adj" },
-      { h: "חֹדֶשׁ", t: "chodesh", g: "month (from the new moon)", b: "noun" },
+      { h: "חֹדֶשׁ", t: "chodesh", g: "month", b: "noun" },
       { h: "חֲדָשׁוֹת", t: "chadashot", g: "news", b: "noun" },
       { h: "חִדּוּשׁ", t: "chidush", g: "innovation, novelty", b: "noun" },
     ],
+    note: "A month, חֹדֶשׁ, is named for the new moon that begins it.",
   },
   {
     r: "שנה",
@@ -268,7 +269,6 @@ export const SIZE = [
     words: [
       { h: "צַר", t: "tzar", g: "narrow; (צר לי) I'm sorry", b: "adj" },
       { h: "צָרָה", t: "tzara", g: "trouble", b: "noun" },
-      { h: "צוֹרֶךְ", t: "tzorech", g: "need (root צרך)", b: "noun" },
       { h: "מֵצַר", t: "metzar", g: "strait", b: "noun" },
       { h: "הֵצֵר", t: "hetzer", g: "he narrowed; regretted (מצר על)", b: "hif'il" },
     ],

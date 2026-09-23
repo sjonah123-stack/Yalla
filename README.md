@@ -2,7 +2,7 @@
 
 A personal trainer for Hebrew roots (shorashim), built like a mix of Duolingo and Quizlet: a **course path** through every root in the bank, organized by theme into units of ~8 roots, with **flashcards, a timed match game, a unit test and a placement test** inside each unit. The headline number is *roots memorized*, and "memorized" is earned honestly — two first-try correct answers on separate days. Lessons pay **gems** into a chest, milestones earn **seals**, and a first-run welcome screen offers placement or the first root.
 
-506 hand-curated roots, 2,521 vocalized words with transliteration, gloss and binyan, in 25 themed sections. The bank is built to grow to 500+ in batches.
+506 hand-curated roots, 2,510 vocalized words with transliteration, gloss and binyan, in 25 themed sections. The bank is built to grow to 500+ in batches.
 
 Vite + React + TypeScript. Installable as a PWA, fully offline, or buildable as one self-contained HTML file. Live at https://yalla-roots.web.app (the canonical address; the older https://yalla-677b9.web.app still serves the app and moves people over once nothing local would be lost).
 

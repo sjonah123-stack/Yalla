@@ -101,8 +101,9 @@ export const FEELINGS = [
     words: [
       { h: "קִוָּה", t: "kiva", g: "he hoped", b: "pi'el" },
       { h: "תִּקְוָה", t: "tikva", g: "hope", b: "noun" },
-      { h: "מִקְוֶה", t: "mikve", g: "ritual bath (a 'gathering' of water)", b: "noun" },
+      { h: "מִקְוֶה", t: "mikve", g: "ritual bath", b: "noun" },
     ],
+    note: "The root also means 'gather': a מִקְוֶה is a gathering of water, as in Genesis 1:10.",
   },
   {
     r: "צחק",

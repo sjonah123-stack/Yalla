@@ -223,8 +223,9 @@ export const TECH = [
       { h: "סִרְטוֹן", t: "sirton", g: "video clip", b: "noun" },
       { h: "הִסְרִיט", t: "hisrit", g: "he filmed, shot", b: "hif'il" },
       { h: "הַסְרָטָה", t: "hasrata", g: "filming, a shoot", b: "noun" },
-      { h: "סַרְטָן", t: "sartan", g: "crab; cancer (same letters)", b: "noun" },
+      { h: "סַרְטָן", t: "sartan", g: "crab; cancer", b: "noun" },
     ],
+    note: "Same letters, unrelated meaning: סַרְטָן is a crab (and cancer).",
   },
   {
     r: "שדרג",

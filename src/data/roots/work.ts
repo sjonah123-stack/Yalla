@@ -95,8 +95,8 @@ export const WORK = [
       { h: "מָכַר", t: "machar", g: "he sold", b: "pa'al" },
       { h: "מְכִירָה", t: "mechira", g: "sale", b: "noun" },
       { h: "מִמְכָּר", t: "mimkar", g: "goods for sale", b: "noun" },
-      { h: "מַכָּר", t: "makar", g: "acquaintance (different root sense: נכר)", b: "noun" },
     ],
+    note: "מַכָּר (acquaintance) looks like it belongs here, but it comes from נכר, 'recognize' (הִכִּיר).",
   },
   {
     r: "נהל",
@@ -112,7 +112,6 @@ export const WORK = [
       { h: "נִהוּל", t: "nihul", g: "management", b: "noun" },
       { h: "נֹהַל", t: "nohal", g: "procedure", b: "noun" },
       { h: "הַנְהָלָה", t: "hanhala", g: "administration, management (the body)", b: "noun" },
-      { h: "הִתְנַהֲגוּת", t: "hitnahagut", g: "behavior (related root נהג)", b: "noun" },
     ],
   },
   {
@@ -159,8 +158,9 @@ export const WORK = [
       { h: "הִצְלִיחַ", t: "hitzli'ach", g: "he succeeded", b: "hif'il" },
       { h: "הַצְלָחָה", t: "hatzlacha", g: "success (בהצלחה: good luck)", b: "noun" },
       { h: "מֻצְלָח", t: "mutzlach", g: "successful", b: "adj" },
-      { h: "צַלַּחַת", t: "tzalachat", g: "plate (same letters, different origin)", b: "noun" },
+      { h: "צַלַּחַת", t: "tzalachat", g: "plate", b: "noun" },
     ],
+    note: "Same letters, different origin: צַלַּחַת is a plate.",
   },
   {
     r: "כשל",

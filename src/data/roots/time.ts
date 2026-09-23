@@ -57,8 +57,8 @@ export const TIME = [
     words: [
       { h: "חִכָּה", t: "chika", g: "he waited", b: "pi'el" },
       { h: "חַכֵּה", t: "chake", g: "wait! (imperative)", b: "pi'el" },
-      { h: "הַמְתָּנָה", t: "hamtana", g: "waiting (related root מתן)", b: "noun" },
     ],
+    note: "The noun for waiting, הַמְתָּנָה, comes from another root: מתן (הִמְתִּין, he waited).",
   },
   {
     r: "מהר",
@@ -120,8 +120,8 @@ export const TIME = [
       { h: "הִסְתַּיֵּם", t: "histayem", g: "it ended", b: "hitpa'el" },
       { h: "סִיּוּם", t: "siyum", g: "ending, conclusion; graduation", b: "noun" },
       { h: "סִימָן", t: "siman", g: "sign, mark", b: "noun" },
-      { h: "סוֹף", t: "sof", g: "end (different root, same family of meaning)", b: "noun" },
     ],
+    note: "סוֹף (end) means much the same, but it is its own root, סוף.",
   },
   {
     r: "יום",
@@ -194,7 +194,6 @@ export const TIME = [
       { h: "בָּעֶרֶב", t: "ba'erev", g: "in the evening", b: "adv" },
       { h: "עַרְבִּית", t: "arvit", g: "the evening prayer", b: "noun" },
       { h: "עַרְבַּיִם", t: "arbayim", g: "twilight (בין הערביים)", b: "noun" },
-      { h: "אֶמֶשׁ", t: "emesh", g: "last night (literary)", b: "adv" },
     ],
   },
   {

@@ -323,8 +323,8 @@ export const ANIMALS = [
       { h: "הַמְלָטָה", t: "hamlata", g: "animal birthing", b: "noun" },
       { h: "נִמְלַט", t: "nimlat", g: "he escaped", b: "nif'al" },
       { h: "מִלֵּט", t: "milet", g: "he rescued", b: "pi'el" },
-      { h: "מִפְלָט", t: "miflat", g: "refuge", b: "noun" },
     ],
+    note: "מִפְלָט (refuge) comes from פלט (פָּלִיט, a refugee), a look-alike root that also means escape.",
   },
   {
     r: "עקץ",

@@ -14,7 +14,6 @@ export const CULTURE = [
       { h: "שִׁיר", t: "shir", g: "song, poem", b: "noun" },
       { h: "שִׁירָה", t: "shira", g: "poetry; singing", b: "noun" },
       { h: "מְשׁוֹרֵר", t: "meshorer", g: "poet", b: "noun" },
-      { h: "זַמָּר", t: "zamar", g: "singer (root זמר)", b: "noun" },
     ],
   },
   {
@@ -134,6 +133,7 @@ export const CULTURE = [
       { h: "זֶמֶר", t: "zemer", g: "a song (tune)", b: "noun" },
       { h: "זִמְרָה", t: "zimra", g: "choral singing", b: "noun" },
       { h: "תִּזְמֹרֶת", t: "tizmoret", g: "orchestra", b: "noun" },
+      { h: "זַמָּר", t: "zamar", g: "singer", b: "noun" },
       { h: "זַמֶּרֶת", t: "zameret", g: "female vocalist", b: "noun" },
     ],
   },
