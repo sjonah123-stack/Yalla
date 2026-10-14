@@ -23,7 +23,7 @@ export type PhraseTopic =
 export const PHRASE_TOPICS: readonly { id: PhraseTopic; title: string; he: string }[] = [
   { id: "greet", title: "Hello & goodbye", he: "שָׁלוֹם" },
   { id: "polite", title: "Please & thanks", he: "תּוֹדָה" },
-  { id: "react", title: "Reactions", he: "סַבָּבָה" },
+  { id: "react", title: "Reactions", he: "סַבָּבָּה" },
   { id: "talk", title: "Small talk", he: "שִׂיחָה" },
   { id: "ask", title: "Questions", he: "שְׁאֵלוֹת" },
   { id: "wish", title: "Wishes", he: "בְּרָכוֹת" },
