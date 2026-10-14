@@ -90,7 +90,7 @@ const ROWS: Row[] = [
     fem: "אֲנִי לֹא יוֹדַעַת",
   }],
   ["תּוֹדָה רַבָּה", "toda raba", "thank you very much", "polite"],
-  ["סַבָּבָה", "sababa", "cool; fine by me", "react", undefined, { note: "Slang, from Arabic." }],
+  ["סַבָּבָּה", "sababa", "cool; fine by me", "react", undefined, { note: "Slang, from Arabic." }],
   ["מָה שְׁלוֹמְךָ?", "ma shlomcha?", "how are you?", "greet", { שְׁלוֹמְךָ: "שלם" }, {
     femTo: "מָה שְׁלוֹמֵךְ?",
   }],
@@ -103,19 +103,19 @@ const ROWS: Row[] = [
   ["לְהִתְרָאוֹת", "lehitra'ot", "see you; goodbye", "greet", { לְהִתְרָאוֹת: "ראה" }],
   ["בֶּטַח", "betach", "sure; of course", "react", { בֶּטַח: "בטח" }],
   ["כַּמָּה זֶה עוֹלֶה?", "kama ze ole?", "how much is it?", "shop", { עוֹלֶה: "עלה" }, {
-    note: "Literally 'how much does it go up to?'.",
+    note: "Ole literally means 'goes up'. It is also the everyday verb for 'costs'.",
   }],
   ["אֵיפֹה הַשֵּׁרוּתִים?", "eifo hasherutim?", "where's the restroom?", "around"],
   ["מָה הַשָּׁעָה?", "ma hasha'a?", "what time is it?", "time", { שָּׁעָה: "שעה" }],
   ["בֶּאֱמֶת?", "be'emet?", "really?", "react", { אֱמֶת: "אמת" }],
   ["נָכוֹן", "nachon", "right; true", "react"],
   ["אֵין עַל מָה", "ein al ma", "you're welcome", "polite", undefined, {
-    note: "Literally 'there's nothing to thank for'.",
+    note: "Short for 'there's nothing to thank me for'. More formal: ein be'ad ma.",
   }],
   ["בַּיי", "bai", "bye", "greet"],
   ["הַכֹּל בְּסֵדֶר?", "hakol beseder?", "is everything OK?", "talk", { סֵדֶר: "סדר" }],
   ["הַכֹּל טוֹב", "hakol tov", "all good", "talk", { טוֹב: "טוב" }],
-  ["מָה קוֹרֶה?", "ma kore?", "what's happening?", "greet"],
+  ["מָה קוֹרֶה?", "ma kore?", "what's up?", "greet"],
   ["נָעִים מְאוֹד", "na'im me'od", "nice to meet you", "greet", { נָעִים: "נעם" }, {
     note: "Literally 'very pleasant'.",
   }],
@@ -171,17 +171,19 @@ const ROWS: Row[] = [
   ["נְדַבֵּר", "nedaber", "talk soon", "greet", { נְדַבֵּר: "דבר" }, {
     note: "Literally 'we'll talk'.",
   }],
-  ["יוֹם טוֹב", "yom tov", "have a good day", "greet", { יוֹם: "יום", טוֹב: "טוב" }],
+  ["יוֹם טוֹב", "yom tov", "have a good day", "greet", { יוֹם: "יום", טוֹב: "טוב" }, {
+    note: "Also the traditional name for a festival day.",
+  }],
   ["לַיְלָה טוֹב", "layla tov", "good night", "greet", { טוֹב: "טוב" }],
   ["עֶרֶב טוֹב", "erev tov", "good evening", "greet", { עֶרֶב: "ערב", טוֹב: "טוב" }],
   ["שָׁבוּעַ טוֹב", "shavua tov", "have a good week", "wish", { שָׁבוּעַ: "שבע", טוֹב: "טוב" }, {
-    note: "Said on Saturday night, as Shabbat ends.",
+    note: "Said from Saturday night, as Shabbat ends, into Sunday.",
   }],
   ["חַג שָׂמֵחַ", "chag same'ach", "happy holiday", "wish", { שָׂמֵחַ: "שמח" }],
   ["שָׁנָה טוֹבָה", "shana tova", "happy new year", "wish", { שָׁנָה: "שנה", טוֹב: "טוב" }, {
     note: "The Rosh Hashanah greeting.",
   }],
-  ["בְּתֵאָבוֹן", "beteavon", "enjoy your meal", "shop", undefined, {
+  ["בְּתֵאָבוֹן", "bete'avon", "enjoy your meal", "shop", undefined, {
     note: "Literally 'with appetite'.",
   }],
   ["לְחַיִּים", "lechayim", "cheers!", "shop", { חַיִּים: "חיה" }, { note: "Literally 'to life'." }],
@@ -191,7 +193,7 @@ const ROWS: Row[] = [
   ["אֵין מַצָּב", "ein matzav", "no way!", "react", undefined, {
     note: "Literally 'there's no situation'.",
   }],
-  ["מָה פִּתְאֹם!", "ma pitom!", "no way! of course not!", "react"],
+  ["מָה פִּתְאוֹם!", "ma pit'om!", "no way! of course not!", "react"],
   ["אוּלַי", "ulai", "maybe", "react"],
   ["אֲנִי לֹא בָּטוּחַ", "ani lo batu'ach", "I'm not sure", "talk", { בָּטוּחַ: "בטח" }, {
     fem: "אֲנִי לֹא בְּטוּחָה",
@@ -208,7 +210,7 @@ const ROWS: Row[] = [
   ["אֲנִי מַסְכִּים", "ani maskim", "I agree", "talk", { מַסְכִּים: "סכם" }, {
     fem: "אֲנִי מַסְכִּימָה",
   }],
-  ["אֶפְשָׁר לְדַבֵּר לְאַט?", "efshar ledaber le'at?", "can you speak slowly?", "ask", {
+  ["אֶפְשָׁר לְדַבֵּר יוֹתֵר לְאַט?", "efshar ledaber yoter le'at?", "can you speak more slowly?", "ask", {
     לְדַבֵּר: "דבר",
   }],
   ["מָה זֶה אוֹמֵר?", "ma ze omer?", "what does it mean?", "ask", { אוֹמֵר: "אמר" }],
@@ -228,7 +230,7 @@ const ROWS: Row[] = [
   ["אֶפְשָׁר לְשַׁלֵּם בְּכַרְטִיס?", "efshar leshalem bekartis?", "can I pay by card?", "shop", {
     לְשַׁלֵּם: "שלם",
     כַרְטִיס: "כרטס",
-  }],
+  }, { note: "The pointing reads bechartis, but most people keep the k hard." }],
   ["בִּמְזֻמָּן", "bimzuman", "in cash", "shop", { מְזֻמָּן: "זמן" }],
   ["זֶה יָקָר מִדַּי", "ze yakar midai", "that's too expensive", "shop", { יָקָר: "יקר" }],
   ["יֵשׁ לָכֶם…?", "yesh lachem…?", "do you have …?", "shop", undefined, {
@@ -237,7 +239,9 @@ const ROWS: Row[] = [
   ["תּוֹדָה, רַק מִסְתַּכֵּל", "toda, rak mistakel", "thanks, just looking", "shop", undefined, {
     fem: "תּוֹדָה, רַק מִסְתַּכֶּלֶת",
   }],
-  ["לְכָאן אוֹ לָקַחַת?", "lechan o lakachat?", "for here or to go?", "shop", { לָקַחַת: "לקח" }],
+  ["פֹּה אוֹ לָקַחַת?", "po o lakachat?", "for here or to go?", "shop", { לָקַחַת: "לקח" }, {
+    note: "Literally 'here or to take?'. Also asked as lashevet o lakachat?",
+  }],
   ["קָפֶה הָפוּךְ", "kafe hafuch", "latte", "shop", undefined, {
     note: "Literally 'upside-down coffee'.",
   }],
@@ -296,14 +300,14 @@ const ROWS: Row[] = [
     שְׁלֵמָה: "שלם",
   }, { note: "Literally 'a complete recovery'." }],
   ["נְסִיעָה טוֹבָה", "nesi'a tova", "have a good trip", "wish", { נְסִיעָה: "נסע", טוֹב: "טוב" }],
-  ["בְּשָׁעָה טוֹבָה", "besha'a tova", "congratulations (on news to come)", "wish", {
+  ["בְּשָׁעָה טוֹבָה", "besha'a tova", "congratulations (on happy news)", "wish", {
     שָׁעָה: "שעה",
     טוֹב: "טוב",
   }, { note: "For a pregnancy or a new start. Literally 'in a good hour'." }],
   ["סָגוּר", "sagur", "deal; it's settled", "react", { סָגוּר: "סגר" }, {
     note: "Slang. Literally 'closed'.",
   }],
-  ["בְּכֵיף", "bekef", "gladly; with pleasure", "polite"],
+  ["בְּכֵּיף", "bekef", "gladly; with pleasure", "polite"],
   ["תּוֹדָה, גַּם לְךָ", "toda, gam lecha", "thanks, you too", "polite", undefined, {
     femTo: "תּוֹדָה, גַּם לָךְ",
   }],
@@ -336,7 +340,7 @@ const ROWS: Row[] = [
     femTo: "תִּתְקַשְּׁרִי אֵלַי",
   }],
   ["בָּרוּר", "barur", "obviously; sure", "react"],
-  ["אַהֲלָן", "ahlan", "hi", "greet", undefined, { note: "Slang, from Arabic." }],
+  ["אַהְלָן", "ahlan", "hi", "greet", undefined, { note: "Slang, from Arabic." }],
   ["הַיי", "hai", "hi", "greet"],
   ["מָה אִתְּךָ?", "ma itcha?", "what's up with you?", "greet", undefined, {
     femTo: "מָה אִתָּךְ?",
@@ -362,14 +366,14 @@ const ROWS: Row[] = [
   ["תֵּן לִי…", "ten li…", "give me …", "shop", { תֵּן: "נתן" }, { femTo: "תְּנִי לִי…" }],
   ["שָׁכַחְתִּי", "shachachti", "I forgot", "talk", { שָׁכַחְתִּי: "שכח" }],
   ["בִּשְׂמָחוֹת", "bismachot", "at happy occasions!", "wish", { שְׂמָחוֹת: "שמח" }, {
-    note: "A goodbye after a celebration: may we meet at more.",
+    note: "Said at a celebration, and when parting at a sad occasion: may we meet only at happy ones.",
   }],
-  ["חֲלוֹמוֹת פָּזִים", "chalomot pazim", "sweet dreams", "wish", undefined, {
+  ["חֲלוֹמוֹת פַּזִּים", "chalomot pazim", "sweet dreams", "wish", undefined, {
     note: "Literally 'golden dreams'.",
   }],
   ["בְּקִצּוּר", "bekitzur", "in short", "talk", { קִצּוּר: "קצר" }],
-  ["תִּהְיֶה בָּרִיא", "tihye bari", "bless you; take care", "wish", undefined, {
-    note: "After a sneeze, or as a goodbye.",
+  ["תִּהְיֶה בָּרִיא", "tihye bari", "be well; take care", "wish", undefined, {
+    note: "A goodbye or a thanks. After a sneeze, Israelis say labri'ut.",
     femTo: "תִּהְיִי בְּרִיאָה",
   }],
   ["יַאלְלָה בַּיי", "yalla bai", "OK, bye", "greet"],
