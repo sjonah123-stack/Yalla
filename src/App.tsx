@@ -25,6 +25,8 @@ import Listen from "./views/Listen";
 import Notebook from "./views/Notebook";
 import League from "./views/League";
 import BinyanPage from "./views/Binyan";
+import Phrases from "./views/Phrases";
+import Cards from "./views/Cards";
 import { SHELL_VIEWS } from "./lib/history";
 import { ScrollMemory } from "./components/ScrollMemory";
 import Welcome from "./views/Welcome";
@@ -50,6 +52,7 @@ export default function App() {
   const toolUnit = useUi((s) => s.toolUnit);
   const conjBinyan = useUi((s) => s.conjBinyan);
   const binyan = useUi((s) => s.binyan);
+  const cardDeck = useUi((s) => s.cardDeck);
   const theme = useProgress((s) => s.p.settings.theme);
   const accent = useProgress((s) => s.p.settings.accent);
   const onboardedAt = useProgress((s) => s.p.onboardedAt);
@@ -135,6 +138,10 @@ export default function App() {
       <League />
     ) : view === "binyan" && binyan ? (
       <BinyanPage binyan={binyan} />
+    ) : view === "phrases" ? (
+      <Phrases />
+    ) : view === "cards" && cardDeck ? (
+      <Cards deck={cardDeck} />
     ) : null;
   if (page)
     return (

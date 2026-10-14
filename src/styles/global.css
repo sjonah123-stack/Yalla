@@ -7380,3 +7380,298 @@ button.chip {
   margin-top: 12px;
   opacity: 0.8;
 }
+
+/* ---------- Phrases & word cards ---------- */
+/* Home: the everyday-phrases card borrows .hm-daily; its tile holds a phrase, not a root. */
+.hm-phrase .tile {
+  max-width: 132px;
+  height: auto;
+  min-height: 60px;
+  padding: 8px 10px;
+}
+.hm-phrase .tile .glyph {
+  font-family: var(--font-heb);
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0;
+  padding-left: 0;
+  text-align: center;
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+
+/* Roots tab: the word-deck launcher under the chips. */
+.bank-cards {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--paper);
+  box-shadow: 0 5px 0 var(--clay);
+  text-align: left;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.bank-cards:active {
+  transform: translateY(3px);
+  box-shadow: 0 2px 0 var(--clay);
+}
+.bank-cards:focus-visible {
+  box-shadow: var(--ring), 0 5px 0 var(--clay);
+}
+.bank-cards .ic {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--plum);
+  color: var(--gold);
+  font-size: 20px;
+}
+.bank-cards .txt {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.bank-cards .txt b {
+  font-weight: 800;
+  font-size: 15px;
+}
+.bank-cards .txt .s {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.bank-cards .chev {
+  flex: none;
+  font-size: 24px;
+  color: var(--ink-3);
+}
+
+/* The deck: Hebrew or English on the front, the details on the plum back. */
+.cd-face {
+  position: relative;
+  margin-left: 10px;
+  padding: 6px 10px;
+  border-radius: var(--r-full);
+  background: var(--stone);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.cd-face::after {
+  content: "";
+  position: absolute;
+  inset: -8px -4px;
+}
+.cd-face:focus-visible {
+  box-shadow: var(--ring);
+}
+.cd-he {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.cd-say {
+  font-family: var(--font-heb);
+  font-size: clamp(34px, 11vw, 54px);
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  direction: rtl;
+  unicode-bidi: isolate;
+}
+.cd-he .spk {
+  width: 44px;
+  height: 44px;
+}
+.cd-en {
+  font-family: var(--font-heb);
+  font-size: clamp(26px, 8vw, 36px);
+  font-weight: 900;
+  line-height: 1.15;
+  text-align: center;
+}
+.cd-back {
+  display: grid;
+  gap: 10px;
+}
+.cd-back .cd-he {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cd-back .cd-say {
+  font-size: 34px;
+  text-align: right;
+}
+.cd-g {
+  font-family: var(--font-heb);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+.cd-t {
+  font-size: 15px;
+  font-weight: 700;
+  font-style: italic;
+  opacity: 0.85;
+}
+.cd-sub {
+  font-style: normal;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.cd-fem {
+  font-size: 14px;
+  opacity: 0.9;
+}
+.cd-fem .heb {
+  font-size: 20px;
+}
+.cd-note {
+  font-size: 14px;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+.cd-ex {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--on-dark-soft);
+}
+.cd-ex .heb {
+  display: block;
+  font-size: 18px;
+  line-height: 1.45;
+  direction: rtl;
+  unicode-bidi: isolate;
+  text-align: right;
+}
+.cd-ex .heb b {
+  color: var(--gold);
+}
+.cd-ex .en {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+.cd-roots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cd-root {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 8px;
+  border-radius: var(--r-full);
+  background: var(--on-dark-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+.cd-root .cd-gl {
+  font-family: var(--font-heb);
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--gold);
+}
+
+/* Phrases page */
+.tool.ph {
+  display: block;
+}
+.ph-h h1 {
+  font-family: var(--font-heb);
+  font-size: var(--t-h);
+  font-weight: 900;
+  line-height: 1.15;
+}
+.ph-h p {
+  margin-top: 6px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+.ph-go {
+  margin-top: 16px;
+}
+.ph-chips {
+  margin-top: 16px;
+}
+.ph-sec .group-h {
+  margin-top: 22px;
+}
+.ph-list {
+  padding: 4px 16px;
+  border-radius: 20px;
+  background: var(--paper);
+  box-shadow: var(--drop-sm);
+}
+.ph-list .w {
+  padding: 10px 0;
+}
+.ph-more {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.ph-fem .heb {
+  font-size: 17px;
+}
+.ph-note {
+  color: var(--ink-3);
+}
+.ph-roots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.ph-root {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border-radius: var(--r-full);
+  background: var(--stone);
+  color: var(--ink-2);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.ph-root::after {
+  content: "";
+  position: absolute;
+  inset: -8px -2px;
+}
+.ph-root .glyph {
+  font-family: var(--font-heb);
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--plum);
+}
+.ph-root:focus-visible {
+  box-shadow: var(--ring);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ph-root .glyph {
+    color: var(--gold);
+  }
+}
+:root[data-theme="dark"] .ph-root .glyph {
+  color: var(--gold);
+}

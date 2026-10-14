@@ -25,6 +25,8 @@ import { MOVE, standings, tierFor, TIERS, weekKey, weekLeft, zone } from "../lib
 import { dailyRootId } from "../lib/daily";
 import { mistakeRoots } from "../lib/mistakes";
 import { newStories } from "../lib/stories";
+import { phraseStats } from "../lib/cards";
+import { PHRASES } from "../data/phrases";
 import { playCue } from "../lib/sound";
 import { GoalRing } from "../components/GoalRing";
 import { IconGear } from "../components/Icons";
@@ -134,6 +136,7 @@ export default function Home() {
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const openUnit = useUi((s) => s.openUnit);
   const openPage = useUi((s) => s.openPage);
+  const openCards = useUi((s) => s.openCards);
   const start = useSession((s) => s.start);
   const startChain = useSession((s) => s.startChain);
   const now = useNow(5000);
@@ -159,6 +162,8 @@ export default function Home() {
   const cats = p.settings.cats;
   const plan = dailyPlan(ROOTS, COURSE, p, now);
   const tourDue = p.onboardedAt !== null && p.tourAt === null;
+  const phrases = phraseStats(PHRASES, p);
+  const nextPhrase = phrases.next;
 
   // v1.0: streak, shop, Shuk, quests, root of the day, league, notebook.
   const nowDate = new Date(now);
@@ -401,6 +406,27 @@ export default function Home() {
             Today's session · {plan.map(planLabel).join(" → ")}
           </button>
         )}
+        <button
+          type="button"
+          className="hm-daily hm-phrase"
+          onClick={() => openCards({ kind: "phrases" })}
+        >
+          <span className="tile">
+            <span className="glyph" lang="he">
+              {p.settings.nikud
+                ? (nextPhrase ?? PHRASES[0]).h
+                : stripNikud((nextPhrase ?? PHRASES[0]).h)}
+            </span>
+          </span>
+          <span className="txt">
+            <span className="eyebrow">Everyday phrases</span>
+            <span className="t">{nextPhrase ? nextPhrase.g : "All learned · keep them fresh"}</span>
+            <span className="s tnum">
+              {phrases.known} / {phrases.total} known · most common first
+            </span>
+          </span>
+          <span className="go">Cards</span>
+        </button>
         <div className="quick">
           <button type="button" onClick={() => go({ kind: "practice" })}>
             <span className="ic coral" aria-hidden="true">
@@ -614,6 +640,15 @@ export default function Home() {
                   {stories}
                 </span>
               )}
+            </button>
+            <button type="button" onClick={() => openPage("phrases")}>
+              <span className="ic gold" aria-hidden="true">
+                ״
+              </span>
+              Phrases
+              <span className="s tnum">
+                {phrases.known}/{phrases.total}
+              </span>
             </button>
             <button type="button" onClick={() => openPage("listen")}>
               <span className="ic gold" aria-hidden="true">

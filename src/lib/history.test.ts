@@ -33,6 +33,11 @@ describe("pushTrail", () => {
 });
 
 describe("layerStack", () => {
+  it("treats the phrases page and the card deck as unitless pages", () => {
+    expect(kinds(st({ trail: ["home", "bank"], view: "cards" }))).toEqual(["tab", "tool"]);
+    expect(kinds(st({ view: "phrases" }))).toEqual(["tool"]);
+    expect(reduceBack(st({ view: "cards" }))).toBe("leaveTool");
+  });
   it("is empty on Home with nothing open, and on Welcome", () => {
     expect(kinds(base)).toEqual([]);
     expect(kinds(st({ onboarded: false, unitSheet: "speech-1", settingsOpen: true }))).toEqual([]);

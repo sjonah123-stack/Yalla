@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import type { Binyan, UnitId, View } from "../types";
+import type { PhraseTopic } from "../data/phrases";
+import type { BankChip } from "../lib/bank";
 import { isShellView, PAGE_VIEWS, pushTrail, scrollKey, type ShellView } from "../lib/history";
 
 export type { View } from "../types";
@@ -17,10 +19,12 @@ export interface ConfirmSpec {
   /** A big celebratory glyph above the title (lucky bag, promotion); animates in. */
   art?: string;
 }
-export type BankChip = "all" | "due" | "learning" | "memorized" | "unmet" | "tricky" | "flagged";
+export type { BankChip } from "../lib/bank";
+/** A swipe deck of words or phrases: the words of the roots the Roots tab lists, or phrases. */
+export type CardDeck = { kind: "bank" } | { kind: "phrases"; topic?: PhraseTopic };
 export type ToolView = "flashcards" | "match" | "familysort";
 export type DrillBinyan = "pa'al" | "pi'el" | "hif'il";
-export type PageView = "story" | "listen" | "notebook" | "league" | "binyan";
+export type PageView = "story" | "listen" | "notebook" | "league" | "binyan" | "phrases";
 
 interface UiStore {
   view: View;
@@ -46,6 +50,15 @@ interface UiStore {
   openBinyan: (b: Binyan) => void;
   /** Remember the binyan a lesson is for, without leaving the current view. */
   setBinyan: (b: Binyan) => void;
+  /** The deck the cards page is running. */
+  cardDeck: CardDeck | null;
+  /** The deck was opened from the phrases page: leaving it goes back there. */
+  cardsBack: boolean;
+  /** Open a word / phrase deck (a page: Back returns where it came from). */
+  openCards: (deck: CardDeck) => void;
+  /** The topic the phrases page is showing (null = all). */
+  phraseTopic: PhraseTopic | null;
+  setPhraseTopic: (t: PhraseTopic | null) => void;
   /** Window scroll offsets per view key (see scrollKey). */
   scrollMemory: Record<string, number>;
   rememberScroll: (key: string, y: number) => void;
@@ -91,7 +104,9 @@ export const useUi = create<UiStore>((set) => ({
     }),
   leaveTool: () =>
     set((s) =>
-      (PAGE_VIEWS as readonly View[]).includes(s.view)
+      s.view === "cards" && s.cardsBack
+        ? { view: "phrases", cardsBack: false }
+        : (PAGE_VIEWS as readonly View[]).includes(s.view)
         ? { view: s.pageFrom, trail: pushTrail(s.trail, s.pageFrom), toolUnit: null }
         : s.view === "conjugate"
           ? { view: "patterns", trail: pushTrail(s.trail, "patterns"), toolUnit: null }
@@ -117,6 +132,19 @@ export const useUi = create<UiStore>((set) => ({
     })),
   setBinyan: (binyan) =>
     set((s) => ({ binyan, pageFrom: isShellView(s.view) ? s.view : s.pageFrom })),
+  cardDeck: null,
+  cardsBack: false,
+  openCards: (cardDeck) =>
+    set((s) => ({
+      view: "cards",
+      cardDeck,
+      cardsBack: s.view === "phrases",
+      pageFrom: isShellView(s.view) ? s.view : s.pageFrom,
+      unitSheet: null,
+      toolUnit: null,
+    })),
+  phraseTopic: null,
+  setPhraseTopic: (phraseTopic) => set({ phraseTopic }),
   openPage: (v, storyId) =>
     set((s) => ({
       view: v,

@@ -62,3 +62,27 @@ describe("tab trail, tools and scroll memory", () => {
     expect(useUi.getState().scrollMemory.path).toBeUndefined();
   });
 });
+
+describe("phrase and word decks", () => {
+  it("a deck opened from the phrases page returns there; the page returns to its tab", () => {
+    useUi.getState().setView("home");
+    useUi.getState().openPage("phrases");
+    useUi.getState().openCards({ kind: "phrases", topic: "greet" });
+    let s = useUi.getState();
+    expect(s.view).toBe("cards");
+    expect(s.cardDeck).toEqual({ kind: "phrases", topic: "greet" });
+    useUi.getState().leaveTool();
+    s = useUi.getState();
+    expect(s.view).toBe("phrases");
+    expect(s.cardsBack).toBe(false);
+    useUi.getState().leaveTool();
+    expect(useUi.getState().view).toBe("home");
+  });
+  it("a word deck opened from the Roots tab returns to it", () => {
+    useUi.getState().setView("bank");
+    useUi.getState().openCards({ kind: "bank" });
+    expect(useUi.getState().cardsBack).toBe(false);
+    useUi.getState().leaveTool();
+    expect(useUi.getState().view).toBe("bank");
+  });
+});

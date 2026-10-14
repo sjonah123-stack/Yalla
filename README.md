@@ -37,6 +37,12 @@ Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows ea
 
 ## How it works
 
+### v1.2: everyday phrases and word cards
+
+- **Everyday phrases** — 156 high-frequency spoken phrases (מָה נִשְׁמָע, בְּסֵדֶר, סְלִיחָה, אֵין בְּעָיָה…) in ten topics: hello & goodbye, please & thanks, reactions, small talk, questions, wishes, how you feel, food & shopping, getting around, time & plans. They are ranked most common first by hand (judged from everyday speech, not from a corpus). Each is fully pointed with a transliteration, a usage note where it helps, the feminine form where it differs, and links to its bank roots. Home shows the next phrase to learn right under Continue; one tap starts a deck of the 20 most common you don't know yet. The Phrases page (Home → Phrases) lists them by topic and runs a deck per topic.
+- **Word flashcards** — on the Roots tab, a deck of the words of whatever is listed: the Due chip gives the words of your due roots, a search gives that root's or theme's family. Up to 30 cards, words you don't know first, each root's most useful words before its rarer ones. Front: the word (or, with the EN toggle, the meaning); back: meaning, transliteration, form, example sentence and root.
+- Both decks swipe like the unit flashcards, and **Know / Still learning count as a right / wrong answer in word memory** (`Progress.words`), so a phrase or word gets its ✓ after two Knows with more rights than misses, syncs across devices, and is asked about less. They never move a root's review schedule and pay no gems.
+
 ### v1.0: the Shuk and the daily loop
 
 - **The Shuk** (tab ₪) — an idle market tycoon fed by what you learn. Each of the 25 themes is a stall (newsstand, spice stall, falafel…); every memorized root is stock that earns shekels every hour, even while the app is closed, up to the storage cap (4h, upgradeable to 24h). Come back and **collect**. A root that is due for review has **wilted** and earns nothing until you restock it (a review round of that stall's due roots). Shekels buy stall levels (×1.15 cost each, landmarks at 10/25/50/100 double income) and perks (storage, rush length, haggling). Finishing a lesson or review starts a **rush hour** (×2, ×3 when perfect); every right answer **sells** about a minute of income. The market grows Stand → Stall → Shop → Market → Mall.
@@ -94,6 +100,10 @@ Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows ea
 | `src/lib/league.ts` | Weekly league: rivals, the ghost, standings, settling |
 | `src/lib/daily.ts`, `mistakes.ts`, `stories.ts` | Root of the day, the mistake notebook, story unlocks |
 | `src/data/stories/` | Mini stories (tags map words to roots) |
+| `src/data/phrases.ts` | Everyday phrases: topics, rank, notes, feminine forms, root tags |
+| `src/lib/cards.ts` | Word and phrase decks, phrase progress |
+| `src/lib/bank.ts` | The Roots tab's search and filter chips (shared with the word deck) |
+| `src/components/SwipeDeck.tsx` | Flip / swipe / rounds, shared by all three flashcard decks |
 | `functions/` | Scheduled push reminders (Cloud Functions) |
 | `src/lib/match.ts` | Match pair selection |
 | `src/lib/srs.ts` | Scheduling, mastery, streak, practice queue |
@@ -126,3 +136,7 @@ Roots go in the file for their theme, e.g. `src/data/roots/nature.ts`:
 - `rank` orders roots within their section (1 = most useful) and must be unique within a unit.
 - `unit` must be listed under its section in `src/data/course.ts`. **Growing a section = appending a new serial** (`nature-3`) to that section's `units`; never rename or reuse a unit id — saved progress refers to them. A new theme is a new `SectionDef`.
 - Every unit needs 5–10 roots; every word needs nikud; no vocalized word may appear under two roots. `npm test` enforces all of this.
+
+## Adding phrases
+
+Phrases go at the end of `ROWS` in `src/data/phrases.ts` (row *n* is `ph-n`; ids never change). A phrase more common than its position slots in with a `rank` (fractions are fine). Point every word; keep `note` in English; put the feminine form in `fem` (what a woman says) or `femTo` (what is said to a woman); tag words with the bank root they come from (`{ "שָׁלוֹם": "שלם" }`, the tag must appear verbatim). `npm test` enforces all of this.

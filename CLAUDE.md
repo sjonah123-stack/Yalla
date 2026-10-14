@@ -137,8 +137,15 @@ shop, collect, stories) call `awardSeals`, never `settle` (settle would pay ches
 - Content flags live in `Progress.flags` (tombstoned on clear); text export via `flagsToText`.
 - Tap targets are 44px (hit expanders via `::after` on small controls); focus ring = `--ring`.
 - Six tabs (`SHELL_VIEWS`: home, path, shuk, bank, patterns, progress). Full-screen pages
-  without a unit (`PAGE_VIEWS`: story, listen, notebook, league, binyan) open with
+  without a unit (`PAGE_VIEWS`: story, listen, notebook, league, binyan, phrases, cards) open with
   `ui.openPage(v)` and return to the tab they came from via `leaveTool()`.
+- Everyday phrases (v1.2) live in `src/data/phrases.ts`: row n is `ph-n` (append only; `rank` can
+  override position), English-only `note`, feminine form in `fem`/`femTo`, root tags as exact
+  substrings; `src/data/phrases.test.ts` enforces it. Phrase and word decks (`cards` page,
+  `ui.openCards({kind:"bank"|"phrases"})`) write only word memory via `recordWord`, keyed by the
+  vocalized text, never root SRS, gems or `settle`. A deck opened from the `phrases` page returns
+  there (`cardsBack`). The bank deck reads the Roots tab's search + chip through `bankRoots`
+  (`src/lib/bank.ts`), the same filter the list uses. All three decks share `SwipeDeck`.
 - Stories live in `src/data/stories/{a,b,c}.ts` (ids `st-a01`… stable forever); tags are exact
   substrings of the line → root id; `src/data/stories.test.ts` enforces it. A story unlocks
   when every tagged root has been seen.

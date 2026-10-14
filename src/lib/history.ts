@@ -36,7 +36,15 @@ export type Layer =
   | { kind: "confirm" };
 
 /** Full-screen pages that don't belong to a unit; they return to the tab they came from. */
-export const PAGE_VIEWS: readonly View[] = ["story", "listen", "notebook", "league", "binyan"];
+export const PAGE_VIEWS: readonly View[] = [
+  "story",
+  "listen",
+  "notebook",
+  "league",
+  "binyan",
+  "phrases",
+  "cards",
+];
 export const TOOL_VIEWS: readonly View[] = [
   "flashcards",
   "match",

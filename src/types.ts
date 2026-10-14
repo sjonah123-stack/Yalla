@@ -247,7 +247,9 @@ export type View =
   | "listen"
   | "notebook"
   | "league"
-  | "binyan";
+  | "binyan"
+  | "phrases"
+  | "cards";
 
 export interface Progress {
   v: 3;

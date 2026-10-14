@@ -1,13 +1,15 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
-import type { FlagReason, Root, RootFlag, RootState, Word } from "../types";
+import type { FlagReason, Root, Word } from "../types";
 import { ROOTS } from "../data/roots";
 import { BINYAN_BY_ID, isBinyan } from "../data/binyanim";
-import { normLetters, rootDisplay, rootLetters, stripNikud } from "../lib/hebrew";
+import { rootDisplay } from "../lib/hebrew";
 import { DAY, isDue, isTricky, mastery, seen } from "../lib/srs";
 import { FLAG_LABEL, isActiveFlag } from "../lib/flags";
+import { bankRoots, type BankChip } from "../lib/bank";
+import { wordDeck } from "../lib/cards";
 import { useFlag, useProgress } from "../store/progress";
-import { useUi, type BankChip } from "../store/ui";
+import { useUi } from "../store/ui";
 import { MasteryDots } from "../components/MasteryDots";
 import { HeaderGear } from "../components/HeaderGear";
 import { Heb } from "../components/Heb";
@@ -15,31 +17,6 @@ import { WordList } from "../components/WordList";
 import { memorized, unitTitle } from "../lib/course";
 import { COURSE } from "../store/course";
 import { SECTION_BY_CAT } from "../data/course";
-
-/** Does a root's state pass the selected filter chip? */
-function matchesChip(
-  chip: BankChip,
-  st: RootState | undefined,
-  now: number,
-  flag: RootFlag | undefined,
-): boolean {
-  switch (chip) {
-    case "due":
-      return isDue(st, now);
-    case "learning":
-      return seen(st) && !memorized(st);
-    case "memorized":
-      return memorized(st);
-    case "unmet":
-      return !seen(st);
-    case "tricky":
-      return isTricky(st);
-    case "flagged":
-      return isActiveFlag(flag);
-    default:
-      return true;
-  }
-}
 
 export default function Bank() {
   const filter = useUi((s) => s.bankFilter);
@@ -50,6 +27,8 @@ export default function Bank() {
   const setChip = useUi((s) => s.setBankChip);
   const roots = useProgress((s) => s.p.roots);
   const flags = useProgress((s) => s.p.flags);
+  const words = useProgress((s) => s.p.words);
+  const openCards = useUi((s) => s.openCards);
   const now = Date.now();
   const openRef = useRef<HTMLDivElement | null>(null);
 
@@ -60,28 +39,18 @@ export default function Bank() {
     return () => clearTimeout(t);
   }, []);
 
+  const list = useMemo(
+    () => bankRoots(ROOTS, filter, chip, { roots, flags }, now),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filter, chip, roots, flags],
+  );
   const groups = useMemo(() => {
-    const f = filter.trim().toLowerCase();
-    const fh = normLetters(f);
-    const list = ROOTS.filter(
-      (r) =>
-        (!f ||
-          rootLetters(r).includes(fh) ||
-          r.m.toLowerCase().includes(f) ||
-          r.cat.includes(f) ||
-          r.words.some(
-            (w) =>
-              stripNikud(w.h).includes(f) ||
-              w.g.toLowerCase().includes(f) ||
-              w.t.toLowerCase().includes(f),
-          )) &&
-        matchesChip(chip, roots[r.r], now, flags[r.r]),
-    );
     const g = new Map<string, Root[]>();
     for (const r of list) (g.get(r.cat) ?? g.set(r.cat, []).get(r.cat)!).push(r);
     return [...g.entries()];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, chip, roots, flags]);
+  }, [list]);
+  const deckSize = useMemo(() => wordDeck(list, { words }).length, [list, words]);
+  const deckWords = useMemo(() => list.reduce((n, r) => n + r.words.length, 0), [list]);
   const counts = useMemo(() => {
     const c = {
       all: ROOTS.length,
@@ -162,6 +131,27 @@ export default function Bank() {
           </button>
         ))}
       </div>
+      {deckSize > 0 && (
+        <button type="button" className="bank-cards" onClick={() => openCards({ kind: "bank" })}>
+          <span className="ic" aria-hidden="true">
+            ▤
+          </span>
+          <span className="txt">
+            <b>Word flashcards</b>
+            <span className="s tnum">
+              {deckSize} {deckSize === 1 ? "word" : "words"}
+              {deckWords > deckSize ? ` of ${deckWords}` : ""} from{" "}
+              {list.length === ROOTS.length
+                ? "the whole bank"
+                : `${list.length === 1 ? "this root" : `these ${list.length} roots`}`}
+              , new ones first
+            </span>
+          </span>
+          <span className="chev" aria-hidden="true">
+            ›
+          </span>
+        </button>
+      )}
       {groups.length === 0 && (
         <p className="muted" style={{ marginTop: 16 }}>
           Nothing matches.{" "}
