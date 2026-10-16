@@ -422,3 +422,52 @@ describe("quitting", () => {
   });
 });
 
+
+describe("everyday phrases in the first lessons", () => {
+  beforeEach(() => {
+    useProgress.getState().adopt(defaultProgress());
+    useSession.getState().clear();
+  });
+
+  it("a Speech 1 lesson is 16 questions with the two most common phrases, met then used", () => {
+    expect(useSession.getState().start({ kind: "lesson", unit: "speech-1" })).toBe(true);
+    const s = useSession.getState().s!;
+    expect(s.slots).toHaveLength(16);
+    const ph = (s.phraseAt ?? []).flatMap((x, i) => (x ? [[i, x.rank] as const] : []));
+    expect(ph.map(([, rank]) => rank)).toEqual([1, 1, 2, 2]);
+  });
+
+  it("phrase answers write word memory, XP and the day, never a root's schedule or the notebook", () => {
+    useSession.getState().start({ kind: "lesson", unit: "speech-1" });
+    const at = useSession.getState().s!.phraseAt!;
+    const phrases = [...new Set(at.filter((x) => !!x))];
+    playThrough(false);
+    const s = useSession.getState().s!;
+    const p = useProgress.getState().p;
+    for (const x of phrases) {
+      expect(p.words[x!.h].bad).toBeGreaterThan(0);
+      expect(p.roots[x!.id]).toBeUndefined();
+      expect(s.missed).not.toContain(x!.id);
+    }
+    expect(p.mistakes.every((m) => !m.root.startsWith("ph-"))).toBe(true);
+    // Every answer, phrase or root, landed in today's tally.
+    expect(p.history[dayKey()].bad).toBe(s.bad);
+  });
+
+  it("a perfect run makes the lesson's phrases known; the next lesson moves on", () => {
+    useSession.getState().start({ kind: "lesson", unit: "speech-1" });
+    playThrough(true);
+    const p = useProgress.getState().p;
+    expect(p.words["שָׁלוֹם"]).toEqual({ ok: 2, bad: 0 });
+    useSession.getState().clear();
+    useSession.getState().start({ kind: "lesson", unit: "speech-1" });
+    const next = [...new Set(useSession.getState().s!.phraseAt!.filter((x) => !!x))];
+    expect(next.map((x) => x!.rank)).toEqual([3, 4]);
+  });
+
+  it("lessons past the first six themes carry no phrases", () => {
+    const later = COURSE.units[13];
+    useSession.getState().start({ kind: "lesson", unit: later.id });
+    expect(useSession.getState().s!.phraseAt).toBeUndefined();
+  });
+});

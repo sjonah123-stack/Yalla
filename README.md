@@ -37,11 +37,11 @@ Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows ea
 
 ## How it works
 
-### v1.2: everyday phrases and word cards
+### v1.2: everyday phrases in the first lessons, flashcards for every root
 
-- **Everyday phrases** — 156 high-frequency spoken phrases (מָה נִשְׁמָע, בְּסֵדֶר, סְלִיחָה, אֵין בְּעָיָה…) in ten topics: hello & goodbye, please & thanks, reactions, small talk, questions, wishes, how you feel, food & shopping, getting around, time & plans. They are ranked most common first by hand (judged from everyday speech, not from a corpus). Each is fully pointed with a transliteration, a usage note where it helps, the feminine form where it differs, and links to its bank roots. Home shows the next phrase to learn right under Continue; one tap starts a deck of the 20 most common you don't know yet. The Phrases page (Home → Phrases) lists them by topic and runs a deck per topic.
-- **Word flashcards** — on the Roots tab, a deck of the words of whatever is listed: the Due chip gives the words of your due roots, a search gives that root's or theme's family. Up to 30 cards, words you don't know first, each root's most useful words before its rarer ones. Front: the word (or, with the EN toggle, the meaning); back: meaning, transliteration, form, example sentence and root.
-- Both decks swipe like the unit flashcards, and **Know / Still learning count as a right / wrong answer in word memory** (`Progress.words`), so a phrase or word gets its ✓ after two Knows with more rights than misses, syncs across devices, and is asked about less. They never move a root's review schedule and pay no gems.
+- **Everyday phrases** — 156 high-frequency spoken phrases (מָה נִשְׁמָע, בְּסֵדֶר, סְלִיחָה, אֵין בְּעָיָה…) in ten topics: hello & goodbye, please & thanks, reactions, small talk, questions, wishes, how you feel, food & shopping, getting around, time & plans. They are ranked most common first by hand (judged from everyday speech, not from a corpus) and were checked against Morfix, Google Translate, Wiktionary and Pealim. Each is fully pointed with a transliteration, a usage note where it helps, the feminine form where it differs, and links to its bank roots.
+- **Phrases in the first lessons** — every lesson in the first six themes (Speech through Time, 13 units) gives 4 of its 16 questions to 2 phrases, the most common ones not yet known. A new phrase is met on a "new phrase" card and asked phrase → meaning, then used again a few questions later (meaning → phrase, or by ear). A phrase is known after two right answers with more rights than misses; a missed one comes back in the next lesson. Phrase answers earn XP and count for the streak and the day, write word memory (`Progress.words`), and never touch a root's schedule or the mistake notebook. Wrong options come from other topics and never share a meaningful word with the answer, so a wrong option can't also be right. The lesson summary lists the lesson's phrases; the Phrases page (Home → Phrases) lists all of them by topic.
+- **Flashcards for every root** — on the Roots tab, open a root and tap **Flashcards**: every word of that root, words you don't know first. Front: the word (or, with the EN toggle, the meaning); back: meaning, transliteration, form and example sentence. **Know / Still learning count as a right / wrong answer in word memory**, so a word gets its ✓ after two Knows with more rights than misses and is asked about less. The deck never moves the root's review schedule and pays no gems.
 
 ### v1.0: the Shuk and the daily loop
 
@@ -101,9 +101,10 @@ Firebase project `yalla-677b9`: Hosting + Firestore (`firestore.rules` allows ea
 | `src/lib/daily.ts`, `mistakes.ts`, `stories.ts` | Root of the day, the mistake notebook, story unlocks |
 | `src/data/stories/` | Mini stories (tags map words to roots) |
 | `src/data/phrases.ts` | Everyday phrases: topics, rank, notes, feminine forms, root tags |
-| `src/lib/cards.ts` | Word and phrase decks, phrase progress |
-| `src/lib/bank.ts` | The Roots tab's search and filter chips (shared with the word deck) |
-| `src/components/SwipeDeck.tsx` | Flip / swipe / rounds, shared by all three flashcard decks |
+| `src/lib/phraseLesson.ts` | Phrases in the first units' lessons: which phrases, where they sit, questions and safe wrong options |
+| `src/lib/cards.ts` | A root's word-deck order, phrase progress |
+| `src/lib/bank.ts` | The Roots tab's search and filter chips |
+| `src/components/SwipeDeck.tsx` | Flip / swipe / rounds, shared by the unit and root flashcards |
 | `functions/` | Scheduled push reminders (Cloud Functions) |
 | `src/lib/match.ts` | Match pair selection |
 | `src/lib/srs.ts` | Scheduling, mastery, streak, practice queue |

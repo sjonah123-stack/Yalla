@@ -3,7 +3,15 @@ import type React from "react";
 import { planRules, useSession, type Plan } from "../store/session";
 import { useFlag, useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
-import { KEY_ROWS, PRAISE, keyToHebrew, rootDisplay, sameLetters, stripNikud } from "../lib/hebrew";
+import {
+  KEY_ROWS,
+  PRAISE,
+  keyToHebrew,
+  rootDisplay,
+  rootLetters,
+  sameLetters,
+  stripNikud,
+} from "../lib/hebrew";
 import { mastery } from "../lib/srs";
 import { unitTitle } from "../lib/course";
 import { COURSE } from "../store/course";
@@ -15,12 +23,14 @@ import { SPEED_MISS_MS, SPEED_MS } from "../lib/speed";
 import { BINYAN_BY_ID } from "../data/binyanim";
 import { SECTION_BY_ID } from "../data/course";
 import { SENTENCES } from "../data/sentences";
+import { TOPIC_BY_ID, type Phrase } from "../data/phrases";
+import { ROOT_BY_ID } from "../data/roots";
 import { verbsInOrder } from "../lib/binyan";
 import { WordList } from "../components/WordList";
 import { SpeakButton } from "../components/SpeakButton";
 import { Heb, Mixed } from "../components/Heb";
 import Summary from "./Summary";
-import type { FlagReason, Sentence } from "../types";
+import type { FlagReason, Root, Sentence } from "../types";
 
 const pick = <T,>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
@@ -143,7 +153,7 @@ export default function Play() {
   const feverOn = s.plan.kind !== "placement";
   const fever = feverOn ? feverLevel(s.combo) : 0;
   const feverPop = feverOn && s.answered && s.lastCorrect && crossedFever(s.combo);
-  const tag = planTag(s.plan);
+  const tag = q.phrase ? "Everyday phrase" : planTag(s.plan);
 
   /** Report (or un-report) the current root's content. */
   const toggleFlag = async (flagged: boolean) => {
@@ -238,15 +248,35 @@ export default function Play() {
 
       <div className="answer">
         {q.mode === "typeRoot" || q.mode === "typeWord" ? <Typing /> : <Tiles />}
-        {s.answered && feedbackEach && <Sheet />}
+        {s.answered && feedbackEach && (q.phrase ? <PhraseSheet x={q.phrase} /> : <Sheet />)}
       </div>
-      {s.learning && <Learn />}
+      {s.learning && (q.phrase ? <PhraseLearn x={q.phrase} /> : <Learn />)}
       {s.intro && s.plan.kind === "binyan" && <BinyanIntro />}
     </div>
   );
 
   function Prompt() {
     switch (q.mode) {
+      case "phraseMeaning":
+        return (
+          <>
+            <div className="row" style={{ justifyContent: "center" }}>
+              <div className="word ph-q" lang="he">
+                {wordText(q.phrase!.h)}
+              </div>
+              <SpeakButton text={q.phrase!.h} />
+            </div>
+            <div className="gloss">
+              <i>{q.phrase!.t}</i>
+            </div>
+          </>
+        );
+      case "meaningPhrase":
+        return (
+          <div className="meaning">{q.phrase!.g}</div>
+        );
+      case "hearPhrase":
+        return <HearPrompt text={q.phrase!.h} />;
       case "rootMeaning":
         return (
           <>
@@ -380,9 +410,13 @@ export default function Play() {
 
   function Tiles() {
     const kind =
-      q.mode === "rootMeaning" || q.mode === "guessWord" || q.mode === "verbMeaning"
+      q.mode === "rootMeaning" ||
+      q.mode === "guessWord" ||
+      q.mode === "verbMeaning" ||
+      q.mode === "phraseMeaning" ||
+      q.mode === "hearPhrase"
         ? "en"
-        : q.mode === "buildWord" || q.mode === "cloze"
+        : q.mode === "buildWord" || q.mode === "cloze" || q.mode === "meaningPhrase"
           ? "word"
           : q.mode === "whichBinyan"
             ? "binyan"
@@ -598,6 +632,118 @@ export default function Play() {
             {last ? "Finish" : "Next"}
           </button>
         </div>
+      </div>
+    );
+  }
+
+  /** Phrase questions: the verdict, then the phrase spelled out with its roots. */
+  function PhraseSheet({ x }: { x: Phrase }) {
+    const good = s.lastCorrect;
+    const [praise] = useState(() => pick(PRAISE));
+    const nextRef = useFocusNoScroll<HTMLButtonElement>();
+    const head: React.ReactNode = good ? (
+      q.mode === "hearPhrase" ? (
+        <span>
+          {praise} <Heb>{wordText(x.h)}</Heb> — {x.g}
+        </span>
+      ) : (
+        praise
+      )
+    ) : (
+      <span>
+        <Heb>{wordText(x.h)}</Heb> means “{x.g}”
+      </span>
+    );
+    const last = s.i + 1 >= s.queue.length;
+    return (
+      <div className={"sheet " + (good ? "good" : "bad")} role="region" aria-label="Answer">
+        <div className="head">
+          <span>{head}</span>
+          <span className="xp tnum">{good ? `+${s.lastXp} XP` : "again soon"}</span>
+        </div>
+        <div className="sheet-body">
+          <div className="meta">Everyday phrase · {TOPIC_BY_ID[x.topic].title}</div>
+          <PhraseCard x={x} />
+        </div>
+        <div className="sheet-foot">
+          <button type="button" className="btn primary block" onClick={() => next()} ref={nextRef}>
+            {last ? "Finish" : "Next"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /** A phrase spelled out: Hebrew and sound, meaning, transliteration, the feminine, its roots. */
+  function PhraseCard({ x }: { x: Phrase }) {
+    const roots = [...new Set(x.tags.map((t) => t.r))].flatMap((r): Root[] =>
+      ROOT_BY_ID[r] ? [ROOT_BY_ID[r]] : [],
+    );
+    return (
+      <div className="newword ph-card">
+        <div className="nw-top">
+          <span className="word" lang="he">
+            {wordText(x.h)}
+          </span>
+          <SpeakButton text={x.h} />
+        </div>
+        <div className="nw-g">{x.g}</div>
+        <div className="nw-t">
+          <i>{x.t}</i>
+        </div>
+        {x.fem && (
+          <div className="ph-fem">
+            {x.fem.to ? "To a woman: " : "A woman says: "}
+            <Heb>{wordText(x.fem.h)}</Heb>
+          </div>
+        )}
+        {x.note && <div className="ph-note">{x.note}</div>}
+        {roots.length > 0 && (
+          <div className="ph-roots">
+            {roots.map((r) => (
+              <span key={r.r} className="ph-root">
+                <span className="glyph" lang="he">
+                  {rootLetters(r)}
+                </span>
+                <span>{r.m}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /** The first time a phrase comes up: meet it before the question. */
+  function PhraseLearn({ x }: { x: Phrase }) {
+    const goRef = useFocusNoScroll<HTMLButtonElement>();
+    return (
+      <div className="learn ph-learn">
+        <div className="eyebrow">New phrase · {TOPIC_BY_ID[x.topic].title}</div>
+        <PhraseCard x={x} />
+        <p className="small muted" style={{ marginTop: 12 }}>
+          One of the phrases Israelis say most. You'll see it again in a few questions.
+        </p>
+        <div className="spacer" />
+        <button
+          type="button"
+          className="btn primary block big"
+          onClick={() => dismissLearn()}
+          ref={goRef}
+        >
+          Got it — quiz me
+        </button>
+        <button
+          type="button"
+          className="btn ghost block"
+          style={{ marginTop: 10 }}
+          onClick={() => {
+            end();
+            setView("path");
+          }}
+        >
+          Not now
+        </button>
       </div>
     );
   }

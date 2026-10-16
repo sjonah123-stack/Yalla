@@ -27,6 +27,8 @@ import {
 } from "../lib/rewards";
 import { useCountUp } from "../components/useCountUp";
 import type { Question } from "../types";
+import type { Phrase } from "../data/phrases";
+import { isKnownWord } from "../lib/words";
 
 /** The little fanfare when a summary appears — once per mount, never twice. */
 function useDoneCue() {
@@ -266,6 +268,10 @@ function LessonSummary({ s }: { s: Session }) {
   // Binyan lessons count verbs known, not roots memorized.
   const binyan = s.plan.kind === "binyan" ? s.plan.binyan : null;
   const verbs = binyan ? binyanStats(binyan, ROOTS, p) : null;
+  // Lessons in the first units teach everyday phrases alongside the roots.
+  const phrases = [
+    ...new Set((s.phraseAt ?? []).filter((x): x is Phrase => !!x)),
+  ];
   const missedWords = binyan
     ? [
         ...new Map(
@@ -321,6 +327,25 @@ function LessonSummary({ s }: { s: Session }) {
             </>
           )}
         </p>
+      )}
+
+      {phrases.length > 0 && (
+        <div className="sec">
+          <div className="eyebrow">Everyday phrases</div>
+          <div className="chips">
+            {phrases.map((x) => (
+              <span className="chip" key={x.id}>
+                <Heb>{x.h}</Heb> · {x.g}
+                {isKnownWord(p.words[x.h]) && (
+                  <span className="known" aria-label="known">
+                    {" "}
+                    ✓
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
 
       {binyan

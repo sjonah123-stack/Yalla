@@ -3,7 +3,7 @@ import { ROOTS } from "../data/roots";
 import { PHRASES, PHRASE_TOPICS, type Phrase } from "../data/phrases";
 import { useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
-import { PHRASE_DECK_MAX, phraseDeck, phraseStats } from "../lib/cards";
+import { phraseStats } from "../lib/cards";
 import { isKnownWord } from "../lib/words";
 import { rootLetters, stripNikud } from "../lib/hebrew";
 import { initSpeech } from "../lib/speech";
@@ -12,10 +12,9 @@ import { SpeakButton } from "../components/SpeakButton";
 
 const BY_ID = new Map(ROOTS.map((r) => [r.r, r]));
 
-/** Everyday phrases by topic, most common first, with a swipe deck for the selected topic. */
+/** Everyday phrases by topic, most common first: a reference list (the first lessons teach them). */
 export default function Phrases() {
   const leave = useUi((s) => s.leaveTool);
-  const openCards = useUi((s) => s.openCards);
   const openRoot = useUi((s) => s.openRoot);
   const topic = useUi((s) => s.phraseTopic);
   const setTopic = useUi((s) => s.setPhraseTopic);
@@ -34,9 +33,6 @@ export default function Phrases() {
   }, [leave]);
 
   const stats = phraseStats(PHRASES, { words });
-  const deck = phraseDeck(PHRASES, { words }, topic ?? undefined);
-  const scope = topic ? stats.byTopic[topic]! : stats;
-  const toLearn = scope.total - scope.known;
   const shown = PHRASE_TOPICS.filter((t) => !topic || t.id === topic);
 
   return (
@@ -54,20 +50,10 @@ export default function Phrases() {
       <div className="ph-h">
         <h1>What people say most</h1>
         <p>
-          The phrases you hear every day, most common first. Swipe through them; two Knows and a
-          phrase gets its check.
+          The phrases you hear every day, most common first. The lessons in the first six themes
+          teach them two at a time; a check marks the ones you know.
         </p>
       </div>
-
-      <button
-        type="button"
-        className="btn primary block big ph-go"
-        onClick={() => openCards(topic ? { kind: "phrases", topic } : { kind: "phrases" })}
-      >
-        {toLearn > 0
-          ? `Flashcards · ${Math.min(toLearn, topic ? toLearn : PHRASE_DECK_MAX)} to learn`
-          : `Review · ${deck.length} weakest first`}
-      </button>
 
       <div className="chips scroll ph-chips">
         <button
@@ -173,12 +159,12 @@ function PhraseRow({
                   type="button"
                   className="ph-root"
                   onClick={() => onRoot(r.r)}
-                  aria-label={`Root ${rootLetters(r)}, ${r.short}`}
+                  aria-label={`Root ${rootLetters(r)}, ${r.m}`}
                 >
                   <span className="glyph" lang="he">
                     {rootLetters(r)}
                   </span>
-                  <span>{r.short}</span>
+                  <span>{r.m}</span>
                 </button>
               ))}
             </div>

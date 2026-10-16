@@ -10,7 +10,15 @@ import { knownWords } from "../lib/words";
 import { makeQuestion, modeFor, xpFor } from "../lib/quiz";
 import { sameLetters } from "../lib/hebrew";
 import { binyanLesson, binyanStats } from "../lib/binyan";
-import { buildLesson, buildTest, testScore } from "../lib/lesson";
+import { LESSON_DEFAULTS, buildLesson, buildTest, testScore } from "../lib/lesson";
+import {
+  PHRASE_SLOTS,
+  lessonPhrases,
+  makePhraseQuestion,
+  phraseMode,
+  weavePhrases,
+} from "../lib/phraseLesson";
+import { PHRASES, type Phrase } from "../data/phrases";
 import { placementSample } from "../lib/placement";
 import { memorizedCount } from "../lib/course";
 import type { Receipt } from "../lib/rewards";
@@ -72,6 +80,11 @@ export interface Session {
   modes?: Mode[];
   /** Binyan lessons: the word fixed per slot. */
   words?: Word[];
+  /**
+   * Lessons in the first units: the everyday phrase a slot asks about (its `slots` entry is a
+   * stand-in root). Phrase answers write word memory, never a root's schedule.
+   */
+  phraseAt?: (Phrase | undefined)[];
   /** Binyan lessons: the pattern card shows before the first question. */
   intro: boolean;
   /** Binyan lessons: verbs of the binyan known when the lesson started. */
@@ -153,8 +166,19 @@ interface SessionStore {
 
 const pick = <T>(a: readonly T[]): T => a[Math.floor(Math.random() * a.length)];
 
+/** How many times this slot's phrase was asked before it in the lesson (0 = first meeting). */
+const phraseNth = (s: Session, slot: number): number => {
+  const x = s.phraseAt?.[slot];
+  return x ? s.phraseAt!.slice(0, slot).filter((y) => y === x).length : -1;
+};
+
 function question(s: Session, root: Root, slot: number): Question {
   const prog = useProgress.getState().p;
+  const phrase = s.phraseAt?.[slot];
+  if (phrase) {
+    const audio = speechAvailable() && prog.settings.audio;
+    return makePhraseQuestion(phrase, PHRASES, phraseMode(phraseNth(s, slot), audio), root.unit);
+  }
   let mode: Mode;
   if (s.modes) mode = s.modes[slot];
   else if (s.plan.kind === "placement") mode = pick<Mode>(["rootMeaning", "meaningRoot"]);
@@ -172,13 +196,17 @@ function load(s: Session): Session {
   const root = s.slots[slot];
   const prog = useProgress.getState().p;
   const rules = planRules(s.plan);
+  const phrase = s.phraseAt?.[slot];
+  // A phrase never met gets its own "new phrase" card the first time it comes up.
   const learning =
     rules.learnFirst &&
     prog.settings.learnFirst &&
-    !seen(prog.roots[root.r]) &&
     !s.retried.has(slot) &&
-    !s.advanced.has(root.r) &&
-    !s.slots.slice(0, slot).includes(root);
+    (phrase
+      ? !prog.words[phrase.h] && phraseNth(s, slot) === 0
+      : !seen(prog.roots[root.r]) &&
+        !s.advanced.has(root.r) &&
+        !s.slots.slice(0, slot).includes(root));
   return {
     ...s,
     slot,
@@ -241,11 +269,22 @@ function finish(s: Session, completed = true): Session {
   return out;
 }
 
-function buildSlots(plan: Plan): { slots: Root[]; modes?: Mode[]; words?: Word[] } {
+function buildSlots(plan: Plan): {
+  slots: Root[];
+  modes?: Mode[];
+  words?: Word[];
+  phraseAt?: (Phrase | undefined)[];
+} {
   const prog = useProgress.getState().p;
   switch (plan.kind) {
-    case "lesson":
-      return { slots: buildLesson(COURSE, plan.unit, prog) };
+    case "lesson": {
+      // The first units also teach everyday phrases, in place of a few root questions.
+      const phrases = lessonPhrases(COURSE, plan.unit, prog, PHRASES);
+      const len = LESSON_DEFAULTS.len - phrases.length * PHRASE_SLOTS;
+      const roots = buildLesson(COURSE, plan.unit, prog, { ...LESSON_DEFAULTS, len });
+      if (!roots.length || !phrases.length) return { slots: roots };
+      return weavePhrases(roots, phrases, plan.unit);
+    }
     case "practice": {
       if (plan.focus === "tricky")
         return { slots: trickyQueue(ROOTS, prog, prog.settings.sessionLen) };
@@ -332,7 +371,7 @@ export const useSession = create<SessionStore>((set, get) => ({
     }
   },
   start: (plan) => {
-    const { slots, modes, words } = buildSlots(plan);
+    const { slots, modes, words, phraseAt } = buildSlots(plan);
     if (!slots.length) return false;
     const prog = useProgress.getState();
     if (plan.kind === "lesson") prog.setLastUnit(plan.unit);
@@ -341,6 +380,7 @@ export const useSession = create<SessionStore>((set, get) => ({
       slots,
       modes,
       words,
+      phraseAt,
       intro: plan.kind === "binyan",
       ...(plan.kind === "binyan"
         ? { knownBefore: binyanStats(plan.binyan, ROOTS, prog.p).known }
@@ -472,6 +512,7 @@ function answer(
 ) {
   const q = s.q!;
   const id = q.root.r;
+  const phrase = q.phrase;
   const rules = planRules(s.plan);
   const first = !s.retried.has(s.slot);
   // A root's SRS advances at most once per session; later slots are drills. A binyan lesson
@@ -479,13 +520,21 @@ function answer(
   // its second question is not a drill.
   const srsFirst = first && (!rules.rootSrs || !s.advanced.has(id));
   const prog = useProgress.getState();
-  const wasNew = !seen(prog.p.roots[id]);
+  const wasNew = !phrase && !seen(prog.p.roots[id]);
   const combo = correct ? s.combo + 1 : 0;
-  const xp = correct && rules.xp ? xpFor(q.mode, combo, srsFirst) : 0;
-  if (rules.writesSrs) prog.recordAnswer(id, correct, srsFirst, xp, rules.rootSrs);
-  if (rules.writesSrs && q.word && q.mode !== "typeRoot") prog.recordWord(q.word.h, correct);
-  // A binyan lesson's misses on roots still ahead are new words, not mistakes to fix.
-  if (!correct && rules.writesSrs && (rules.rootSrs || !wasNew)) {
+  // A phrase is asked twice on purpose (meet it, then use it): neither ask is a drill.
+  const xp = correct && rules.xp ? xpFor(q.mode, combo, phrase ? first : srsFirst) : 0;
+  if (rules.writesSrs && phrase) {
+    // XP, streak and the day's tally like any answer; the phrase's memory is word memory.
+    prog.recordAnswer(id, correct, first, xp, false);
+    prog.recordWord(phrase.h, correct);
+  } else if (rules.writesSrs) {
+    prog.recordAnswer(id, correct, srsFirst, xp, rules.rootSrs);
+    if (q.word && q.mode !== "typeRoot") prog.recordWord(q.word.h, correct);
+  }
+  // A binyan lesson's misses on roots still ahead are new words, not mistakes to fix. Phrases
+  // aren't roots: a missed phrase simply comes back in the next lesson.
+  if (!phrase && !correct && rules.writesSrs && (rules.rootSrs || !wasNew)) {
     const rid = picked !== null ? q.opts?.[picked]?.rid : undefined;
     prog.recordMistake({
       at: Date.now(),
@@ -506,11 +555,11 @@ function answer(
   const results = [...s.results, { slot: s.slot, ok: correct, picked: pickedLabel }];
   if (correct) {
     ticks[s.slot] = first ? "good" : "recovered";
-    advanced.add(id);
+    if (!phrase) advanced.add(id);
     if (wasNew && rules.rootSrs && !learned.includes(id)) learned.push(id);
   } else {
     ticks[s.slot] = "bad";
-    if (!missed.includes(id)) missed.push(id);
+    if (!phrase && !missed.includes(id)) missed.push(id);
     if (first && rules.requeue) {
       retried.add(s.slot);
       queue.splice(Math.min(queue.length, s.i + 4), 0, s.slot);

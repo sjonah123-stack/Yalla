@@ -1,3 +1,5 @@
+import type { Phrase } from "./data/phrases";
+
 export type Form =
   | "pa'al"
   | "nif'al"
@@ -315,7 +317,13 @@ export type Mode =
   /** Binyan lessons: a verb's meaning among its siblings in other binyanim. */
   | "verbMeaning"
   /** Binyan lessons: pick out the verb in a given binyan by its pattern alone. */
-  | "spotBinyan";
+  | "spotBinyan"
+  /** Everyday phrases in the first units' lessons: the phrase → its meaning. */
+  | "phraseMeaning"
+  /** The meaning → which phrase says it. */
+  | "meaningPhrase"
+  /** Hear the phrase → its meaning. */
+  | "hearPhrase";
 
 export interface Option {
   /** Display label: English gloss, root display string, or vocalized word. */
@@ -344,4 +352,9 @@ export interface Question {
   form?: Form;
   /** For cloze: the example sentence the word was blanked from. */
   sentence?: Sentence;
+  /**
+   * Phrase questions: the everyday phrase asked about. `root` is then a stand-in built from the
+   * phrase (`phraseRoot`), never a bank root: phrase answers write word memory, not root SRS.
+   */
+  phrase?: Phrase;
 }

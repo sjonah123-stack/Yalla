@@ -20,8 +20,8 @@ export interface ConfirmSpec {
   art?: string;
 }
 export type { BankChip } from "../lib/bank";
-/** A swipe deck of words or phrases: the words of the roots the Roots tab lists, or phrases. */
-export type CardDeck = { kind: "bank" } | { kind: "phrases"; topic?: PhraseTopic };
+/** A swipe deck of one root's words (Roots tab → a root → Flashcards). */
+export type CardDeck = { kind: "root"; root: string };
 export type ToolView = "flashcards" | "match" | "familysort";
 export type DrillBinyan = "pa'al" | "pi'el" | "hif'il";
 export type PageView = "story" | "listen" | "notebook" | "league" | "binyan" | "phrases";
@@ -52,9 +52,7 @@ interface UiStore {
   setBinyan: (b: Binyan) => void;
   /** The deck the cards page is running. */
   cardDeck: CardDeck | null;
-  /** The deck was opened from the phrases page: leaving it goes back there. */
-  cardsBack: boolean;
-  /** Open a word / phrase deck (a page: Back returns where it came from). */
+  /** Open a root's word deck (a page: Back returns to the tab it came from). */
   openCards: (deck: CardDeck) => void;
   /** The topic the phrases page is showing (null = all). */
   phraseTopic: PhraseTopic | null;
@@ -104,9 +102,7 @@ export const useUi = create<UiStore>((set) => ({
     }),
   leaveTool: () =>
     set((s) =>
-      s.view === "cards" && s.cardsBack
-        ? { view: "phrases", cardsBack: false }
-        : (PAGE_VIEWS as readonly View[]).includes(s.view)
+      (PAGE_VIEWS as readonly View[]).includes(s.view)
         ? { view: s.pageFrom, trail: pushTrail(s.trail, s.pageFrom), toolUnit: null }
         : s.view === "conjugate"
           ? { view: "patterns", trail: pushTrail(s.trail, "patterns"), toolUnit: null }
@@ -133,12 +129,10 @@ export const useUi = create<UiStore>((set) => ({
   setBinyan: (binyan) =>
     set((s) => ({ binyan, pageFrom: isShellView(s.view) ? s.view : s.pageFrom })),
   cardDeck: null,
-  cardsBack: false,
   openCards: (cardDeck) =>
     set((s) => ({
       view: "cards",
       cardDeck,
-      cardsBack: s.view === "phrases",
       pageFrom: isShellView(s.view) ? s.view : s.pageFrom,
       unitSheet: null,
       toolUnit: null,

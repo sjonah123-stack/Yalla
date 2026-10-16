@@ -175,6 +175,9 @@ export const MODE_TITLE: Record<Mode, string> = {
   guessWord: "New word! Guess its meaning",
   verbMeaning: "What does this verb mean?",
   spotBinyan: "Spot the pattern",
+  phraseMeaning: "What does this phrase mean?",
+  meaningPhrase: "How do you say it?",
+  hearPhrase: "Listen. What does it mean?",
 };
 
 /** Verbs (any binyan) are one kind of word; nouns, adjectives etc. are each their own kind. */
@@ -322,6 +325,11 @@ export function makeQuestion(
             opts: spotBinyanOptions(root, w, all),
           };
     }
+    // Phrases aren't roots: lessons build them with makePhraseQuestion (phraseLesson.ts).
+    case "phraseMeaning":
+    case "meaningPhrase":
+    case "hearPhrase":
+      return makeQuestion(root, all, "rootMeaning", known);
   }
 }
 
@@ -337,7 +345,7 @@ export function xpFor(mode: Mode, combo: number, first: boolean): number {
   let x =
     mode === "typeRoot" || mode === "typeWord" || mode === "whichBinyan" || mode === "buildWord"
       ? 20
-      : mode === "hearWord" || mode === "cloze" || mode === "spotBinyan"
+      : mode === "hearWord" || mode === "cloze" || mode === "spotBinyan" || mode === "hearPhrase"
         ? 15
         : 10;
   x = Math.round(x * FEVER_MULT[feverLevel(combo)]);

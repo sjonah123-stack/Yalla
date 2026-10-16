@@ -7,7 +7,6 @@ import { rootDisplay } from "../lib/hebrew";
 import { DAY, isDue, isTricky, mastery, seen } from "../lib/srs";
 import { FLAG_LABEL, isActiveFlag } from "../lib/flags";
 import { bankRoots, type BankChip } from "../lib/bank";
-import { wordDeck } from "../lib/cards";
 import { useFlag, useProgress } from "../store/progress";
 import { useUi } from "../store/ui";
 import { MasteryDots } from "../components/MasteryDots";
@@ -27,8 +26,6 @@ export default function Bank() {
   const setChip = useUi((s) => s.setBankChip);
   const roots = useProgress((s) => s.p.roots);
   const flags = useProgress((s) => s.p.flags);
-  const words = useProgress((s) => s.p.words);
-  const openCards = useUi((s) => s.openCards);
   const now = Date.now();
   const openRef = useRef<HTMLDivElement | null>(null);
 
@@ -49,8 +46,6 @@ export default function Bank() {
     for (const r of list) (g.get(r.cat) ?? g.set(r.cat, []).get(r.cat)!).push(r);
     return [...g.entries()];
   }, [list]);
-  const deckSize = useMemo(() => wordDeck(list, { words }).length, [list, words]);
-  const deckWords = useMemo(() => list.reduce((n, r) => n + r.words.length, 0), [list]);
   const counts = useMemo(() => {
     const c = {
       all: ROOTS.length,
@@ -131,27 +126,6 @@ export default function Bank() {
           </button>
         ))}
       </div>
-      {deckSize > 0 && (
-        <button type="button" className="bank-cards" onClick={() => openCards({ kind: "bank" })}>
-          <span className="ic" aria-hidden="true">
-            ▤
-          </span>
-          <span className="txt">
-            <b>Word flashcards</b>
-            <span className="s tnum">
-              {deckSize} {deckSize === 1 ? "word" : "words"}
-              {deckWords > deckSize ? ` of ${deckWords}` : ""} from{" "}
-              {list.length === ROOTS.length
-                ? "the whole bank"
-                : `${list.length === 1 ? "this root" : `these ${list.length} roots`}`}
-              , new ones first
-            </span>
-          </span>
-          <span className="chev" aria-hidden="true">
-            ›
-          </span>
-        </button>
-      )}
       {groups.length === 0 && (
         <p className="muted" style={{ marginTop: 16 }}>
           Nothing matches.{" "}
@@ -260,6 +234,7 @@ function RootDetail({ root }: { root: Root }) {
   const openUnit = useUi((s) => s.openUnit);
   const setView = useUi((s) => s.setView);
   const confirm = useUi((s) => s.confirm);
+  const openCards = useUi((s) => s.openCards);
   // The reason just picked: while set, the note field is offered under the buttons.
   const [noteFor, setNoteFor] = useState<FlagReason | null>(null);
 
@@ -323,6 +298,13 @@ function RootDetail({ root }: { root: Root }) {
           }}
         />
       )}
+      <button
+        type="button"
+        className="btn plum block rd-cards"
+        onClick={() => openCards({ kind: "root", root: root.r })}
+      >
+        Flashcards · {root.words.length} {root.words.length === 1 ? "word" : "words"}
+      </button>
       {groupByForm(root.words).map(([form, ws]) => (
         <div key={form}>
           <div className="bh">

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Root } from "../types";
-import { PHRASES, type Phrase } from "../data/phrases";
-import { PHRASE_DECK_MAX, phraseDeck, phraseStats, wordDeck } from "./cards";
+import type { Phrase } from "../data/phrases";
+import { phraseStats, wordDeck } from "./cards";
 
 const root = (r: string, words: string[]): Root => ({
   r,
@@ -30,7 +30,7 @@ describe("wordDeck", () => {
   });
 });
 
-describe("phraseDeck and phraseStats", () => {
+describe("phraseStats", () => {
   const ph = (id: number, topic: Phrase["topic"]): Phrase => ({
     id: `ph-${id}`,
     h: `h${id}`,
@@ -41,17 +41,6 @@ describe("phraseDeck and phraseStats", () => {
     tags: [],
   });
   const list = [ph(3, "greet"), ph(1, "greet"), ph(2, "time"), ph(4, "greet")];
-  it("orders unknown by rank, then known weakest first; topic decks filter", () => {
-    const words = { h1: { ok: 5, bad: 0 }, h4: { ok: 3, bad: 1 } };
-    expect(phraseDeck(list, { words }).map((x) => x.id)).toEqual(["ph-2", "ph-3", "ph-4", "ph-1"]);
-    expect(phraseDeck(list, { words }, "greet").map((x) => x.id)).toEqual(["ph-3", "ph-4", "ph-1"]);
-  });
-  it("caps the all-topics deck but not a topic deck", () => {
-    expect(phraseDeck(PHRASES, { words: {} })).toHaveLength(PHRASE_DECK_MAX);
-    expect(phraseDeck(PHRASES, { words: {} })[0].rank).toBe(1);
-    const greet = PHRASES.filter((x) => x.topic === "greet").length;
-    expect(phraseDeck(PHRASES, { words: {} }, "greet")).toHaveLength(greet);
-  });
   it("counts known phrases per topic and finds the next one to learn", () => {
     const s = phraseStats(list, { words: { h1: KNOWN, h2: KNOWN } });
     expect(s.known).toBe(2);

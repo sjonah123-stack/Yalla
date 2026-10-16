@@ -1,11 +1,9 @@
-import type { Progress, Root, Word, WordStat } from "../types";
+import type { Progress, Root, Word } from "../types";
 import type { Phrase, PhraseTopic } from "../data/phrases";
 import { isKnownWord } from "./words";
 
-/** Most cards a word deck from the Roots tab holds. */
+/** Most cards a word deck holds by default. */
 export const WORD_DECK_MAX = 30;
-/** Most cards in the all-topics phrase deck (a topic deck holds the whole topic). */
-export const PHRASE_DECK_MAX = 20;
 
 export interface WordCard {
   word: Word;
@@ -14,8 +12,6 @@ export interface WordCard {
 
 type Words = Pick<Progress, "words">;
 const known = (p: Words, h: string) => isKnownWord(p.words[h]);
-/** Net rights: lower is weaker. */
-const net = (st: WordStat | undefined) => (st ? st.ok - st.bad : 0);
 
 /**
  * Word cards for a list of roots: words you don't know yet first, then each root's most useful
@@ -34,20 +30,6 @@ export function wordDeck(roots: readonly Root[], p: Words, cap = WORD_DECK_MAX):
   );
   all.sort((a, b) => a.k - b.k || a.idx - b.idx || a.order - b.order);
   return all.slice(0, cap).map((x) => x.card);
-}
-
-/**
- * Phrase cards: unknown phrases most common first, then known ones weakest first. A topic deck
- * holds the whole topic; the all-topics deck is the first PHRASE_DECK_MAX.
- */
-export function phraseDeck(phrases: readonly Phrase[], p: Words, topic?: PhraseTopic): Phrase[] {
-  const list = phrases.filter((x) => !topic || x.topic === topic).sort((a, b) => a.rank - b.rank);
-  const fresh = list.filter((x) => !known(p, x.h));
-  const old = list
-    .filter((x) => known(p, x.h))
-    .sort((a, b) => net(p.words[a.h]) - net(p.words[b.h]) || a.rank - b.rank);
-  const deck = [...fresh, ...old];
-  return topic ? deck : deck.slice(0, PHRASE_DECK_MAX);
 }
 
 export interface PhraseStats {

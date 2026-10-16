@@ -141,11 +141,16 @@ shop, collect, stories) call `awardSeals`, never `settle` (settle would pay ches
   `ui.openPage(v)` and return to the tab they came from via `leaveTool()`.
 - Everyday phrases (v1.2) live in `src/data/phrases.ts`: row n is `ph-n` (append only; `rank` can
   override position), English-only `note`, feminine form in `fem`/`femTo`, root tags as exact
-  substrings; `src/data/phrases.test.ts` enforces it. Phrase and word decks (`cards` page,
-  `ui.openCards({kind:"bank"|"phrases"})`) write only word memory via `recordWord`, keyed by the
-  vocalized text, never root SRS, gems or `settle`. A deck opened from the `phrases` page returns
-  there (`cardsBack`). The bank deck reads the Roots tab's search + chip through `bankRoots`
-  (`src/lib/bank.ts`), the same filter the list uses. All three decks share `SwipeDeck`.
+  substrings; `src/data/phrases.test.ts` enforces it. Jonah wants them taught *in lessons*, not as
+  flashcards: lessons in the first `PHRASE_LESSON_UNITS` (13, the first six themes) give 4 of 16
+  slots to 2 phrases (`src/lib/phraseLesson.ts`: `lessonPhrases`, `weavePhrases`). A phrase slot's
+  `slots` entry is a stand-in root (`phraseRoot`, id `ph-NNN`); `Session.phraseAt` / `Question.phrase`
+  mark it, and `answer()` then records XP/day via `recordAnswer(…, srs=false)` plus `recordWord`,
+  never root state, `missed` or the mistake notebook. Wrong options must never be right:
+  `mayOverlap` (same topic or a shared content word) excludes them; a test checks every phrase.
+- Root flashcards: Roots tab → a root → Flashcards (`ui.openCards({kind:"root", root})`, the `cards`
+  page) decks that root's words; Know / Again write word memory only. `SwipeDeck` is shared with
+  the unit flashcards.
 - Stories live in `src/data/stories/{a,b,c}.ts` (ids `st-a01`… stable forever); tags are exact
   substrings of the line → root id; `src/data/stories.test.ts` enforces it. A story unlocks
   when every tagged root has been seen.
