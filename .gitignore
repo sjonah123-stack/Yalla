@@ -150,3 +150,6 @@ dist-artifact/
 
 # design sources
 *.zip
+
+# Claude Code per-machine settings (local permissions, never shared)
+.claude/settings.local.json
