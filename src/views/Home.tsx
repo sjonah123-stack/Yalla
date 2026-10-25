@@ -136,6 +136,7 @@ export default function Home() {
   const setSettingsOpen = useUi((s) => s.setSettingsOpen);
   const openUnit = useUi((s) => s.openUnit);
   const openPage = useUi((s) => s.openPage);
+  const openCards = useUi((s) => s.openCards);
   const start = useSession((s) => s.start);
   const startChain = useSession((s) => s.startChain);
   const now = useNow(5000);
@@ -602,6 +603,13 @@ export default function Home() {
                 </span>
               </button>
             )}
+            <button type="button" className="extra" onClick={() => openCards({ kind: "all" })}>
+              <span className="ic plum" aria-hidden="true">
+                ▤
+              </span>
+              Flashcards
+              <span className="s tnum">all {ROOTS.length} roots</span>
+            </button>
           </div>
         )}
         {!fresh && (

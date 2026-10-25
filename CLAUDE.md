@@ -150,7 +150,10 @@ shop, collect, stories) call `awardSeals`, never `settle` (settle would pay ches
   `mayOverlap` (same topic or a shared content word) excludes them; a test checks every phrase.
 - Root flashcards: Roots tab → a root → Flashcards (`ui.openCards({kind:"root", root})`, the `cards`
   page) decks that root's words; Know / Again write word memory only. `SwipeDeck` is shared with
-  the unit flashcards.
+  the unit flashcards. The all-roots deck is the same page with `{kind:"all", scope?}`
+  (`src/views/RootCards.tsx`; pool/draw in `rootPool`/`rootDeck`, `src/lib/cards.ts`): a picker
+  (status chip, theme, size, face) then root cards. It writes nothing to progress — Jonah wanted
+  it as a separate learning mode, so it must never mark unmet roots seen or move a schedule.
 - Stories live in `src/data/stories/{a,b,c}.ts` (ids `st-a01`… stable forever); tags are exact
   substrings of the line → root id; `src/data/stories.test.ts` enforces it. A story unlocks
   when every tagged root has been seen.

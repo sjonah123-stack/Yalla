@@ -56,7 +56,7 @@ function buildDeck(root: Root): Card[] {
  * wrong answer for that word in word memory (the ✓ in the Roots list); nothing here touches the
  * root's review schedule.
  */
-export default function Cards({ deck }: { deck: CardDeck }) {
+export default function Cards({ deck }: { deck: Extract<CardDeck, { kind: "root" }> }) {
   const root = ROOT_BY_ID[deck.root];
   const leave = useUi((s) => s.leaveTool);
   const nikud = useProgress((s) => s.p.settings.nikud);

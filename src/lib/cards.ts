@@ -1,6 +1,55 @@
 import type { Progress, Root, Word } from "../types";
 import type { Phrase, PhraseTopic } from "../data/phrases";
 import { isKnownWord } from "./words";
+import { matchesChip, type BankChip } from "./bank";
+import { shuffle } from "./quiz";
+
+/** Which roots the all-roots deck draws from: the Roots tab's chips, minus Flagged. */
+export type RootScope = Exclude<BankChip, "flagged">;
+export const ROOT_SCOPES: readonly RootScope[] = [
+  "all",
+  "due",
+  "learning",
+  "memorized",
+  "unmet",
+  "tricky",
+];
+/** Deck sizes on offer; 0 = every root in the pool. */
+export const ROOT_DECK_SIZES = [20, 50, 0] as const;
+export type RootDeckSize = (typeof ROOT_DECK_SIZES)[number];
+
+export interface RootDeckSpec {
+  scope: RootScope;
+  /** A section's `cat`, or null for every theme. */
+  cat: string | null;
+  size: RootDeckSize;
+}
+
+/** The roots a deck spec can draw from, in bank order. */
+export function rootPool(
+  roots: readonly Root[],
+  p: Pick<Progress, "roots">,
+  spec: Pick<RootDeckSpec, "scope" | "cat">,
+  now: number,
+): Root[] {
+  return roots.filter(
+    (r) =>
+      (spec.cat === null || r.cat === spec.cat) &&
+      matchesChip(spec.scope, p.roots[r.r], now, undefined),
+  );
+}
+
+/** A random draw of `size` roots from the pool (all of it for 0), shuffled. */
+export function rootDeck(
+  roots: readonly Root[],
+  p: Pick<Progress, "roots">,
+  spec: RootDeckSpec,
+  now: number,
+  mix: <T>(xs: readonly T[]) => T[] = shuffle,
+): Root[] {
+  const all = mix(rootPool(roots, p, spec, now));
+  return spec.size ? all.slice(0, spec.size) : all;
+}
 
 /** Most cards a word deck holds by default. */
 export const WORD_DECK_MAX = 30;

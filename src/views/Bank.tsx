@@ -24,6 +24,7 @@ export default function Bank() {
   const setOpen = useUi((s) => s.setBankOpen);
   const chip = useUi((s) => s.bankChip);
   const setChip = useUi((s) => s.setBankChip);
+  const openCards = useUi((s) => s.openCards);
   const roots = useProgress((s) => s.p.roots);
   const flags = useProgress((s) => s.p.flags);
   const now = Date.now();
@@ -126,6 +127,13 @@ export default function Bank() {
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        className="btn sm bk-cards"
+        onClick={() => openCards({ kind: "all", scope: chip === "flagged" ? "all" : chip })}
+      >
+        Flashcards
+      </button>
       {groups.length === 0 && (
         <p className="muted" style={{ marginTop: 16 }}>
           Nothing matches.{" "}

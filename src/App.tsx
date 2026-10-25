@@ -27,6 +27,7 @@ import League from "./views/League";
 import BinyanPage from "./views/Binyan";
 import Phrases from "./views/Phrases";
 import Cards from "./views/Cards";
+import RootCards from "./views/RootCards";
 import { SHELL_VIEWS } from "./lib/history";
 import { ScrollMemory } from "./components/ScrollMemory";
 import Welcome from "./views/Welcome";
@@ -141,7 +142,11 @@ export default function App() {
     ) : view === "phrases" ? (
       <Phrases />
     ) : view === "cards" && cardDeck ? (
-      <Cards deck={cardDeck} />
+      cardDeck.kind === "all" ? (
+        <RootCards scope={cardDeck.scope} />
+      ) : (
+        <Cards deck={cardDeck} />
+      )
     ) : null;
   if (page)
     return (

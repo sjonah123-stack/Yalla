@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { Binyan, UnitId, View } from "../types";
 import type { PhraseTopic } from "../data/phrases";
 import type { BankChip } from "../lib/bank";
+import type { RootScope } from "../lib/cards";
 import { isShellView, PAGE_VIEWS, pushTrail, scrollKey, type ShellView } from "../lib/history";
 
 export type { View } from "../types";
@@ -20,8 +21,11 @@ export interface ConfirmSpec {
   art?: string;
 }
 export type { BankChip } from "../lib/bank";
-/** A swipe deck of one root's words (Roots tab → a root → Flashcards). */
-export type CardDeck = { kind: "root"; root: string };
+/**
+ * The cards page's deck: one root's words (Roots tab → a root → Flashcards), or the roots
+ * themselves across the whole bank (`scope` = the Roots chip it was opened from).
+ */
+export type CardDeck = { kind: "root"; root: string } | { kind: "all"; scope?: RootScope };
 export type ToolView = "flashcards" | "match" | "familysort";
 export type DrillBinyan = "pa'al" | "pi'el" | "hif'il";
 export type PageView = "story" | "listen" | "notebook" | "league" | "binyan" | "phrases";
